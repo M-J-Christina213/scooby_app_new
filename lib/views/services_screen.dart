@@ -30,7 +30,7 @@ class ServicesScreen extends StatelessWidget {
               imagePath: 'assets/images/groomer.png',
               onTap: () => Navigator.push(
                 context,
-                MaterialPageRoute(builder: (_) => const GroomerScreen()),
+                MaterialPageRoute(builder: (_) => const PetGroomerScreen()),
               ),
             ),
             const SizedBox(height: 16),
@@ -40,7 +40,7 @@ class ServicesScreen extends StatelessWidget {
               imagePath: 'assets/images/sitter.webp',
               onTap: () => Navigator.push(
                 context,
-                MaterialPageRoute(builder: (_) => const SitterScreen()),
+                MaterialPageRoute(builder: (_) => const PetSitterScreen()),
               ),
             ),
           ],

@@ -1,14 +1,17 @@
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
-import 'service_provider_details_screen.dart'; // Shared detail screen
+import 'package:scooby_app_new/views/service_provider_details_screen.dart';
 
-class GroomerScreen extends StatelessWidget {
-  const GroomerScreen({super.key});
+class PetGroomerScreen extends StatelessWidget {
+  const PetGroomerScreen({super.key});
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: const Text('Pet Groomer Booking')),
+      appBar: AppBar(
+        title: const Text('Pet Groomer Booking'),
+        backgroundColor: Colors.deepPurple,
+      ),
       body: StreamBuilder<QuerySnapshot>(
         stream: FirebaseFirestore.instance
             .collection('service_providers')
@@ -20,7 +23,7 @@ class GroomerScreen extends StatelessWidget {
           }
 
           if (!snapshot.hasData || snapshot.data!.docs.isEmpty) {
-            return const Center(child: Text('No groomers found.'));
+            return const Center(child: Text('No pet groomers found.'));
           }
 
           final groomers = snapshot.data!.docs;
@@ -30,18 +33,29 @@ class GroomerScreen extends StatelessWidget {
             itemBuilder: (context, index) {
               final groomerData = groomers[index].data() as Map<String, dynamic>;
 
-              return ListTile(
-                title: Text(groomerData['name'] ?? 'No Name'),
-                subtitle: Text(groomerData['city'] ?? 'No City'),
-                trailing: const Icon(Icons.arrow_forward_ios),
-                onTap: () {
-                  Navigator.push(
-                    context,
-                    MaterialPageRoute(
-                      builder: (_) => ServiceProviderDetailsScreen(data: groomerData),
-                    ),
-                  );
-                },
+              return Card(
+                margin: const EdgeInsets.all(10),
+                shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(15)),
+                elevation: 4,
+                child: ListTile(
+                  contentPadding:
+                      const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                  title: Text(
+                    groomerData['name'] ?? 'No Name',
+                    style: const TextStyle(fontWeight: FontWeight.bold),
+                  ),
+                  subtitle: Text(groomerData['city'] ?? 'No City'),
+                  trailing: const Icon(Icons.arrow_forward_ios),
+                  onTap: () {
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (_) => ServiceProviderDetailsScreen(data: groomerData),
+                      ),
+                    );
+                  },
+                ),
               );
             },
           );
