@@ -19,31 +19,28 @@ class HomeController {
   }
 
   void showLogoutDialog(BuildContext context) {
-    showDialog(
-      context: context,
-      builder: (_) => AlertDialog(
-        title: const Text('Confirm Logout'),
-        content: const Text('Are you sure you want to logout?'),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: const Text('Cancel'),
-          ),
-          TextButton(
-            onPressed: () async {
-              Navigator.pop(context);
-              await signOut();
-              if (context.mounted) {
-                Navigator.pushNamedAndRemoveUntil(
-                    context, '/login', (route) => false);
-              }
-            },
-            child: const Text('Logout'),
-          ),
-        ],
-      ),
-    );
-  }
+  showDialog(
+    context: context,
+    builder: (_) => AlertDialog(
+      title: const Text('Confirm Logout'),
+      content: const Text('Are you sure you want to logout?'),
+      actions: [
+        TextButton(
+          onPressed: () => Navigator.pop(context),
+          child: const Text('Cancel'),
+        ),
+        TextButton(
+          onPressed: () async {
+            Navigator.pop(context);
+            await FirebaseAuth.instance.signOut();
+            // No need for Navigator.pushNamed here
+          },
+          child: const Text('Logout'),
+        ),
+      ],
+    ),
+  );
+}
 
   void fetchPetOwnerData() {
     // This can be used for caching or future enhancements

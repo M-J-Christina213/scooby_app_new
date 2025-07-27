@@ -1,22 +1,29 @@
+
+
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
 
 import 'home_screen.dart';
 import 'login_screen.dart';
 import 'service_provider_home.dart';
-import 'package:cloud_firestore/cloud_firestore.dart';
 
 class Wrapper extends StatelessWidget {
   const Wrapper({super.key});
 
   Future<String?> getUserRole(String uid) async {
-    final petOwnerDoc = await FirebaseFirestore.instance.collection('pet_owners').doc(uid).get();
-    if (petOwnerDoc.exists) return 'pet_owner';
+    try {
+      final petOwnerDoc = await FirebaseFirestore.instance.collection('pet_owners').doc(uid).get();
+      if (petOwnerDoc.exists) return 'pet_owner';
 
-    final serviceProviderDoc = await FirebaseFirestore.instance.collection('service_providers').doc(uid).get();
-    if (serviceProviderDoc.exists) return 'service_provider';
+      final serviceProviderDoc = await FirebaseFirestore.instance.collection('service_providers').doc(uid).get();
+      if (serviceProviderDoc.exists) return 'service_provider';
 
-    return null; // user not found in either collection
+      return null; // No role found
+    } catch (e) {
+   //    log(Error fetching user role: $e);
+      return null; // Handle error gracefully
+    }
   }
 
   @override
@@ -28,8 +35,10 @@ class Wrapper extends StatelessWidget {
           final user = snapshot.data;
 
           if (user == null) {
+            // Not logged in
             return const LoginScreen();
           } else {
+            // Logged in, check role
             return FutureBuilder<String?>(
               future: getUserRole(user.uid),
               builder: (context, roleSnapshot) {
@@ -38,6 +47,13 @@ class Wrapper extends StatelessWidget {
                     body: Center(child: CircularProgressIndicator()),
                   );
                 }
+
+                if (roleSnapshot.hasError || roleSnapshot.data == null) {
+                  // Role not found or error: Show login
+                  FirebaseAuth.instance.signOut(); // Optional: force logout
+                  return const LoginScreen();
+                }
+
                 final role = roleSnapshot.data;
 
                 if (role == 'service_provider') {
@@ -45,7 +61,8 @@ class Wrapper extends StatelessWidget {
                 } else if (role == 'pet_owner') {
                   return const HomeScreen();
                 } else {
-                  // User not found in either collection, force logout or show error
+                  // Unknown role — fallback
+                  FirebaseAuth.instance.signOut();
                   return const LoginScreen();
                 }
               },
@@ -53,6 +70,7 @@ class Wrapper extends StatelessWidget {
           }
         }
 
+        // While checking auth state
         return const Scaffold(
           body: Center(child: CircularProgressIndicator()),
         );

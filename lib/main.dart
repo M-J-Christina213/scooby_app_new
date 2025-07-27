@@ -1,11 +1,14 @@
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:firebase_core/firebase_core.dart';
+import 'package:scooby_app_new/firebase_options.dart';
 import 'package:scooby_app_new/views/wrapper.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
-  await Firebase.initializeApp();
+  await Firebase.initializeApp(
+    options: DefaultFirebaseOptions.currentPlatform,
+  );
   FirebaseAuth.instance.setLanguageCode('en'); // Avoids X-Firebase-Locale warnings
   
   runApp(ScoobyApp());

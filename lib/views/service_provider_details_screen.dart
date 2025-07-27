@@ -118,9 +118,11 @@ class ServiceProviderDetailsScreen extends StatelessWidget {
               child: ElevatedButton(
                 onPressed: () {
                   Navigator.push(
-                    context,
-                    MaterialPageRoute(builder: (_) => const ConfirmBookingScreen()),
-                  );
+                        context,
+                        MaterialPageRoute(
+                          builder: (_) => ConfirmBookingScreen(serviceProviderEmail: data['email']),
+                        ),
+                      );
                 },
                 style: ElevatedButton.styleFrom(
                   backgroundColor: const Color(0xFF8E24AA),
