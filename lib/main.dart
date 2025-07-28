@@ -1,17 +1,15 @@
-import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
-import 'package:firebase_core/firebase_core.dart';
-import 'package:scooby_app_new/firebase_options.dart';
 import 'package:scooby_app_new/views/wrapper.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
-  await Firebase.initializeApp(
-    options: DefaultFirebaseOptions.currentPlatform,
+  await Supabase.initialize(
+    url: 'https://gsvaodafizhljmohefgp.supabase.co',
+    anonKey: 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImdzdmFvZGFmaXpobGptb2hlZmdwIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTM1ODg1OTAsImV4cCI6MjA2OTE2NDU5MH0.ID--umSslQiaoR8s6RnzuCr2R291sN4zjugI8p34GJg',
   );
-  FirebaseAuth.instance.setLanguageCode('en'); // Avoids X-Firebase-Locale warnings
   
-  runApp(ScoobyApp());
+  runApp(ScoobyApp()); 
 }
 
 
