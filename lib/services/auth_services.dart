@@ -1,13 +1,9 @@
 import 'dart:developer';
 import 'dart:io';
-import 'package:firebase_auth/firebase_auth.dart';
-import 'package:cloud_firestore/cloud_firestore.dart';
-import 'package:firebase_storage/firebase_storage.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
 
 class AuthService {
-  final FirebaseAuth _auth = FirebaseAuth.instance;
-  final FirebaseFirestore _firestore = FirebaseFirestore.instance;
-  final FirebaseStorage _storage = FirebaseStorage.instance;
+  final SupabaseClient _supabase = Supabase.instance.client;
 
   // Sign In Method
   Future<User?> signInWithEmail({
@@ -15,16 +11,13 @@ class AuthService {
     required String password,
   }) async {
     try {
-      UserCredential result = await _auth.signInWithEmailAndPassword(
+      final response = await _supabase.auth.signInWithPassword(
         email: email,
         password: password,
       );
-      return result.user;
-    } on FirebaseAuthException catch (e) {
-      log('Login Error [${e.code}]: ${e.message}');
-      rethrow;
+      return response.user;
     } catch (e) {
-      log('Unexpected login error: $e');
+      log('Login Error: $e');
       rethrow;
     }
   }
@@ -40,43 +33,38 @@ class AuthService {
     File? profileImage,
   }) async {
     try {
-      UserCredential userCredential = await _auth.createUserWithEmailAndPassword(
+      final response = await _supabase.auth.signUp(
         email: email,
         password: password,
       );
-      User? user = userCredential.user;
+      final user = response.user;
 
-      if (user != null) {
-        String? imageUrl;
-        if (profileImage != null) {
-          imageUrl = await _uploadImage(user.uid, profileImage);
-        }
-
-        await _firestore.collection('pet_owners').doc(user.uid).set({
-          'uid': user.uid,
-          'role': 'pet_owner',
-          'name': name,
-          'phone': phone,
-          'address': address,
-          'city': city,
-          'email': email,
-          'imageUrl': imageUrl,
-          'createdAt': FieldValue.serverTimestamp(),
-        });
-        log('Saved pet owner data to Firestore for UID: ${user.uid}');
-
-        return user;
+      String? imageUrl;
+      if (user != null && profileImage != null) {
+        imageUrl = await _uploadFile(
+          path: 'profile_images/${user.id}.jpg',
+          file: profileImage,
+          contentType: 'image/jpeg',
+        );
       }
-    } on FirebaseAuthException catch (e, stacktrace) {
-      log('Register PetOwner Error [${e.code}]: ${e.message}');
-      log('Stacktrace: $stacktrace');
-      rethrow;
-    } catch (e, stacktrace) {
-      log('Unexpected registration error: $e');
-      log('Stacktrace: $stacktrace');
+
+      await _supabase.from('pet_owners').insert({
+        'uid': user?.id,
+        'role': 'pet_owner',
+        'name': name,
+        'phone': phone,
+        'address': address,
+        'city': city,
+        'email': email,
+        'image_url': imageUrl,
+        'created_at': DateTime.now().toIso8601String(),
+      });
+
+      return user;
+    } catch (e) {
+      log('Register PetOwner Error: $e');
       rethrow;
     }
-    return null;
   }
 
   // Register Service Provider
@@ -94,83 +82,94 @@ class AuthService {
     File? qualificationFile,
   }) async {
     try {
-      UserCredential userCredential = await _auth.createUserWithEmailAndPassword(
+      final response = await _supabase.auth.signUp(
         email: email,
         password: password,
       );
-      User? user = userCredential.user;
+      final user = response.user;
 
-      if (user != null) {
-        String? imageUrl;
-        String? qualificationUrl;
+      String? imageUrl;
+      String? qualificationUrl;
 
-        if (profileImage != null) {
-          imageUrl = await _uploadImage(user.uid, profileImage);
-        }
-
-        if (qualificationFile != null) {
-          qualificationUrl = await _uploadFile(user.uid, qualificationFile);
-        }
-
-        await _firestore.collection('service_providers').doc(user.uid).set({
-          'uid': user.uid,
-          'role': 'service_provider',
-          'name': name,
-          'providerRole': role,
-          'phone': phone,
-          'address': address,
-          'city': city,
-          'email': email,
-          'description': description,
-          'experience': experience,
-          'imageUrl': imageUrl,
-          'qualificationUrl': qualificationUrl,
-          'status': 'pending',
-          'createdAt': FieldValue.serverTimestamp(),
-        });
-        log('Saved service provider data to Firestore for UID: ${user.uid}');
-
-        return user;
+      if (user != null && profileImage != null) {
+        imageUrl = await _uploadFile(
+          path: 'profile_images/${user.id}.jpg',
+          file: profileImage,
+          contentType: 'image/jpeg',
+        );
       }
-    } on FirebaseAuthException catch (e, stacktrace) {
-      log('Register ServiceProvider Error [${e.code}]: ${e.message}');
-      log('Stacktrace: $stacktrace');
-      rethrow;
-    } catch (e, stacktrace) {
-      log('Unexpected registration error: $e');
-      log('Stacktrace: $stacktrace');
+
+      if (user != null && qualificationFile != null) {
+        final fileName = qualificationFile.path.split('/').last;
+        qualificationUrl = await _uploadFile(
+          path: 'qualifications/${user.id}-$fileName',
+          file: qualificationFile,
+          contentType: 'application/pdf', 
+        );
+      }
+
+      await _supabase.from('service_providers').insert({
+        'uid': user?.id,
+        'role': 'service_provider',
+        'name': name,
+        'provider_role': role,
+        'phone': phone,
+        'address': address,
+        'city': city,
+        'email': email,
+        'description': description,
+        'experience': experience,
+        'image_url': imageUrl,
+        'qualification_url': qualificationUrl,
+        'status': 'pending',
+        'created_at': DateTime.now().toIso8601String(),
+      });
+
+      return user;
+    } catch (e) {
+      log('Register ServiceProvider Error: $e');
       rethrow;
     }
-    return null;
   }
 
-  Future<String> _uploadImage(String uid, File file) async {
-    final ref = _storage.ref().child('profile_images/$uid.jpg');
-    final metadata = SettableMetadata(
-      contentType: 'image/jpeg',
-      cacheControl: 'max-age=3600',
-    );
-    await ref.putFile(file, metadata);
-    return await ref.getDownloadURL();
-  }
+  // File upload to Supabase Storage
+Future<String> _uploadFile({
+  required String path, // e.g., 'pet_owners/uid.jpg'
+  required File file,
+  required String contentType,
+}) async {
+  final bytes = await file.readAsBytes();
 
-  Future<String> _uploadFile(String uid, File file) async {
-    final fileName = file.path.split('/').last;
-    final ref = _storage.ref().child('qualifications/$uid-$fileName');
-    final metadata = SettableMetadata(
-      contentType: 'application/octet-stream',
-      cacheControl: 'max-age=3600',
-    );
-    await ref.putFile(file, metadata);
-    return await ref.getDownloadURL();
-  }
+  await _supabase.storage
+      .from('profile-images') 
+      .uploadBinary(path, bytes,
+          fileOptions: FileOptions(contentType: contentType, upsert: true));
 
+  final publicUrl = _supabase.storage
+      .from('profile-images')
+      .getPublicUrl(path);
+
+  return publicUrl;
+}
+
+
+  // Check User Role
   Future<String?> getUserRole(String uid) async {
-    final petOwnerDoc = await FirebaseFirestore.instance.collection('pet_owners').doc(uid).get();
-    if (petOwnerDoc.exists) return 'pet_owner';
+    final petOwner = await _supabase
+        .from('pet_owners')
+        .select('uid')
+        .eq('uid', uid)
+        .maybeSingle();
 
-    final providerDoc = await FirebaseFirestore.instance.collection('service_providers').doc(uid).get();
-    if (providerDoc.exists) return 'service_provider';
+    if (petOwner != null) return 'pet_owner';
+
+    final provider = await _supabase
+        .from('service_providers')
+        .select('uid')
+        .eq('uid', uid)
+        .maybeSingle();
+
+    if (provider != null) return 'service_provider';
 
     return null;
   }
