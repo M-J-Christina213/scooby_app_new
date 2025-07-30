@@ -34,12 +34,14 @@ dependencies:
   firebase_auth: ^4.17.8
   cloud_firestore: ^4.5.0
   image_picker: ^1.0.4
-  http: ^0.13.6  # for Cloudinary upload
+  http: ^1.1.0
   firebase_storage: ^11.7.7
   supabase_flutter: ^1.10.25
   uuid: ^4.1.0
   path: ^1.8.3
   intl: ^0.18.1
+  another_flushbar: ^1.12.30
+  google_fonts: ^6.1.0
   # The following adds the Cupertino Icons font to your application.
   # Use with the CupertinoIcons class for iOS style icons.
   cupertino_icons: ^1.0.8

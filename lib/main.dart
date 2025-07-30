@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import 'package:scooby_app_new/views/auth_gate.dart';
+import 'package:scooby_app_new/views/login_screen.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 Future<void> main() async {
@@ -24,7 +24,7 @@ class ScoobyApp extends StatelessWidget {
       theme: ThemeData(
         primarySwatch: Colors.deepPurple,
       ),
-      home: AuthGate(),  
+      home: LoginScreen(),
 
 /* commented the below for routes management but used
       home: const Wrapper(),  // which decides which screen to show
