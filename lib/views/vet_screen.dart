@@ -1,9 +1,32 @@
 import 'package:flutter/material.dart';
-import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:scooby_app_new/views/service_provider_details_screen.dart';
 
-class VetScreen extends StatelessWidget {
+class VetScreen extends StatefulWidget {
   const VetScreen({super.key});
+
+  @override
+  State<VetScreen> createState() => _VetScreenState();
+}
+
+class _VetScreenState extends State<VetScreen> {
+  late Future<List<Map<String, dynamic>>> _vetListFuture;
+
+  @override
+  void initState() {
+    super.initState();
+    _vetListFuture = _fetchApprovedVets();
+  }
+
+  Future<List<Map<String, dynamic>>> _fetchApprovedVets() async {
+    final response = await Supabase.instance.client
+        .from('service_providers')
+        .select()
+        .eq('providerRole', 'Veterinarian')
+        .eq('status', 'approved');
+
+    return List<Map<String, dynamic>>.from(response);
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -14,28 +37,28 @@ class VetScreen extends StatelessWidget {
         title: const Text('Veterinarian Booking'),
         centerTitle: true,
       ),
-      body: StreamBuilder<QuerySnapshot>(
-        stream: FirebaseFirestore.instance
-            .collection('service_providers')
-            .where('providerRole', isEqualTo: 'Veterinarian')
-            .where('status', isEqualTo: 'approved') // ✅ Important fix
-            .snapshots(),
+      body: FutureBuilder<List<Map<String, dynamic>>>(
+        future: _vetListFuture,
         builder: (context, snapshot) {
           if (snapshot.connectionState == ConnectionState.waiting) {
             return const Center(child: CircularProgressIndicator());
           }
 
-          if (!snapshot.hasData || snapshot.data!.docs.isEmpty) {
-            return const Center(child: Text('No approved veterinarians found.'));
+          if (snapshot.hasError) {
+            return Center(child: Text('Error: ${snapshot.error}'));
           }
 
-          final vets = snapshot.data!.docs;
+          final vets = snapshot.data ?? [];
+
+          if (vets.isEmpty) {
+            return const Center(child: Text('No approved veterinarians found.'));
+          }
 
           return ListView.builder(
             itemCount: vets.length,
             padding: const EdgeInsets.all(12),
             itemBuilder: (context, index) {
-              final vetData = vets[index].data() as Map<String, dynamic>;
+              final vetData = vets[index];
 
               return Card(
                 elevation: 5,

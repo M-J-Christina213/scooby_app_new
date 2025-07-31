@@ -1,9 +1,27 @@
 import 'package:flutter/material.dart';
-import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:scooby_app_new/views/service_provider_details_screen.dart';
 
 class PetGroomerScreen extends StatelessWidget {
   const PetGroomerScreen({super.key});
+
+  Future<List<Map<String, dynamic>>> fetchGroomers() async {
+    final supabase = Supabase.instance.client;
+
+    final response = await supabase
+        .from('service_providers')
+        .select()
+        .eq('providerRole', 'Pet Groomer');
+
+    // response is List<dynamic> directly, no more PostgrestResponse wrapper
+    // So no error property here, but if something went wrong, it'll throw
+
+    if (response == null) {
+      throw Exception('Failed to load groomers');
+    }
+
+    return List<Map<String, dynamic>>.from(response as List);
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -12,26 +30,25 @@ class PetGroomerScreen extends StatelessWidget {
         title: const Text('Pet Groomer Booking'),
         backgroundColor: Colors.deepPurple,
       ),
-      body: StreamBuilder<QuerySnapshot>(
-        stream: FirebaseFirestore.instance
-            .collection('service_providers')
-            .where('providerRole', isEqualTo: 'Pet Groomer')
-            .snapshots(),
+      body: FutureBuilder<List<Map<String, dynamic>>>(
+        future: fetchGroomers(),
         builder: (context, snapshot) {
           if (snapshot.connectionState == ConnectionState.waiting) {
             return const Center(child: CircularProgressIndicator());
           }
-
-          if (!snapshot.hasData || snapshot.data!.docs.isEmpty) {
+          if (snapshot.hasError) {
+            return Center(child: Text('Error: ${snapshot.error}'));
+          }
+          if (!snapshot.hasData || snapshot.data!.isEmpty) {
             return const Center(child: Text('No pet groomers found.'));
           }
 
-          final groomers = snapshot.data!.docs;
+          final groomers = snapshot.data!;
 
           return ListView.builder(
             itemCount: groomers.length,
             itemBuilder: (context, index) {
-              final groomerData = groomers[index].data() as Map<String, dynamic>;
+              final groomerData = groomers[index];
 
               return Card(
                 margin: const EdgeInsets.all(10),
@@ -51,7 +68,8 @@ class PetGroomerScreen extends StatelessWidget {
                     Navigator.push(
                       context,
                       MaterialPageRoute(
-                        builder: (_) => ServiceProviderDetailsScreen(data: groomerData),
+                        builder: (_) =>
+                            ServiceProviderDetailsScreen(data: groomerData),
                       ),
                     );
                   },

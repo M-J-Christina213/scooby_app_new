@@ -63,8 +63,26 @@ class _AuthGateState extends State<AuthGate> {
         }
 
         final role = roleSnapshot.data;
+
         if (role == 'service_provider') {
-          return const ServiceProviderHomeScreen();
+          return FutureBuilder<String?>(
+            future: AuthService().getServiceProviderEmail(_session!.user.id),
+            builder: (context, emailSnapshot) {
+              if (emailSnapshot.connectionState == ConnectionState.waiting) {
+                return const Scaffold(
+                  body: Center(child: CircularProgressIndicator()),
+                );
+              }
+
+              if (emailSnapshot.hasError || emailSnapshot.data == null) {
+                Supabase.instance.client.auth.signOut();
+                return const LoginScreen();
+              }
+
+              final email = emailSnapshot.data!;
+              return ServiceProviderHomeScreen(serviceProviderEmail: email);
+            },
+          );
         } else if (role == 'pet_owner') {
           return const HomeScreen();
         } else {

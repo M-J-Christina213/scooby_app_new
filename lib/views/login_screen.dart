@@ -74,7 +74,7 @@ class _LoginScreenState extends State<LoginScreen> {
           if (providerResponse != null) {
             Navigator.pushReplacement(
               context,
-              MaterialPageRoute(builder: (_) => const ServiceProviderHomeScreen()),
+              MaterialPageRoute(builder: (_) => const ServiceProviderHomeScreen(serviceProviderEmail: '',)),
             );
             showFlushBar("Welcome Service Provider!", Colors.green);
           } else {

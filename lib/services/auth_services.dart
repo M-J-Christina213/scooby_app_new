@@ -143,6 +143,25 @@ class AuthService {
     return publicUrl;
   }
 
+Future<String?> getServiceProviderEmail(String uid) async {
+  final response = await _supabase
+      .from('service_providers')
+      .select('email')
+      .eq('user_id', uid)
+      .maybeSingle();
+
+  if (response == null || response['email'] == null) return null;
+
+  return response['email'] as String?;
+}
+
+
+
+
+
+
+
+
   // Check User Role
   Future<String?> getUserRole(String uid) async {
     final petOwner = await _supabase

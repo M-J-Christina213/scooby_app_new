@@ -14,7 +14,7 @@ class ServiceProviderController {
         .single();
 
     if (response.error != null) {
-      print('Error fetching name: ${response.error!.message}');
+      ('Error fetching name: ${response.error!.message}');
       return 'User';
     }
 

@@ -1,21 +1,24 @@
 import 'package:flutter/material.dart';
-import 'package:cloud_firestore/cloud_firestore.dart';
-import 'package:firebase_auth/firebase_auth.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:scooby_app_new/models/pet_owner_model.dart';
 
 class PetOwnerProfileScreen extends StatelessWidget {
   const PetOwnerProfileScreen({super.key});
 
   Future<PetOwner?> _fetchPetOwner() async {
-    final uid = FirebaseAuth.instance.currentUser?.uid;
-    if (uid == null) return null;
+    final user = Supabase.instance.client.auth.currentUser;
+    if (user == null) return null;
 
-    final doc =
-        await FirebaseFirestore.instance.collection('pet_owners').doc(uid).get();
+    final response = await Supabase.instance.client
+        .from('pet_owners')
+        .select()
+        .eq('id', user.id)
+        .single();
 
-    if (doc.exists) {
-      return PetOwner.fromMap(doc.data()!);
+    if (response != null && response.isNotEmpty) {
+      return PetOwner.fromMap(response);
     }
+
     return null;
   }
 

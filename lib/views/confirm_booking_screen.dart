@@ -1,16 +1,14 @@
 // confirm_booking_screen.dart
 // ignore_for_file: use_build_context_synchronously
 
-import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
-import 'package:firebase_auth/firebase_auth.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
 
-import '../controllers/booking_controller.dart';
 import '../models/booking_model.dart';
 
 class ConfirmBookingScreen extends StatefulWidget {
-  final String serviceProviderEmail;  // <-- required parameter
+  final String serviceProviderEmail;
 
   const ConfirmBookingScreen({super.key, required this.serviceProviderEmail});
 
@@ -19,6 +17,8 @@ class ConfirmBookingScreen extends StatefulWidget {
 }
 
 class _ConfirmBookingScreenState extends State<ConfirmBookingScreen> {
+  final supabase = Supabase.instance.client;
+
   DateTime? _selectedDate;
   String? _selectedTime;
 
@@ -26,8 +26,6 @@ class _ConfirmBookingScreenState extends State<ConfirmBookingScreen> {
     '09:00 AM', '10:00 AM', '11:00 AM', '12:00 PM',
     '02:00 PM', '03:00 PM', '04:00 PM', '05:00 PM',
   ];
-
-  final BookingController _bookingController = BookingController();
 
   void _pickDate() async {
     final now = DateTime.now();
@@ -42,13 +40,17 @@ class _ConfirmBookingScreenState extends State<ConfirmBookingScreen> {
     }
   }
 
-  Future<Map<String, String?>> getPetOwnerInfo(String uid) async {
-    final doc = await FirebaseFirestore.instance.collection('pet_owners').doc(uid).get();
-    if (!doc.exists) return {};
-    final data = doc.data()!;
+  Future<Map<String, String?>> getPetOwnerInfo(String userId) async {
+    final response = await supabase
+        .from('pet_owners')
+        .select('name, phone')
+        .eq('id', userId)
+        .single();
+
+    if (response == null) return {};
     return {
-      'name': data['name'] as String?,
-      'phone': data['phone'] as String?,
+      'name': response['name'] as String?,
+      'phone': response['phone'] as String?,
     };
   }
 
@@ -60,7 +62,7 @@ class _ConfirmBookingScreenState extends State<ConfirmBookingScreen> {
       return;
     }
 
-    final user = FirebaseAuth.instance.currentUser;
+    final user = supabase.auth.currentUser;
     if (user == null) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('User not logged in')),
@@ -68,7 +70,7 @@ class _ConfirmBookingScreenState extends State<ConfirmBookingScreen> {
       return;
     }
 
-    final extraInfo = await getPetOwnerInfo(user.uid);
+    final extraInfo = await getPetOwnerInfo(user.id);
     final petOwnerName = extraInfo['name'] ?? 'No Name';
     final petOwnerPhone = extraInfo['phone'] ?? 'No Phone';
     final petOwnerEmail = user.email ?? 'No Email';
@@ -79,12 +81,12 @@ class _ConfirmBookingScreenState extends State<ConfirmBookingScreen> {
       phone: petOwnerPhone,
       date: _selectedDate!,
       time: _selectedTime!,
-      serviceProviderEmail: widget.serviceProviderEmail, // <-- Use passed service provider email here
+      serviceProviderEmail: widget.serviceProviderEmail,
     );
 
     try {
-      await _bookingController.addBooking(booking);
-
+      await supabase.from('bookings').insert(booking.toMap());
+      
       final formattedDate = DateFormat('EEE, MMM d, yyyy').format(_selectedDate!);
       showDialog(
         context: context,

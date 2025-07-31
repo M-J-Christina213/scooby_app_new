@@ -4,7 +4,25 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 class HomeController {
   final SupabaseClient _supabase = Supabase.instance.client;
 
+  // Returns a Stream of the owner's name for reactive UI updates
+  Stream<String> get ownerNameStream {
+    final user = _supabase.auth.currentUser;
+    if (user == null) {
+      return Stream.value('Guest');
+    }
 
+    return _supabase
+        .from('pet_owners')
+        .stream(primaryKey: ['id'])
+        .eq('id', user.id)
+        .map((List<Map<String, dynamic>> data) {
+      if (data.isEmpty) return 'User';
+      final first = data.first;
+      return first['name'] as String? ?? 'User';
+    });
+  }
+
+  // One-time fetch of owner name (optional, keep if needed)
   Future<String> fetchOwnerName() async {
     final user = _supabase.auth.currentUser;
     if (user == null) return 'Guest';
@@ -20,7 +38,7 @@ class HomeController {
       return 'User';
     }
 
-    return response.data['name'] ?? 'User';
+    return response.data?['name'] ?? 'User';
   }
 
   Future<void> signOut() async {
@@ -42,7 +60,7 @@ class HomeController {
             onPressed: () async {
               Navigator.pop(context);
               await signOut();
-              // You can add redirection if needed
+              // Add navigation logic here if needed
             },
             child: const Text('Logout'),
           ),
@@ -52,6 +70,6 @@ class HomeController {
   }
 
   void fetchPetOwnerData() {
-  
+    // You can add any caching or initialization logic here if needed
   }
 }
