@@ -1,48 +1,57 @@
-// ignore_for_file: unused_field
-
 import 'package:flutter/material.dart';
-import 'package:cloud_firestore/cloud_firestore.dart';
-import 'package:firebase_auth/firebase_auth.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
 
 class HomeController {
-  final FirebaseAuth _auth = FirebaseAuth.instance;
-  final FirebaseFirestore _firestore = FirebaseFirestore.instance;
+  final SupabaseClient _supabase = Supabase.instance.client;
 
-  final Stream<String> ownerNameStream = FirebaseFirestore.instance
-      .collection('pet_owners')
-      .doc(FirebaseAuth.instance.currentUser!.uid)
-      .snapshots()
-      .map((doc) => doc.data()?['name'] ?? 'User');
+
+  Future<String> fetchOwnerName() async {
+    final user = _supabase.auth.currentUser;
+    if (user == null) return 'Guest';
+
+    final response = await _supabase
+        .from('pet_owners')
+        .select('name')
+        .eq('id', user.id)
+        .single();
+
+    if (response.error != null) {
+      debugPrint('Error fetching name: ${response.error!.message}');
+      return 'User';
+    }
+
+    return response.data['name'] ?? 'User';
+  }
 
   Future<void> signOut() async {
-    await _auth.signOut();
+    await _supabase.auth.signOut();
   }
 
   void showLogoutDialog(BuildContext context) {
-  showDialog(
-    context: context,
-    builder: (_) => AlertDialog(
-      title: const Text('Confirm Logout'),
-      content: const Text('Are you sure you want to logout?'),
-      actions: [
-        TextButton(
-          onPressed: () => Navigator.pop(context),
-          child: const Text('Cancel'),
-        ),
-        TextButton(
-          onPressed: () async {
-            Navigator.pop(context);
-            await FirebaseAuth.instance.signOut();
-            // No need for Navigator.pushNamed here
-          },
-          child: const Text('Logout'),
-        ),
-      ],
-    ),
-  );
-}
+    showDialog(
+      context: context,
+      builder: (_) => AlertDialog(
+        title: const Text('Confirm Logout'),
+        content: const Text('Are you sure you want to logout?'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('Cancel'),
+          ),
+          TextButton(
+            onPressed: () async {
+              Navigator.pop(context);
+              await signOut();
+              // You can add redirection if needed
+            },
+            child: const Text('Logout'),
+          ),
+        ],
+      ),
+    );
+  }
 
   void fetchPetOwnerData() {
-    // This can be used for caching or future enhancements
+  
   }
 }
