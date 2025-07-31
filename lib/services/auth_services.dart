@@ -39,8 +39,10 @@ class AuthService {
       );
       final user = response.user;
 
+      if (user == null) throw Exception("User creation failed");
+
       String? imageUrl;
-      if (user != null && profileImage != null) {
+      if (profileImage != null) {
         imageUrl = await _uploadFile(
           path: 'profile_images/${user.id}.jpg',
           file: profileImage,
@@ -49,15 +51,14 @@ class AuthService {
       }
 
       await _supabase.from('pet_owners').insert({
-        'uid': user?.id,
-        'role': 'pet_owner',
+        'user_id': user.id, 
         'name': name,
-        'phone': phone,
+        'phone_number': phone,
         'address': address,
         'city': city,
         'email': email,
         'image_url': imageUrl,
-        'created_at': DateTime.now().toIso8601String(),
+        'created_at': DateTime.now().toUtc().toIso8601String(),
       });
 
       return user;
@@ -79,7 +80,7 @@ class AuthService {
     required String description,
     required String experience,
     File? profileImage,
-    File? qualificationFile,
+    // Ignoring qualification file for now as not in schema
   }) async {
     try {
       final response = await _supabase.auth.signUp(
@@ -88,10 +89,11 @@ class AuthService {
       );
       final user = response.user;
 
-      String? imageUrl;
-      String? qualificationUrl;
+      if (user == null) throw Exception("User creation failed");
 
-      if (user != null && profileImage != null) {
+      String? imageUrl;
+
+      if (profileImage != null) {
         imageUrl = await _uploadFile(
           path: 'profile_images/${user.id}.jpg',
           file: profileImage,
@@ -99,30 +101,19 @@ class AuthService {
         );
       }
 
-      if (user != null && qualificationFile != null) {
-        final fileName = qualificationFile.path.split('/').last;
-        qualificationUrl = await _uploadFile(
-          path: 'qualifications/${user.id}-$fileName',
-          file: qualificationFile,
-          contentType: 'application/pdf', 
-        );
-      }
-
       await _supabase.from('service_providers').insert({
-        'uid': user?.id,
-        'role': 'service_provider',
+        'user_id': user.id, 
         'name': name,
-        'provider_role': role,
-        'phone': phone,
+        'role': role, 
+        'phone_no': phone, 
         'address': address,
         'city': city,
         'email': email,
-        'description': description,
+        'service_description': description, 
         'experience': experience,
         'image_url': imageUrl,
-        'qualification_url': qualificationUrl,
-        'status': 'pending',
-        'created_at': DateTime.now().toIso8601String(),
+        'created_at': DateTime.now().toUtc().toIso8601String(),
+        // Note: password is NOT needed in this table, already handled by auth
       });
 
       return user;
@@ -133,40 +124,39 @@ class AuthService {
   }
 
   // File upload to Supabase Storage
-Future<String> _uploadFile({
-  required String path, // e.g., 'pet_owners/uid.jpg'
-  required File file,
-  required String contentType,
-}) async {
-  final bytes = await file.readAsBytes();
+  Future<String> _uploadFile({
+    required String path, 
+    required File file,
+    required String contentType,
+  }) async {
+    final bytes = await file.readAsBytes();
 
-  await _supabase.storage
-      .from('profile-images') 
-      .uploadBinary(path, bytes,
-          fileOptions: FileOptions(contentType: contentType, upsert: true));
+    await _supabase.storage
+        .from('profile-images')
+        .uploadBinary(path, bytes,
+            fileOptions: FileOptions(contentType: contentType, upsert: true));
 
-  final publicUrl = _supabase.storage
-      .from('profile-images')
-      .getPublicUrl(path);
+    final publicUrl = _supabase.storage
+        .from('profile-images')
+        .getPublicUrl(path);
 
-  return publicUrl;
-}
-
+    return publicUrl;
+  }
 
   // Check User Role
   Future<String?> getUserRole(String uid) async {
     final petOwner = await _supabase
         .from('pet_owners')
-        .select('uid')
-        .eq('uid', uid)
+        .select('user_id')
+        .eq('user_id', uid)
         .maybeSingle();
 
     if (petOwner != null) return 'pet_owner';
 
     final provider = await _supabase
         .from('service_providers')
-        .select('uid')
-        .eq('uid', uid)
+        .select('user_id')
+        .eq('user_id', uid)
         .maybeSingle();
 
     if (provider != null) return 'service_provider';
