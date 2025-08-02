@@ -79,7 +79,7 @@ class AuthService {
     required String password,
     required String description,
     required String experience,
-    File? profileImage,
+    File? profileImage, required String serviceType,
     // Ignoring qualification file for now as not in schema
   }) async {
     try {

@@ -1,157 +1,134 @@
 import 'package:flutter/material.dart';
-import 'package:scooby_app_new/services/auth_services.dart';
-import 'package:scooby_app_new/views/login_screen.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
 
-class RegisterServiceProvider extends StatefulWidget {
-  const RegisterServiceProvider({super.key});
+class RegisterServiceProviderScreen extends StatefulWidget {
+  const RegisterServiceProviderScreen({super.key});
 
   @override
-  State<RegisterServiceProvider> createState() => _RegisterServiceProviderState();
+  State<RegisterServiceProviderScreen> createState() => _RegisterServiceProviderScreenState();
 }
 
-class _RegisterServiceProviderState extends State<RegisterServiceProvider> {
+class _RegisterServiceProviderScreenState extends State<RegisterServiceProviderScreen> {
   final _formKey = GlobalKey<FormState>();
-  final _nameController = TextEditingController();
-  final _phoneController = TextEditingController();
-  final _addressController = TextEditingController();
-  final _cityController = TextEditingController();
-  final _emailController = TextEditingController();
-  final _passwordController = TextEditingController();
-  final _experienceController = TextEditingController();
-  final _descriptionController = TextEditingController();
 
-  final List<String> _roles = ['Veterinarian', 'Pet Sitter', 'Pet Groomer'];
-  String? _selectedRole;
+  final TextEditingController _nameController = TextEditingController();
+  final TextEditingController _emailController = TextEditingController();
+  final TextEditingController _addressController = TextEditingController();
+  final TextEditingController _phoneController = TextEditingController();
+  final TextEditingController _serviceDescriptionController = TextEditingController();
+  final TextEditingController _experienceController = TextEditingController();
 
-Future<void> _register() async {
+  String? _serviceType;
+  final List<String> _services = ['Veterinarian', 'Groomer'];
+
+ Future<void> _submitForm() async {
   if (_formKey.currentState!.validate()) {
-    if (_selectedRole == null) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Please select a role')),
-      );
-      return;
-    }
-
     try {
-      await AuthService().registerServiceProvider(
-        name: _nameController.text,
-        phone: _phoneController.text,
-        address: _addressController.text,
-        city: _cityController.text,
-        email: _emailController.text.trim(),
-        password: _passwordController.text,
-        role: _selectedRole!,
-        experience: _experienceController.text.trim(),
-        description: _descriptionController.text.trim(),
-      );
+      final response = await Supabase.instance.client.from('service_providers').insert({
+        'name': _nameController.text,
+        'email': _emailController.text,
+        'address': _addressController.text,
+        'phone': _phoneController.text,
+        'service_type': _serviceType,
+        'service_description': _serviceDescriptionController.text,
+        'experience': _experienceController.text,
+      });
 
-      if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Registered successfully. Please log in.')),
-      );
-      Navigator.pushReplacement(
-          context,
-          MaterialPageRoute(builder: (_) => const LoginScreen()),
+      ('Insert status: ${response.status}, data: ${response.data}');
+
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Successfully registered!')),
         );
-        } catch (e) {
-      if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Error: ${e.toString()}')),
-      );
+      }
+    } catch (e) {
+      ('Submission failed: $e');
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Error submitting data')),
+        );
+      }
     }
   }
 }
 
-
-  @override
-  void dispose() {
-    _nameController.dispose();
-    _phoneController.dispose();
-    _addressController.dispose();
-    _cityController.dispose();
-    _emailController.dispose();
-    _passwordController.dispose();
-    _descriptionController.dispose();
-    _experienceController.dispose();
-    super.dispose();
-  }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: const Text('Register as Service Provider')),
-      body: Padding(
-        padding: const EdgeInsets.all(16.0),
-        child: SingleChildScrollView(
-          child: Form(
-            key: _formKey,
-            child: Column(
-              children: [
-                // Removed image picker widget here
-
-                TextFormField(
-                  controller: _nameController,
-                  decoration: const InputDecoration(labelText: 'Name'),
-                  validator: (value) => value!.isEmpty ? 'Name is required' : null,
+      appBar: AppBar(
+        title: const Text('Register as Service Provider'),
+        backgroundColor: Colors.deepPurple,
+      ),
+      body: SingleChildScrollView(
+        padding: const EdgeInsets.all(20.0),
+        child: Form(
+          key: _formKey,
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              _buildTextField(_nameController, 'Name'),
+              const SizedBox(height: 10),
+              _buildTextField(_emailController, 'Email', inputType: TextInputType.emailAddress),
+              const SizedBox(height: 10),
+              _buildTextField(_phoneController, 'Phone Number', inputType: TextInputType.phone),
+              const SizedBox(height: 10),
+              _buildTextField(_addressController, 'Address'),
+              const SizedBox(height: 10),
+              _buildTextField(_experienceController, 'Experience'),
+              const SizedBox(height: 10),
+              _buildTextField(_serviceDescriptionController, 'Service Description'),
+              const SizedBox(height: 10),
+              DropdownButtonFormField<String>(
+                value: _serviceType,
+                decoration: InputDecoration(
+                  labelText: 'Service Type',
+                  filled: true,
+                  fillColor: Colors.deepPurple.shade50,
+                  border: OutlineInputBorder(borderRadius: BorderRadius.circular(8.0)),
                 ),
-                TextFormField(
-                  controller: _phoneController,
-                  decoration: const InputDecoration(labelText: 'Phone'),
-                  keyboardType: TextInputType.phone,
-                  validator: (value) => value!.isEmpty ? 'Phone number is required' : null,
-                ),
-                TextFormField(
-                  controller: _addressController,
-                  decoration: const InputDecoration(labelText: 'Address'),
-                  validator: (value) => value!.isEmpty ? 'Address is required' : null,
-                ),
-                TextFormField(
-                  controller: _cityController,
-                  decoration: const InputDecoration(labelText: 'City'),
-                  validator: (value) => value!.isEmpty ? 'City is required' : null,
-                ),
-                DropdownButtonFormField<String>(
-                  value: _selectedRole,
-                  decoration: const InputDecoration(labelText: 'Service Role'),
-                  items: _roles.map((role) {
-                    return DropdownMenuItem(value: role, child: Text(role));
-                  }).toList(),
-                  onChanged: (value) => setState(() => _selectedRole = value),
-                  validator: (value) => value == null ? 'Role is required' : null,
-                ),
-                TextFormField(
-                  controller: _descriptionController,
-                  decoration: const InputDecoration(labelText: 'Service Description'),
-                  maxLines: 3,
-                  validator: (value) => value!.isEmpty ? 'Description is required' : null,
-                ),
-                TextFormField(
-                  controller: _experienceController,
-                  decoration: const InputDecoration(labelText: 'Experience (e.g. 2 years)'),
-                  validator: (value) => value!.isEmpty ? 'Experience is required' : null,
-                ),
-                TextFormField(
-                  controller: _emailController,
-                  decoration: const InputDecoration(labelText: 'Email'),
-                  keyboardType: TextInputType.emailAddress,
-                  validator: (value) => value!.isEmpty ? 'Email is required' : null,
-                ),
-                TextFormField(
-                  controller: _passwordController,
-                  decoration: const InputDecoration(labelText: 'Password'),
-                  obscureText: true,
-                  validator: (value) => value!.length < 6 ? 'Password must be at least 8 characters' : null,
-                ),
-                const SizedBox(height: 20),
-                ElevatedButton(
-                  onPressed: _register,
+                onChanged: (String? newValue) {
+                  setState(() {
+                    _serviceType = newValue;
+                  });
+                },
+                validator: (value) => value == null ? 'Please select a service type' : null,
+                items: _services.map((String service) {
+                  return DropdownMenuItem<String>(
+                    value: service,
+                    child: Text(service),
+                  );
+                }).toList(),
+              ),
+              const SizedBox(height: 20),
+              Center(
+                child: ElevatedButton(
+                  onPressed: _submitForm,
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: Colors.deepPurple,
+                    padding: const EdgeInsets.symmetric(horizontal: 30, vertical: 15),
+                  ),
                   child: const Text('Register'),
                 ),
-              ],
-            ),
+              ),
+            ],
           ),
         ),
       ),
+    );
+  }
+
+  Widget _buildTextField(TextEditingController controller, String label, {TextInputType inputType = TextInputType.text}) {
+    return TextFormField(
+      controller: controller,
+      keyboardType: inputType,
+      decoration: InputDecoration(
+        labelText: label,
+        filled: true,
+        fillColor: Colors.deepPurple.shade50,
+        border: OutlineInputBorder(borderRadius: BorderRadius.circular(8.0)),
+      ),
+      validator: (value) => value == null || value.isEmpty ? 'Please enter $label' : null,
     );
   }
 }
