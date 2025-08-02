@@ -275,7 +275,7 @@ class _LoginScreenState extends State<LoginScreen> {
                       buildRegisterOption('Register as Service Provider', 'service_provider', () {
                         Navigator.push(
                           context,
-                          MaterialPageRoute(builder: (context) => const RegisterServiceProviderScreen()),
+                          MaterialPageRoute(builder: (context) => const ServiceProviderRegisterScreen()),
                         );
                       }),
                     ],
