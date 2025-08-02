@@ -266,7 +266,7 @@ class _LoginScreenState extends State<LoginScreen> {
                       buildRegisterOption('Register as Pet Owner', 'pet_owner', () {
                         Navigator.push(
                           context,
-                          MaterialPageRoute(builder: (context) => const RegisterPetOwner()),
+                          MaterialPageRoute(builder: (context) => const PetOwnerRegisterScreen()),
                         );
                       }),
 
