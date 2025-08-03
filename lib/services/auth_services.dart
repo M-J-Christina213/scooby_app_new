@@ -1,5 +1,6 @@
 import 'dart:developer';
 import 'dart:io';
+import 'package:cross_file/cross_file.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:uuid/uuid.dart';
 
@@ -25,176 +26,187 @@ class AuthService {
 
   // Register Pet Owner
   Future<User?> registerPetOwner({
+  required String name,
+  required String phone,
+  required String address,
+  required String city,
+  required String email,
+  required String password,
+  File? profileImage,
+}) async {
+  try {
+    final response = await _supabase.auth.signUp(
+      email: email,
+      password: password,
+    );
+    final user = response.user;
+
+    if (user == null) throw Exception("User creation failed");
+
+    String? imageUrl;
+    if (profileImage != null) {
+      // Convert File to XFile before upload
+      final xfile = XFile(profileImage.path);
+      imageUrl = await _uploadFile(
+        path: 'profile_images/${user.id}.jpg',
+        file: xfile,
+        contentType: 'image/jpeg',
+      );
+    }
+
+    await _supabase.from('pet_owners').insert({
+      'user_id': user.id,
+      'name': name,
+      'phone_number': phone,
+      'address': address,
+      'city': city,
+      'email': email,
+      'image_url': imageUrl,
+      'created_at': DateTime.now().toUtc().toIso8601String(),
+    });
+
+    return user;
+  } catch (e) {
+    log('Register PetOwner Error: $e');
+    rethrow;
+  }
+}
+
+  // Register Service Provider
+ Future<void> registerServiceProvider({
     required String name,
-    required String phone,
-    required String address,
-    required String city,
+    required String phoneNo,
     required String email,
     required String password,
-    File? profileImage,
+    required String address,
+    required String city,
+    required String role,
+    required XFile? profileImage,
+    required String clinicOrSalon,
+    required List<XFile> galleryImages,
+    required XFile? qualificationFile,
+    required XFile? idVerificationFile,
+    required String experience,
+    required String serviceDescription,
+    required String notes,
+    required String pricingDetails,
+    required String consultationFee,
+    required String aboutClinicOrSalon,
+    required List<String> groomingServices,
+    required List<String> comfortableWith,
+    required String availableTimes,
+    required String dislikes,
+    required String rate,
   }) async {
+    final uuid = Uuid();
     try {
-      final response = await _supabase.auth.signUp(
+      final authResponse = await _supabase.auth.signUp(
         email: email,
         password: password,
       );
-      final user = response.user;
 
-      if (user == null) throw Exception("User creation failed");
+      final userId = authResponse.user?.id;
+      if (userId == null) {
+        throw Exception('Failed to get user ID');
+      }
 
-      String? imageUrl;
+      // Upload profile image
+      String? profileImageUrl;
       if (profileImage != null) {
-        imageUrl = await _uploadFile(
-          path: 'profile_images/${user.id}.jpg',
+        profileImageUrl = await _uploadFile(
+          path: 'profile_images/$userId.jpg',
           file: profileImage,
           contentType: 'image/jpeg',
         );
       }
 
-      await _supabase.from('pet_owners').insert({
-        'user_id': user.id,
+      // Upload qualification file
+      String? qualificationUrl;
+      if (qualificationFile != null) {
+        final fileExt = qualificationFile.path.split('.').last;
+        qualificationUrl = await _uploadFile(
+          path: 'qualifications/$userId.$fileExt',
+          file: qualificationFile,
+          contentType: 'application/pdf',
+        );
+      }
+
+      // Upload ID verification file
+      String? idVerificationUrl;
+      if (idVerificationFile != null) {
+        final fileExt = idVerificationFile.path.split('.').last;
+        idVerificationUrl = await _uploadFile(
+          path: 'id_verifications/$userId.$fileExt',
+          file: idVerificationFile,
+          contentType: 'application/pdf',
+        );
+      }
+
+      // Upload gallery images
+      List<String> galleryUrls = [];
+      for (XFile img in galleryImages) {
+        final fileExt = img.path.split('.').last;
+        final fileName = '${uuid.v4()}.$fileExt';
+        final url = await _uploadFile(
+          path: 'provider-galleries/$userId/$fileName',
+          file: img,
+          contentType: 'image/jpeg',
+        );
+        galleryUrls.add(url);
+      }
+
+      // Insert into database
+      await _supabase.from('service_providers').insert({
+        'user_id': userId,
         'name': name,
-        'phone_number': phone,
+        'email': email,
+        'password': password,
+        'phone_no': phoneNo,
         'address': address,
         'city': city,
-        'email': email,
-        'image_url': imageUrl,
-        'created_at': DateTime.now().toUtc().toIso8601String(),
+        'role': role,
+        'service_description': serviceDescription,
+        'experience': experience,
+        'image_url': profileImageUrl,
+        'qualification_url': qualificationUrl,
+        'id_verification_url': idVerificationUrl,
+        'gallery_urls': galleryUrls,
+        'clinic_or_salon_name': clinicOrSalon,
+        'availability': availableTimes,
+        'notes': notes,
+        'pricing_details': pricingDetails,
+        'consultation_fee': consultationFee,
+        'about_clinic_or_salon': aboutClinicOrSalon,
+        'grooming_services': groomingServices,
+        'comfortable_with': comfortableWith,
+        'dislikes': dislikes,
+        'rate': rate,
+        'created_at': DateTime.now().toIso8601String(),
       });
-
-      return user;
     } catch (e) {
-      log('Register PetOwner Error: $e');
+      log('Registration error: $e');
       rethrow;
     }
   }
 
-  // Register Service Provider
- Future<void> registerServiceProvider({
-  required String name,
-  required String email,
-  required String password,
-  required String phoneNo,
-  required String address,
-  required String city,
-  required String role,
-  required String serviceDescription,
-  required String experience,
-  File? profileImage,                  // << Added profileImage parameter
-  File? qualificationFile,
-  List<File>? galleryImages,
-  String? clinicOrSalon,
-  String? availability,
-  String? notes,
-}) async {
-  final uuid = Uuid();
-  try {
-    // Sign up the user
-    final authResponse = await _supabase.auth.signUp(
-      email: email,
-      password: password,
-    );
-
-    final userId = authResponse.user?.id;
-    if (userId == null) {
-      throw Exception('Failed to get user ID');
-    }
-
-    // Upload profile image (if provided)
-    String? profileImageUrl;
-    if (profileImage != null) {
-      final fileExt = profileImage.path.split('.').last;
-      final filePath = 'profile_images/$userId.$fileExt';
-
-      await _supabase.storage
-          .from('scooby_bucket')
-          .upload(filePath, profileImage);
-
-      profileImageUrl = _supabase.storage
-          .from('scooby_bucket')
-          .getPublicUrl(filePath);
-    }
-
-    // Upload qualification file (if provided)
-    String? qualificationUrl;
-    if (qualificationFile != null) {
-      final fileExt = qualificationFile.path.split('.').last;
-      final filePath = 'qualifications/$userId.$fileExt';
-
-      await _supabase.storage
-          .from('scooby_bucket')
-          .upload(filePath, qualificationFile);
-
-      qualificationUrl = _supabase.storage
-          .from('scooby_bucket')
-          .getPublicUrl(filePath);
-    }
-
-    // Upload gallery images (if provided)
-    List<String> galleryUrls = [];
-    if (galleryImages != null && galleryImages.isNotEmpty) {
-      for (File img in galleryImages) {
-        final fileName = '${uuid.v4()}.${img.path.split('.').last}';
-        final filePath = 'provider-galleries/$userId/$fileName';
-
-        await _supabase.storage
-            .from('scooby_bucket')
-            .upload(filePath, img);
-
-        final url = _supabase.storage
-            .from('scooby_bucket')
-            .getPublicUrl(filePath);
-
-        galleryUrls.add(url);
-      }
-    }
-
-    // Insert into service_providers table
-    await _supabase.from('service_providers').insert({
-      'user_id': userId,
-      'name': name,
-      'email': email,
-      'password': password,
-      'phone_no': phoneNo,
-      'address': address,
-      'city': city,
-      'role': role,
-      'service_description': serviceDescription,
-      'experience': experience,
-      'image_url': profileImageUrl,       // << Save profile image url here
-      'qualification_url': qualificationUrl,
-      'gallery_urls': galleryUrls,
-      'clinic_or_salon_name': clinicOrSalon,
-      'availability': availability,
-      'notes': notes,
-    });
-
-  } catch (e) {
-    ('Registration error: $e');
-    rethrow;
-  }
-}
-
-
-  // File upload to Supabase Storage
   Future<String> _uploadFile({
     required String path,
-    required File file,
+    required XFile file,
     required String contentType,
   }) async {
     final bytes = await file.readAsBytes();
 
-    await _supabase.storage
-        .from('profile-images')
-        .uploadBinary(path, bytes,
-            fileOptions: FileOptions(contentType: contentType, upsert: true));
+    await _supabase.storage.from('scooby_bucket').uploadBinary(
+          path,
+          bytes,
+          fileOptions: FileOptions(
+            contentType: contentType,
+            upsert: true,
+          ),
+        );
 
-    final publicUrl = _supabase.storage
-        .from('profile-images')
-        .getPublicUrl(path);
-
-    return publicUrl;
-  }
+    return _supabase.storage.from('scooby_bucket').getPublicUrl(path);
+    }  // File upload to Supabase Storage
 
   // Get Service Provider Email
   Future<String?> getServiceProviderEmail(String uid) async {

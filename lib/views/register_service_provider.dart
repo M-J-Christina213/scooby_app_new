@@ -18,19 +18,33 @@ class _ServiceProviderRegisterScreenState extends State<ServiceProviderRegisterS
   final _emailController = TextEditingController();
   final _passwordController = TextEditingController();
   final _clinicOrSalonController = TextEditingController();
+  final _clinicNameController = TextEditingController();
+ final _clinicAddressController = TextEditingController();
   final _descriptionController = TextEditingController();
   final _experienceController = TextEditingController();
   final _notesController = TextEditingController();
-  final AuthService _authService = AuthService();
+  final _pricingController = TextEditingController();
+  final _consultationFeeController = TextEditingController();
+  final _aboutClinicOrSalonController = TextEditingController();
+  final _dislikesController = TextEditingController();
+  final _rateController = TextEditingController();
+  final _availableDaysTimesController = TextEditingController();
+  final _authService = AuthService();
 
   File? _profileImage;
   List<File> _galleryImages = [];
   File? _qualificationFile;
+  File? _idVerificationFile;
   bool _obscurePassword = true;
   String? _selectedCity;
   String? _selectedServiceType;
+  final List<String> _selectedGroomingServices = [];
+  final List<String> _selectedComfortableWith = [];
+
   final List<String> _cities = ['Colombo', 'Gampaha', 'Kandy', 'Galle', 'Matara', 'Jaffna', 'Anuradhapura'];
   final List<String> _serviceTypes = ['Veterinarian', 'Pet Groomer', 'Pet Sitter'];
+  final List<String> _groomingServices = ['Bathing', 'Hair Trimming', 'Nail Clipping', 'Styling', 'Others'];
+  final List<String> _comfortableWith = ['Dogs', 'Cats'];
 
   void _pickImage() async {
     final picked = await ImagePicker().pickImage(source: ImageSource.gallery);
@@ -53,6 +67,13 @@ class _ServiceProviderRegisterScreenState extends State<ServiceProviderRegisterS
     }
   }
 
+  void _pickVerificationFile() async {
+    final picked = await ImagePicker().pickImage(source: ImageSource.gallery);
+    if (picked != null) {
+      setState(() => _idVerificationFile = File(picked.path));
+    }
+  }
+
   void _register() async {
     if (_formKey.currentState == null) {
       debugPrint('FormState is null, cannot validate.');
@@ -67,21 +88,37 @@ class _ServiceProviderRegisterScreenState extends State<ServiceProviderRegisterS
 
       try {
         await _authService.registerServiceProvider(
-          name: _nameController.text.trim(),
-          phoneNo: _phoneController.text.trim(),
-          email: _emailController.text.trim(),
-          password: _passwordController.text.trim(),
-          address: _clinicOrSalonController.text.trim(), // used clinicOrSalon field for location
-          city: _selectedCity ?? '',
-          role: _selectedServiceType ?? '',
-          profileImage: _profileImage,
-          clinicOrSalon: _clinicOrSalonController.text.trim(),
-          galleryImages: _galleryImages,
-          qualificationFile: _qualificationFile,
-          experience: _experienceController.text.trim(),
-          serviceDescription: _descriptionController.text.trim(),
-          notes: _notesController.text.trim(),
-        );
+  name: _nameController.text.trim(),
+  phoneNo: _phoneController.text.trim(),
+  email: _emailController.text.trim(),
+  password: _passwordController.text.trim(),
+  clinicOrSalon: _clinicNameController.text.trim(),
+  address: _clinicAddressController.text.trim(),
+  city: _selectedCity ?? '',
+  role: _selectedServiceType ?? '',
+
+  // Convert File? to XFile?
+  profileImage: _profileImage != null ? XFile(_profileImage!.path) : null,
+
+  // Convert List<File> to List<XFile>
+  galleryImages: _galleryImages.map((file) => XFile(file.path)).toList(),
+
+  qualificationFile: _qualificationFile != null ? XFile(_qualificationFile!.path) : null,
+  idVerificationFile: _idVerificationFile != null ? XFile(_idVerificationFile!.path) : null,
+
+  experience: _experienceController.text.trim(),
+  serviceDescription: _descriptionController.text.trim(),
+  notes: _notesController.text.trim(),
+  pricingDetails: _pricingController.text.trim(),
+  consultationFee: _consultationFeeController.text.trim(),
+  aboutClinicOrSalon: _aboutClinicOrSalonController.text.trim(),
+  groomingServices: _selectedGroomingServices,
+  comfortableWith: _selectedComfortableWith,
+  availableTimes: _availableDaysTimesController.text.trim(),
+  dislikes: _dislikesController.text.trim(),
+  rate: _rateController.text.trim(),
+);
+
 
         if (!mounted) return;
         Navigator.of(context).pop();
@@ -99,20 +136,20 @@ class _ServiceProviderRegisterScreenState extends State<ServiceProviderRegisterS
   }
 
   InputDecoration _inputDecoration(String label) => InputDecoration(
-        labelText: label,
-        filled: true,
-        fillColor: Colors.grey.shade100,
-        border: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(14),
-          borderSide: BorderSide.none,
-        ),
-        focusedBorder: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(14),
-          borderSide: const BorderSide(color: Color(0xFF842EAC), width: 2),
-        ),
-        labelStyle: const TextStyle(color: Color(0xFF842EAC)), // Make label purple when focused
-        contentPadding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
-      );
+    labelText: label,
+    labelStyle: const TextStyle(color: Colors.black87),
+    filled: true,
+    fillColor: Colors.grey.shade100,
+    border: OutlineInputBorder(
+      borderRadius: BorderRadius.circular(14),
+      borderSide: BorderSide.none,
+    ),
+    focusedBorder: OutlineInputBorder(
+      borderRadius: BorderRadius.circular(14),
+      borderSide: const BorderSide(color: Color(0xFF842EAC), width: 2),
+    ),
+    contentPadding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
+  );
 
   @override
   Widget build(BuildContext context) {
@@ -127,10 +164,7 @@ class _ServiceProviderRegisterScreenState extends State<ServiceProviderRegisterS
           children: [
             Center(child: Image.asset('assets/images/scooby_logo.jpeg', height: 160)),
             const SizedBox(height: 8),
-            const Text(
-              'Register as Service Provider',
-              style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold, color: purple),
-            ),
+            const Text('Register as Service Provider', style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold, color: purple)),
             const SizedBox(height: 8),
             Container(
               padding: const EdgeInsets.all(20),
@@ -148,27 +182,15 @@ class _ServiceProviderRegisterScreenState extends State<ServiceProviderRegisterS
                       child: CircleAvatar(
                         radius: 50,
                         backgroundColor: Colors.grey.shade200,
-                        backgroundImage: _profileImage != null
-                            ? FileImage(_profileImage!)
-                            : const AssetImage('assets/images/default_user.png') as ImageProvider,
+                        backgroundImage: _profileImage != null ? FileImage(_profileImage!) : const AssetImage('assets/images/default_user.png') as ImageProvider,
                       ),
                     ),
                     const SizedBox(height: 20),
                     TextFormField(controller: _nameController, decoration: _inputDecoration('Full Name'), validator: (val) => val!.isEmpty ? 'Required' : null),
                     const SizedBox(height: 16),
-                    TextFormField(
-                      controller: _phoneController,
-                      decoration: _inputDecoration('Phone Number'),
-                      keyboardType: TextInputType.phone,
-                      validator: (val) => val!.length != 10 ? 'Enter valid number' : null,
-                    ),
+                    TextFormField(controller: _phoneController, decoration: _inputDecoration('Phone Number'), keyboardType: TextInputType.phone, validator: (val) => val!.length != 10 ? 'Enter valid number' : null),
                     const SizedBox(height: 16),
-                    TextFormField(
-                      controller: _emailController,
-                      decoration: _inputDecoration('Email'),
-                      keyboardType: TextInputType.emailAddress,
-                      validator: (val) => !val!.contains('@') ? 'Invalid email' : null,
-                    ),
+                    TextFormField(controller: _emailController, decoration: _inputDecoration('Email'), keyboardType: TextInputType.emailAddress, validator: (val) => !val!.contains('@') ? 'Invalid email' : null),
                     const SizedBox(height: 16),
                     TextFormField(
                       controller: _passwordController,
@@ -182,51 +204,85 @@ class _ServiceProviderRegisterScreenState extends State<ServiceProviderRegisterS
                       validator: (val) => val!.length < 8 ? 'Min 8 characters' : null,
                     ),
                     const SizedBox(height: 16),
-                    DropdownButtonFormField<String>(
-                      value: _selectedCity,
-                      items: _cities.map((e) => DropdownMenuItem(value: e, child: Text(e))).toList(),
-                      onChanged: (val) => setState(() => _selectedCity = val),
-                      decoration: _inputDecoration('City'),
-                      validator: (val) => val == null ? 'Select city' : null,
-                    ),
+                    DropdownButtonFormField<String>(value: _selectedCity, items: _cities.map((e) => DropdownMenuItem(value: e, child: Text(e))).toList(), onChanged: (val) => setState(() => _selectedCity = val), decoration: _inputDecoration('City'), validator: (val) => val == null ? 'Select city' : null),
                     const SizedBox(height: 16),
-                    DropdownButtonFormField<String>(
-                      value: _selectedServiceType,
-                      items: _serviceTypes.map((e) => DropdownMenuItem(value: e, child: Text(e))).toList(),
-                      onChanged: (val) => setState(() => _selectedServiceType = val),
-                      decoration: _inputDecoration('Service Type'),
-                      validator: (val) => val == null ? 'Select service' : null,
-                    ),
+                    DropdownButtonFormField<String>(value: _selectedServiceType, items: _serviceTypes.map((e) => DropdownMenuItem(value: e, child: Text(e))).toList(), onChanged: (val) => setState(() => _selectedServiceType = val), decoration: _inputDecoration('Service Type'), validator: (val) => val == null ? 'Select service' : null),
                     const SizedBox(height: 16),
-                    if (_selectedServiceType == 'Veterinarian' || _selectedServiceType == 'Pet Groomer')
-                      TextFormField(
-                        controller: _clinicOrSalonController,
-                        decoration: _inputDecoration(_selectedServiceType == 'Veterinarian' ? 'Clinic Location' : 'Salon Location'),
-                        validator: (val) => val!.isEmpty ? 'Required' : null,
+
+                    if (_selectedServiceType == 'Veterinarian' || _selectedServiceType == 'Pet Groomer') ...[
+                      TextFormField(controller: _clinicOrSalonController, decoration: _inputDecoration(_selectedServiceType == 'Veterinarian' ? 'Clinic Name & Address' : 'Salon Name & Address'), validator: (val) => val!.isEmpty ? 'Required' : null),
+                      const SizedBox(height: 16),
+                      TextFormField(controller: _aboutClinicOrSalonController, decoration: _inputDecoration('About the Place'), maxLines: 2),
+                      const SizedBox(height: 16),
+                      TextFormField(controller: _experienceController, decoration: _inputDecoration('Years of Experience'), keyboardType: TextInputType.number),
+                      const SizedBox(height: 16),
+                      TextFormField(controller: _descriptionController, decoration: _inputDecoration('Service Description'), maxLines: 3),
+                      const SizedBox(height: 16),
+                      TextFormField(controller: _selectedServiceType == 'Veterinarian' ? _consultationFeeController : _pricingController, decoration: _inputDecoration(_selectedServiceType == 'Veterinarian' ? 'Consultation Fee (Optional)' : 'Pricing Details (Optional)')),
+                      const SizedBox(height: 16),
+                      ElevatedButton.icon(onPressed: _pickQualification, icon: const Icon(Icons.file_present), label: const Text('Upload Qualification', style: TextStyle(color: Colors.white)), style: ElevatedButton.styleFrom(backgroundColor: purple)),
+                      const SizedBox(height: 16),
+                      ElevatedButton.icon(onPressed: _pickGalleryImages, icon: const Icon(Icons.image), label: const Text('Upload Gallery Images', style: TextStyle(color: Colors.white)), style: ElevatedButton.styleFrom(backgroundColor: purple)),
+                    ],
+
+                    if (_selectedServiceType == 'Pet Groomer') ...[
+                      const SizedBox(height: 16),
+                      Wrap(
+                        spacing: 8,
+                        children: _groomingServices.map((service) {
+                          return FilterChip(
+                            label: Text(service),
+                            selected: _selectedGroomingServices.contains(service),
+                            onSelected: (selected) {
+                              setState(() {
+                                if (selected) {
+                                  _selectedGroomingServices.add(service);
+                                } else {
+                                  _selectedGroomingServices.remove(service);
+                                }
+                              });
+                            },
+                          );
+                        }).toList(),
                       ),
-                    if (_selectedServiceType == 'Veterinarian' || _selectedServiceType == 'Pet Groomer') const SizedBox(height: 16),
-                    if (_selectedServiceType == 'Veterinarian' || _selectedServiceType == 'Pet Groomer')
-                      ElevatedButton.icon(
-                        onPressed: _pickQualification,
-                        icon: const Icon(Icons.file_present),
-                        label: const Text('Upload Qualification', style: TextStyle(color: Colors.white)),
-                        style: ElevatedButton.styleFrom(backgroundColor: purple),
-                      ),
+                    ],
+
                     if (_selectedServiceType == 'Pet Sitter') ...[
                       const SizedBox(height: 16),
-                      TextFormField(controller: _notesController, decoration: _inputDecoration('Notes or Preferences')),
+                      TextFormField(controller: _availableDaysTimesController, decoration: _inputDecoration('Available Days & Times')),
+                      const SizedBox(height: 16),
+                      TextFormField(controller: _dislikesController, decoration: _inputDecoration('Any Allergies or Pet Dislikes'), maxLines: 2),
+                      const SizedBox(height: 16),
+                      Wrap(
+                        spacing: 8,
+                        children: _comfortableWith.map((animal) {
+                          return FilterChip(
+                            label: Text(animal),
+                            selected: _selectedComfortableWith.contains(animal),
+                            onSelected: (selected) {
+                              setState(() {
+                                if (selected) {
+                                  _selectedComfortableWith.add(animal);
+                                } else {
+                                  _selectedComfortableWith.remove(animal);
+                                }
+                              });
+                            },
+                          );
+                        }).toList(),
+                      ),
+                      const SizedBox(height: 16),
+                      TextFormField(controller: _notesController, decoration: _inputDecoration('Special Notes or Preferences'), maxLines: 2),
+                      const SizedBox(height: 16),
+                      TextFormField(controller: _experienceController, decoration: _inputDecoration('Years of Experience'), keyboardType: TextInputType.number),
+                      const SizedBox(height: 16),
+                      TextFormField(controller: _descriptionController, decoration: _inputDecoration('Service Description'), maxLines: 3),
+                      const SizedBox(height: 16),
+                      TextFormField(controller: _rateController, decoration: _inputDecoration('Hourly / Daily Rate')),
+                      const SizedBox(height: 16),
+                      ElevatedButton.icon(onPressed: _pickVerificationFile, icon: const Icon(Icons.file_copy), label: const Text('Upload ID / Verification Document (Optional)', style: TextStyle(color: Colors.white)), style: ElevatedButton.styleFrom(backgroundColor: purple)),
                     ],
-                    const SizedBox(height: 16),
-                    TextFormField(controller: _experienceController, decoration: _inputDecoration('Years of Experience')),
-                    const SizedBox(height: 16),
-                    TextFormField(controller: _descriptionController, decoration: _inputDecoration('Service Description'), maxLines: 3),
-                    const SizedBox(height: 16),
-                    ElevatedButton.icon(
-                      onPressed: _pickGalleryImages,
-                      icon: const Icon(Icons.image),
-                      label: const Text('Upload Gallery Images', style: TextStyle(color: Colors.white)),
-                      style: ElevatedButton.styleFrom(backgroundColor: purple),
-                    ),
+
                     const SizedBox(height: 24),
                     SizedBox(
                       width: double.infinity,
@@ -243,7 +299,7 @@ class _ServiceProviderRegisterScreenState extends State<ServiceProviderRegisterS
                   ],
                 ),
               ),
-            )
+            ),
           ],
         ),
       ),
