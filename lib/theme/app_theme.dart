@@ -1,63 +1,71 @@
 import 'package:flutter/material.dart';
-import 'package:google_fonts/google_fonts.dart';
 
 class AppTheme {
-  // Colors
-  static const Color primaryColor = Color(0xFF6C63FF); // Purple
-  static const Color accentColor = Color(0xFFFFB300); // Amber/Gold
-  static const Color backgroundColor = Colors.white;
-  static const Color headingColor = Colors.black87;
-  static const Color descriptionColor = Colors.grey;
-  static const Color lightOrange = Color(0xFFFFE0B2);
+  static const Color primaryPurple = Color(0xFF842EAC);
 
-  // Dark theme colors
-  static const Color darkBackground = Color(0xFF121212);
-  static const Color darkCard = Color(0xFF1F1F1F);
-  static const Color darkText = Colors.white70;
-
-  /// Light Theme
-  static ThemeData lightTheme = ThemeData(
-    brightness: Brightness.light,
-    primaryColor: primaryColor,
-    scaffoldBackgroundColor: backgroundColor,
-    cardColor: Colors.white,
-    appBarTheme: const AppBarTheme(
-      backgroundColor: primaryColor,
-      foregroundColor: Colors.white,
-      elevation: 0,
+  static final ThemeData lightTheme = ThemeData(
+    primaryColor: primaryPurple,
+    scaffoldBackgroundColor: Colors.white,
+    colorScheme: ColorScheme.fromSeed(
+      seedColor: primaryPurple,
+      primary: primaryPurple,
+      brightness: Brightness.light,
     ),
-    textTheme: GoogleFonts.nunitoTextTheme().copyWith(
-      titleLarge: const TextStyle(fontSize: 22, fontWeight: FontWeight.bold, color: headingColor),
-      bodyMedium: const TextStyle(fontSize: 16, color: Colors.black87),
+    inputDecorationTheme: InputDecorationTheme(
+      labelStyle: const TextStyle(color: Colors.black87),
+      floatingLabelStyle: const TextStyle(color: primaryPurple),
+      filled: true,
+      fillColor: Colors.grey.shade100,
+      border: OutlineInputBorder(
+        borderRadius: BorderRadius.circular(14),
+        borderSide: BorderSide.none,
+      ),
+      focusedBorder: OutlineInputBorder(
+        borderRadius: BorderRadius.circular(14),
+        borderSide: const BorderSide(color: primaryPurple, width: 2),
+      ),
+      contentPadding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
     ),
-    floatingActionButtonTheme: const FloatingActionButtonThemeData(
-      backgroundColor: primaryColor,
+    elevatedButtonTheme: ElevatedButtonThemeData(
+      style: ElevatedButton.styleFrom(
+        backgroundColor: primaryPurple,
+        foregroundColor: Colors.white,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+        textStyle: const TextStyle(fontWeight: FontWeight.bold),
+      ),
     ),
-    colorScheme: ColorScheme.fromSwatch().copyWith(
-      secondary: accentColor,
+    textTheme: const TextTheme(
+      bodyMedium: TextStyle(color: Colors.black87),
     ),
   );
 
-  /// Dark Theme
-  static ThemeData darkTheme = ThemeData(
+  static final ThemeData darkTheme = ThemeData(
     brightness: Brightness.dark,
-    primaryColor: primaryColor,
-    scaffoldBackgroundColor: darkBackground,
-    cardColor: darkCard,
-    appBarTheme: const AppBarTheme(
-      backgroundColor: Colors.black,
-      foregroundColor: Colors.white,
-      elevation: 0,
+    colorScheme: ColorScheme.fromSeed(
+      seedColor: primaryPurple,
+      brightness: Brightness.dark,
     ),
-    textTheme: GoogleFonts.nunitoTextTheme().copyWith(
-      titleLarge: const TextStyle(fontSize: 22, fontWeight: FontWeight.bold, color: darkText),
-      bodyMedium: const TextStyle(fontSize: 16, color: Colors.white70),
+    inputDecorationTheme: InputDecorationTheme(
+      labelStyle: const TextStyle(color: Colors.white),
+      floatingLabelStyle: const TextStyle(color: primaryPurple),
+      filled: true,
+      fillColor: Colors.grey.shade800,
+      border: OutlineInputBorder(
+        borderRadius: BorderRadius.circular(14),
+        borderSide: BorderSide.none,
+      ),
+      focusedBorder: OutlineInputBorder(
+        borderRadius: BorderRadius.circular(14),
+        borderSide: const BorderSide(color: primaryPurple, width: 2),
+      ),
+      contentPadding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
     ),
-    floatingActionButtonTheme: const FloatingActionButtonThemeData(
-      backgroundColor: primaryColor,
-    ),
-    colorScheme: ColorScheme.fromSwatch(brightness: Brightness.dark).copyWith(
-      secondary: accentColor,
+    elevatedButtonTheme: ElevatedButtonThemeData(
+      style: ElevatedButton.styleFrom(
+        backgroundColor: primaryPurple,
+        foregroundColor: Colors.white,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+      ),
     ),
   );
 }

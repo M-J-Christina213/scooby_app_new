@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:scooby_app_new/views/auth_gate.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
-import 'package:scooby_app_new/theme/app_theme.dart'; 
+import 'package:scooby_app_new/theme/app_theme.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -21,9 +21,9 @@ class ScoobyApp extends StatelessWidget {
     return MaterialApp(
       title: 'Scooby App',
       debugShowCheckedModeBanner: false,
-      theme: AppTheme.lightTheme,      
-      darkTheme: AppTheme.darkTheme,   
-      themeMode: ThemeMode.system,     
+      theme: AppTheme.lightTheme,
+      darkTheme: AppTheme.darkTheme,
+      themeMode: ThemeMode.system,
       home: const AuthGate(),
     );
   }
