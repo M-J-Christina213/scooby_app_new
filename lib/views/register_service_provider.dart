@@ -1,5 +1,4 @@
 import 'dart:io';
-
 import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:scooby_app_new/services/auth_services.dart';
@@ -18,7 +17,6 @@ class _ServiceProviderRegisterScreenState extends State<ServiceProviderRegisterS
   final _phoneController = TextEditingController();
   final _emailController = TextEditingController();
   final _passwordController = TextEditingController();
-  final _addressController = TextEditingController();
   final _clinicOrSalonController = TextEditingController();
   final _descriptionController = TextEditingController();
   final _experienceController = TextEditingController();
@@ -31,7 +29,7 @@ class _ServiceProviderRegisterScreenState extends State<ServiceProviderRegisterS
   bool _obscurePassword = true;
   String? _selectedCity;
   String? _selectedServiceType;
-  final List<String> _cities = ['Colombo', 'Kandy', 'Galle', 'Jaffna'];
+  final List<String> _cities = ['Colombo', 'Gampaha', 'Kandy', 'Galle', 'Matara', 'Jaffna', 'Anuradhapura'];
   final List<String> _serviceTypes = ['Veterinarian', 'Pet Groomer', 'Pet Sitter'];
 
   void _pickImage() async {
@@ -56,6 +54,10 @@ class _ServiceProviderRegisterScreenState extends State<ServiceProviderRegisterS
   }
 
   void _register() async {
+    if (_formKey.currentState == null) {
+      debugPrint('FormState is null, cannot validate.');
+      return;
+    }
     if (_formKey.currentState!.validate()) {
       showDialog(
         context: context,
@@ -65,22 +67,21 @@ class _ServiceProviderRegisterScreenState extends State<ServiceProviderRegisterS
 
       try {
         await _authService.registerServiceProvider(
-        name: _nameController.text.trim(),
-        phoneNo: _phoneController.text.trim(),
-        email: _emailController.text.trim(),
-        password: _passwordController.text.trim(),
-        address: _addressController.text.trim(),
-        city: _selectedCity ?? '',
-        role: _selectedServiceType ?? '',
-        profileImage: _profileImage,                 // << pass the picked profile image here
-        clinicOrSalon: _clinicOrSalonController.text.trim(),
-        galleryImages: _galleryImages,
-        qualificationFile: _qualificationFile,
-        experience: _experienceController.text.trim(),
-        serviceDescription: _descriptionController.text.trim(),
-        notes: _notesController.text.trim(),
-      );
-
+          name: _nameController.text.trim(),
+          phoneNo: _phoneController.text.trim(),
+          email: _emailController.text.trim(),
+          password: _passwordController.text.trim(),
+          address: _clinicOrSalonController.text.trim(), // used clinicOrSalon field for location
+          city: _selectedCity ?? '',
+          role: _selectedServiceType ?? '',
+          profileImage: _profileImage,
+          clinicOrSalon: _clinicOrSalonController.text.trim(),
+          galleryImages: _galleryImages,
+          qualificationFile: _qualificationFile,
+          experience: _experienceController.text.trim(),
+          serviceDescription: _descriptionController.text.trim(),
+          notes: _notesController.text.trim(),
+        );
 
         if (!mounted) return;
         Navigator.of(context).pop();
@@ -98,19 +99,20 @@ class _ServiceProviderRegisterScreenState extends State<ServiceProviderRegisterS
   }
 
   InputDecoration _inputDecoration(String label) => InputDecoration(
-    labelText: label,
-    filled: true,
-    fillColor: Colors.grey.shade100,
-    border: OutlineInputBorder(
-      borderRadius: BorderRadius.circular(14),
-      borderSide: BorderSide.none,
-    ),
-    focusedBorder: OutlineInputBorder(
-      borderRadius: BorderRadius.circular(14),
-      borderSide: const BorderSide(color: Color(0xFF842EAC), width: 2),
-    ),
-    contentPadding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
-  );
+        labelText: label,
+        filled: true,
+        fillColor: Colors.grey.shade100,
+        border: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(14),
+          borderSide: BorderSide.none,
+        ),
+        focusedBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(14),
+          borderSide: const BorderSide(color: Color(0xFF842EAC), width: 2),
+        ),
+        labelStyle: const TextStyle(color: Color(0xFF842EAC)), // Make label purple when focused
+        contentPadding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
+      );
 
   @override
   Widget build(BuildContext context) {
@@ -123,9 +125,7 @@ class _ServiceProviderRegisterScreenState extends State<ServiceProviderRegisterS
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Center(
-              child: Image.asset('assets/images/scooby_logo.jpeg', height: 160),
-            ),
+            Center(child: Image.asset('assets/images/scooby_logo.jpeg', height: 160)),
             const SizedBox(height: 8),
             const Text(
               'Register as Service Provider',
@@ -137,9 +137,7 @@ class _ServiceProviderRegisterScreenState extends State<ServiceProviderRegisterS
               decoration: BoxDecoration(
                 color: Colors.white,
                 borderRadius: BorderRadius.circular(18),
-                boxShadow: [
-                  BoxShadow(color: Colors.grey.shade200, blurRadius: 15, spreadRadius: 4),
-                ],
+                boxShadow: [BoxShadow(color: Colors.grey.shade200, blurRadius: 15, spreadRadius: 4)],
               ),
               child: Form(
                 key: _formKey,
@@ -158,9 +156,19 @@ class _ServiceProviderRegisterScreenState extends State<ServiceProviderRegisterS
                     const SizedBox(height: 20),
                     TextFormField(controller: _nameController, decoration: _inputDecoration('Full Name'), validator: (val) => val!.isEmpty ? 'Required' : null),
                     const SizedBox(height: 16),
-                    TextFormField(controller: _phoneController, decoration: _inputDecoration('Phone Number'), keyboardType: TextInputType.phone, validator: (val) => val!.length != 10 ? 'Enter valid number' : null),
+                    TextFormField(
+                      controller: _phoneController,
+                      decoration: _inputDecoration('Phone Number'),
+                      keyboardType: TextInputType.phone,
+                      validator: (val) => val!.length != 10 ? 'Enter valid number' : null,
+                    ),
                     const SizedBox(height: 16),
-                    TextFormField(controller: _emailController, decoration: _inputDecoration('Email'), keyboardType: TextInputType.emailAddress, validator: (val) => !val!.contains('@') ? 'Invalid email' : null),
+                    TextFormField(
+                      controller: _emailController,
+                      decoration: _inputDecoration('Email'),
+                      keyboardType: TextInputType.emailAddress,
+                      validator: (val) => !val!.contains('@') ? 'Invalid email' : null,
+                    ),
                     const SizedBox(height: 16),
                     TextFormField(
                       controller: _passwordController,
@@ -182,8 +190,6 @@ class _ServiceProviderRegisterScreenState extends State<ServiceProviderRegisterS
                       validator: (val) => val == null ? 'Select city' : null,
                     ),
                     const SizedBox(height: 16),
-                    TextFormField(controller: _addressController, decoration: _inputDecoration('Address'), validator: (val) => val!.isEmpty ? 'Required' : null),
-                    const SizedBox(height: 16),
                     DropdownButtonFormField<String>(
                       value: _selectedServiceType,
                       items: _serviceTypes.map((e) => DropdownMenuItem(value: e, child: Text(e))).toList(),
@@ -193,18 +199,23 @@ class _ServiceProviderRegisterScreenState extends State<ServiceProviderRegisterS
                     ),
                     const SizedBox(height: 16),
                     if (_selectedServiceType == 'Veterinarian' || _selectedServiceType == 'Pet Groomer')
-                      Column(children: [
-                        TextFormField(controller: _clinicOrSalonController, decoration: _inputDecoration(_selectedServiceType == 'Veterinarian' ? 'Clinic Name' : 'Salon Name')),
-                        const SizedBox(height: 16),
-                        ElevatedButton.icon(
-                          onPressed: _pickQualification,
-                          icon: const Icon(Icons.file_present),
-                          label: const Text('Upload Qualification'),
-                          style: ElevatedButton.styleFrom(backgroundColor: purple),
-                        ),
-                      ]),
-                    if (_selectedServiceType == 'Pet Sitter')
+                      TextFormField(
+                        controller: _clinicOrSalonController,
+                        decoration: _inputDecoration(_selectedServiceType == 'Veterinarian' ? 'Clinic Location' : 'Salon Location'),
+                        validator: (val) => val!.isEmpty ? 'Required' : null,
+                      ),
+                    if (_selectedServiceType == 'Veterinarian' || _selectedServiceType == 'Pet Groomer') const SizedBox(height: 16),
+                    if (_selectedServiceType == 'Veterinarian' || _selectedServiceType == 'Pet Groomer')
+                      ElevatedButton.icon(
+                        onPressed: _pickQualification,
+                        icon: const Icon(Icons.file_present),
+                        label: const Text('Upload Qualification', style: TextStyle(color: Colors.white)),
+                        style: ElevatedButton.styleFrom(backgroundColor: purple),
+                      ),
+                    if (_selectedServiceType == 'Pet Sitter') ...[
+                      const SizedBox(height: 16),
                       TextFormField(controller: _notesController, decoration: _inputDecoration('Notes or Preferences')),
+                    ],
                     const SizedBox(height: 16),
                     TextFormField(controller: _experienceController, decoration: _inputDecoration('Years of Experience')),
                     const SizedBox(height: 16),
@@ -213,7 +224,7 @@ class _ServiceProviderRegisterScreenState extends State<ServiceProviderRegisterS
                     ElevatedButton.icon(
                       onPressed: _pickGalleryImages,
                       icon: const Icon(Icons.image),
-                      label: const Text('Upload Gallery Images'),
+                      label: const Text('Upload Gallery Images', style: TextStyle(color: Colors.white)),
                       style: ElevatedButton.styleFrom(backgroundColor: purple),
                     ),
                     const SizedBox(height: 24),

@@ -1,6 +1,5 @@
 import 'dart:developer';
 import 'dart:io';
-import 'package:scooby_app_new/views/service_provider_home.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:uuid/uuid.dart';
 
@@ -71,92 +70,111 @@ class AuthService {
   }
 
   // Register Service Provider
-  Future<void> registerServiceProvider({
-    required String name,
-    required String email,
-    required String password,
-    required String phoneNo,
-    required String address,
-    required String city,
-    required String role,
-    required String serviceDescription,
-    required String experience,
-    File? qualificationFile,
-    List<File>? galleryImages,
-    String? clinicOrSalon,
-    String? availability,
-    String? notes,
-  }) async {
-    final uuid = Uuid();
-    try {
-      // Sign up the user
-      final authResponse = await _supabase.auth.signUp(
-        email: email,
-        password: password,
-      );
+ Future<void> registerServiceProvider({
+  required String name,
+  required String email,
+  required String password,
+  required String phoneNo,
+  required String address,
+  required String city,
+  required String role,
+  required String serviceDescription,
+  required String experience,
+  File? profileImage,                  // << Added profileImage parameter
+  File? qualificationFile,
+  List<File>? galleryImages,
+  String? clinicOrSalon,
+  String? availability,
+  String? notes,
+}) async {
+  final uuid = Uuid();
+  try {
+    // Sign up the user
+    final authResponse = await _supabase.auth.signUp(
+      email: email,
+      password: password,
+    );
 
-      final userId = authResponse.user?.id;
-      if (userId == null) {
-        throw Exception('Failed to get user ID');
-      }
+    final userId = authResponse.user?.id;
+    if (userId == null) {
+      throw Exception('Failed to get user ID');
+    }
 
-      // Upload qualification file (if provided)
-      String? qualificationUrl;
-      if (qualificationFile != null) {
-        final fileExt = qualificationFile.path.split('.').last;
-        final filePath = 'qualifications/$userId.$fileExt';
+    // Upload profile image (if provided)
+    String? profileImageUrl;
+    if (profileImage != null) {
+      final fileExt = profileImage.path.split('.').last;
+      final filePath = 'profile_images/$userId.$fileExt';
+
+      await _supabase.storage
+          .from('scooby_bucket')
+          .upload(filePath, profileImage);
+
+      profileImageUrl = _supabase.storage
+          .from('scooby_bucket')
+          .getPublicUrl(filePath);
+    }
+
+    // Upload qualification file (if provided)
+    String? qualificationUrl;
+    if (qualificationFile != null) {
+      final fileExt = qualificationFile.path.split('.').last;
+      final filePath = 'qualifications/$userId.$fileExt';
+
+      await _supabase.storage
+          .from('scooby_bucket')
+          .upload(filePath, qualificationFile);
+
+      qualificationUrl = _supabase.storage
+          .from('scooby_bucket')
+          .getPublicUrl(filePath);
+    }
+
+    // Upload gallery images (if provided)
+    List<String> galleryUrls = [];
+    if (galleryImages != null && galleryImages.isNotEmpty) {
+      for (File img in galleryImages) {
+        final fileName = '${uuid.v4()}.${img.path.split('.').last}';
+        final filePath = 'provider-galleries/$userId/$fileName';
 
         await _supabase.storage
             .from('scooby_bucket')
-            .upload(filePath, qualificationFile);
+            .upload(filePath, img);
 
-        qualificationUrl = _supabase.storage
+        final url = _supabase.storage
             .from('scooby_bucket')
             .getPublicUrl(filePath);
+
+        galleryUrls.add(url);
       }
-
-      // Upload gallery images (if provided)
-      List<String> galleryUrls = [];
-      if (galleryImages != null && galleryImages.isNotEmpty) {
-        for (File img in galleryImages) {
-          final fileName = '${uuid.v4()}.${img.path.split('.').last}';
-          final filePath = 'provider-galleries/$userId/$fileName';
-
-          await _supabase.storage
-              .from('scooby_bucket')
-              .upload(filePath, img);
-
-          final url = _supabase.storage
-              .from('scooby_bucket')
-              .getPublicUrl(filePath);
-
-          galleryUrls.add(url);
-        }
-      }
-
-      // Insert into service_providers table
-      await _supabase.from('service_providers').insert({
-        'user_id': userId,
-        'name': name,
-        'email': email,
-        'password': password,
-        'phone_no': phoneNo,
-        'address': address,
-        'city': city,
-        'role': role,
-        'service_description': serviceDescription,
-        'experience': experience,
-        'qualification_url': qualificationUrl,
-        'gallery_urls': galleryUrls,
-        'clinic_or_salon_name': clinicOrSalon,
-        'availability': availability,
-        'notes': notes,
-      });
-    } catch (e) {
-      print('Registration error: $e');
-      rethrow;
     }
+
+    // Insert into service_providers table
+    await _supabase.from('service_providers').insert({
+      'user_id': userId,
+      'name': name,
+      'email': email,
+      'password': password,
+      'phone_no': phoneNo,
+      'address': address,
+      'city': city,
+      'role': role,
+      'service_description': serviceDescription,
+      'experience': experience,
+      'image_url': profileImageUrl,       // << Save profile image url here
+      'qualification_url': qualificationUrl,
+      'gallery_urls': galleryUrls,
+      'clinic_or_salon_name': clinicOrSalon,
+      'availability': availability,
+      'notes': notes,
+    });
+
+  } catch (e) {
+    ('Registration error: $e');
+    rethrow;
   }
+}
+
 
   // File upload to Supabase Storage
   Future<String> _uploadFile({
