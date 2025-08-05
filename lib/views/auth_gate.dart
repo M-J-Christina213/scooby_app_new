@@ -6,52 +6,88 @@ import 'login_screen.dart';
 import 'service_provider_home.dart';
 import '../services/auth_services.dart';
 
-class AuthGate extends StatelessWidget {
+class AuthGate extends StatefulWidget {
   const AuthGate({super.key});
 
   @override
-  Widget build(BuildContext context) {
-    return StreamBuilder<AuthState>(
-      stream: Supabase.instance.client.auth.onAuthStateChange,
-      builder: (context, snapshot) {
-        final session = Supabase.instance.client.auth.currentSession;
+  State<AuthGate> createState() => _AuthGateState();
+}
 
-        if (snapshot.connectionState == ConnectionState.waiting) {
+class _AuthGateState extends State<AuthGate> {
+  Session? _session;
+  bool _loading = true;
+
+  @override
+  void initState() {
+    super.initState();
+    _loadInitialSession();
+    Supabase.instance.client.auth.onAuthStateChange.listen((event) {
+      setState(() {
+        _session = event.session;
+      });
+    });
+  }
+
+  Future<void> _loadInitialSession() async {
+    final currentSession = Supabase.instance.client.auth.currentSession;
+    setState(() {
+      _session = currentSession;
+      _loading = false;
+    });
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    if (_loading) {
+      return const Scaffold(
+        body: Center(child: CircularProgressIndicator()),
+      );
+    }
+
+    if (_session == null) {
+      return const LoginScreen();
+    }
+
+    return FutureBuilder<String?>(
+      future: AuthService().getUserRole(_session!.user.id),
+      builder: (context, roleSnapshot) {
+        if (roleSnapshot.connectionState == ConnectionState.waiting) {
           return const Scaffold(
             body: Center(child: CircularProgressIndicator()),
           );
         }
 
-        if (session == null) {
+        if (roleSnapshot.hasError || roleSnapshot.data == null) {
+          Supabase.instance.client.auth.signOut();
           return const LoginScreen();
-        } else {
-          final user = session.user;
+        }
+
+        final role = roleSnapshot.data;
+
+        if (role == 'service_provider') {
           return FutureBuilder<String?>(
-            future: AuthService().getUserRole(user.id),
-            builder: (context, roleSnapshot) {
-              if (roleSnapshot.connectionState == ConnectionState.waiting) {
+            future: AuthService().getServiceProviderEmail(_session!.user.id),
+            builder: (context, emailSnapshot) {
+              if (emailSnapshot.connectionState == ConnectionState.waiting) {
                 return const Scaffold(
                   body: Center(child: CircularProgressIndicator()),
                 );
               }
 
-              if (roleSnapshot.hasError || roleSnapshot.data == null) {
+              if (emailSnapshot.hasError || emailSnapshot.data == null) {
                 Supabase.instance.client.auth.signOut();
                 return const LoginScreen();
               }
 
-              final role = roleSnapshot.data;
-
-              if (role == 'service_provider') {
-                return const ServiceProviderHomeScreen();
-              } else if (role == 'pet_owner') {
-                return const HomeScreen();
-              } else {
-                Supabase.instance.client.auth.signOut();
-                return const LoginScreen();
-              }
+              final email = emailSnapshot.data!;
+              return ServiceProviderHomeScreen(serviceProviderEmail: email);
             },
           );
+        } else if (role == 'pet_owner') {
+          return const HomeScreen();
+        } else {
+          Supabase.instance.client.auth.signOut();
+          return const LoginScreen();
         }
       },
     );

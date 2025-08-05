@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:scooby_app_new/controllers/home_controller.dart';
+import 'package:scooby_app_new/models/pet.dart';
 import 'package:scooby_app_new/views/adoption_screen.dart';
 import 'package:scooby_app_new/views/bottom_nav.dart';
 import 'package:scooby_app_new/views/community_screen.dart';
@@ -18,7 +19,8 @@ class _HomeScreenState extends State<HomeScreen> {
   int _selectedIndex = 0;
 
   final List<Widget> _screens = [
-    const Center(child: Text('Welcome')),
+    // The main home screen content (pets list)
+    PetsScreen(),
     const ServicesScreen(),
     const AdoptionScreen(),
     const CommunityScreen(),
@@ -34,47 +36,95 @@ class _HomeScreenState extends State<HomeScreen> {
     setState(() => _selectedIndex = index);
   }
 
-  void _goToProfile() {
-    Navigator.push(
-      context,
-      MaterialPageRoute(builder: (context) => const PetOwnerProfileScreen()),
-    );
-  }
-
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: Colors.white,
       appBar: AppBar(
-        backgroundColor: const Color(0xFF6A0DAD),
-        title: StreamBuilder<String>(
-          stream: _controller.ownerNameStream,
-          builder: (context, snapshot) {
-            final name = snapshot.data ?? 'Scooby';
-            return Text('Welcome, $name');
-          },
-        ),
-        leading: IconButton(
-          icon: const CircleAvatar(
-            backgroundImage: AssetImage('assets/images/profile.jpeg'),
-          ),
-          onPressed: _goToProfile,
-        ),
+        title: const Text('Scooby App'),
         actions: [
           IconButton(
-            icon: const Icon(Icons.logout),
-            onPressed: () => _controller.showLogoutDialog(context),
+            icon: const Icon(Icons.person),
+            onPressed: () {
+              Navigator.push(
+                context,
+                MaterialPageRoute(builder: (_) => const PetOwnerProfileScreen()),
+              );
+            },
           ),
         ],
       ),
-      body: IndexedStack(
-        index: _selectedIndex,
-        children: _screens,
-      ),
-      bottomNavigationBar: BottomNav( 
+      body: _screens[_selectedIndex],
+      bottomNavigationBar: BottomNav(
         selectedIndex: _selectedIndex,
         onTap: _onItemTapped,
       ),
+    );
+  }
+}
+
+class PetsScreen extends StatelessWidget {
+  final HomeController _controller = HomeController();
+
+  PetsScreen({super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    return ListView(
+      padding: const EdgeInsets.all(16),
+      children: [
+        Text("Your Pets", style: Theme.of(context).textTheme.titleLarge),
+        const SizedBox(height: 12),
+        StreamBuilder<List<Pet>>(
+          stream: _controller.petListStream,
+          builder: (context, snapshot) {
+            final pets = snapshot.data ?? [];
+            if (pets.isEmpty) {
+              return Center(
+                child: ElevatedButton(
+                  onPressed: () => _controller.goToAddPet(context),
+                  child: const Text("Add Your First Pet"),
+                ),
+              );
+            }
+
+            return Wrap(
+              spacing: 12,
+              runSpacing: 12,
+              children: pets.map((pet) {
+                return GestureDetector(
+                  onTap: () => _controller.goToViewPetProfile(context, pet),
+                  child: Column(
+                    children: [
+                      CircleAvatar(
+                        radius: 40,
+                        backgroundImage: NetworkImage(pet.imageUrl ?? ''),
+                      ),
+                      const SizedBox(height: 6),
+                      Text(pet.name,
+                          style: const TextStyle(fontWeight: FontWeight.bold))
+                    ],
+                  ),
+                );
+              }).toList()
+                ..add(
+                  GestureDetector(
+                    onTap: () => _controller.goToAddPet(context),
+                    child: Column(
+                      children: const [
+                        CircleAvatar(
+                          radius: 40,
+                          child: Icon(Icons.add),
+                        ),
+                        SizedBox(height: 6),
+                        Text("Add Pet"),
+                      ],
+                    ),
+                  ),
+                ),
+            );
+          },
+        ),
+      ],
     );
   }
 }

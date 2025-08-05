@@ -74,7 +74,7 @@ class _LoginScreenState extends State<LoginScreen> {
           if (providerResponse != null) {
             Navigator.pushReplacement(
               context,
-              MaterialPageRoute(builder: (_) => const ServiceProviderHomeScreen()),
+              MaterialPageRoute(builder: (_) => const ServiceProviderHomeScreen(serviceProviderEmail: '',)),
             );
             showFlushBar("Welcome Service Provider!", Colors.green);
           } else {
@@ -266,7 +266,7 @@ class _LoginScreenState extends State<LoginScreen> {
                       buildRegisterOption('Register as Pet Owner', 'pet_owner', () {
                         Navigator.push(
                           context,
-                          MaterialPageRoute(builder: (context) => const RegisterPetOwner()),
+                          MaterialPageRoute(builder: (context) => const PetOwnerRegisterScreen()),
                         );
                       }),
 
@@ -275,7 +275,7 @@ class _LoginScreenState extends State<LoginScreen> {
                       buildRegisterOption('Register as Service Provider', 'service_provider', () {
                         Navigator.push(
                           context,
-                          MaterialPageRoute(builder: (context) => const RegisterServiceProvider()),
+                          MaterialPageRoute(builder: (context) => const ServiceProviderRegisterScreen()),
                         );
                       }),
                     ],

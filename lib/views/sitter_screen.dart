@@ -1,9 +1,31 @@
 import 'package:flutter/material.dart';
-import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:scooby_app_new/views/service_provider_details_screen.dart';
 
-class PetSitterScreen extends StatelessWidget {
+class PetSitterScreen extends StatefulWidget {
   const PetSitterScreen({super.key});
+
+  @override
+  State<PetSitterScreen> createState() => _PetSitterScreenState();
+}
+
+class _PetSitterScreenState extends State<PetSitterScreen> {
+  late Future<List<Map<String, dynamic>>> _sitterListFuture;
+
+  @override
+  void initState() {
+    super.initState();
+    _sitterListFuture = _fetchPetSitters();
+  }
+
+  Future<List<Map<String, dynamic>>> _fetchPetSitters() async {
+    final response = await Supabase.instance.client
+        .from('service_providers')
+        .select()
+        .eq('providerRole', 'Pet Sitter');
+
+    return List<Map<String, dynamic>>.from(response);
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -12,26 +34,27 @@ class PetSitterScreen extends StatelessWidget {
         title: const Text('Pet Sitter Booking'),
         backgroundColor: Colors.deepPurple,
       ),
-      body: StreamBuilder<QuerySnapshot>(
-        stream: FirebaseFirestore.instance
-            .collection('service_providers')
-            .where('providerRole', isEqualTo: 'Pet Sitter')
-            .snapshots(),
+      body: FutureBuilder<List<Map<String, dynamic>>>(
+        future: _sitterListFuture,
         builder: (context, snapshot) {
           if (snapshot.connectionState == ConnectionState.waiting) {
             return const Center(child: CircularProgressIndicator());
           }
+          if (snapshot.hasError) {
+            return Center(child: Text('Error: ${snapshot.error}'));
+          }
 
-          if (!snapshot.hasData || snapshot.data!.docs.isEmpty) {
+          final sitters = snapshot.data ?? [];
+
+          if (sitters.isEmpty) {
             return const Center(child: Text('No pet sitters found.'));
           }
 
-          final sitters = snapshot.data!.docs;
-
           return ListView.builder(
             itemCount: sitters.length,
+            padding: const EdgeInsets.all(10),
             itemBuilder: (context, index) {
-              final sitterData = sitters[index].data() as Map<String, dynamic>;
+              final sitterData = sitters[index];
 
               return Card(
                 margin: const EdgeInsets.all(10),
@@ -51,7 +74,8 @@ class PetSitterScreen extends StatelessWidget {
                     Navigator.push(
                       context,
                       MaterialPageRoute(
-                        builder: (_) => ServiceProviderDetailsScreen(data: sitterData),
+                        builder: (_) =>
+                            ServiceProviderDetailsScreen(data: sitterData),
                       ),
                     );
                   },

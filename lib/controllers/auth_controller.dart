@@ -1,13 +1,16 @@
-import 'package:firebase_auth/firebase_auth.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
 
 class AuthController {
-  final FirebaseAuth _auth = FirebaseAuth.instance;
+  final SupabaseClient _supabase = Supabase.instance.client;
 
-  Stream<User?> get user => _auth.authStateChanges();
+  // Stream of auth state changes
+  Stream<AuthState> get authStateChanges => _supabase.auth.onAuthStateChange;
 
-  User? get currentUser => _auth.currentUser;
+  // Current user
+  User? get currentUser => _supabase.auth.currentUser;
 
+  // Sign out
   Future<void> signOut() async {
-    await _auth.signOut();
+    await _supabase.auth.signOut();
   }
 }
