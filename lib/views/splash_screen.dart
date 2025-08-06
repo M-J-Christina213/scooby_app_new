@@ -1,8 +1,8 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
-import 'package:supabase_flutter/supabase_flutter.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 import 'login_screen.dart';
-import 'home_screen.dart'; 
+import 'home_screen.dart';
 
 class SplashScreen extends StatefulWidget {
   const SplashScreen({super.key});
@@ -23,11 +23,13 @@ class _SplashScreenState extends State<SplashScreen> {
   void _checkAuth() {
     final user = supabase.auth.currentUser;
     if (user != null) {
-      Navigator.of(context).pushReplacement(
+      Navigator.pushReplacement(
+        context,
         MaterialPageRoute(builder: (context) => const HomeScreen()),
       );
     } else {
-      Navigator.of(context).pushReplacement(
+      Navigator.pushReplacement(
+        context,
         MaterialPageRoute(builder: (context) => const LoginScreen()),
       );
     }
@@ -36,12 +38,12 @@ class _SplashScreenState extends State<SplashScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: const Color(0xFF6A0DAD),
+      backgroundColor: const Color(0xFFE0BBE4), // Light purple background
       body: Center(
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            Image.asset('assets/images/scooby_logo.png', height: 120),
+            Image.asset('assets/logo.png', height: 120),
             const SizedBox(height: 20),
             const CircularProgressIndicator(color: Colors.white),
           ],
