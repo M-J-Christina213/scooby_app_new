@@ -194,33 +194,33 @@ class AuthService {
     }
   }
 
-  Future<String> _uploadFile({
-    required String bucketName,
-    required String path,
-    required XFile file,
-    required String contentType,
-  }) async {
-    final bytes = await file.readAsBytes();
+ Future<String> _uploadFile({
+  required String bucketName,
+  required String path,
+  required XFile file,
+  required String contentType,
+}) async {
+  final bytes = await file.readAsBytes();
 
-    try {
-      // Upload like video way - no awaiting response variable
-      await _supabase.storage.from(bucketName).uploadBinary(
-            path,
-            bytes,
-            fileOptions: FileOptions(
-              contentType: contentType,
-              upsert: true,
-            ),
-          );
-    } catch (e) {
-      log('Upload failed for $bucketName/$path: $e');
-      rethrow;
-    }
-
-    final url = _supabase.storage.from(bucketName).getPublicUrl(path);
-    log('File uploaded to $url');
-    return url;
+  try {
+    await _supabase.storage.from(bucketName).uploadBinary(
+      path,
+      bytes,
+      fileOptions: FileOptions(
+        contentType: contentType,
+        upsert: true,
+      ),
+    );
+  } catch (e) {
+    log('Upload failed for $bucketName/$path: $e');
+    rethrow;
   }
+
+  final url = _supabase.storage.from(bucketName).getPublicUrl(path);
+  log('File uploaded to $url');
+  return url;
+}
+
 
   // Get Service Provider Email
   Future<String?> getServiceProviderEmail(String uid) async {
