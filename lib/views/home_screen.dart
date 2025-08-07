@@ -4,7 +4,6 @@ import 'package:scooby_app_new/models/pet.dart';
 import 'package:scooby_app_new/views/adoption_screen.dart';
 import 'package:scooby_app_new/views/bottom_nav.dart';
 import 'package:scooby_app_new/views/community_screen.dart';
-import 'package:scooby_app_new/views/pet_owner_profile_screen.dart';
 import 'package:scooby_app_new/views/services_screen.dart';
 
 class HomeScreen extends StatefulWidget {
@@ -17,9 +16,9 @@ class HomeScreen extends StatefulWidget {
 class _HomeScreenState extends State<HomeScreen> {
   final HomeController _controller = HomeController();
   int _selectedIndex = 0;
+  String _ownerName = 'User';
 
   final List<Widget> _screens = [
-    // The main home screen content (pets list)
     PetsScreen(),
     const ServicesScreen(),
     const AdoptionScreen(),
@@ -30,29 +29,37 @@ class _HomeScreenState extends State<HomeScreen> {
   void initState() {
     super.initState();
     _controller.fetchPetOwnerData();
+
+    // Listen to name changes using the stream
+    _controller.ownerNameStream.listen((name) {
+      setState(() {
+        _ownerName = name;
+      });
+    });
   }
 
   void _onItemTapped(int index) {
     setState(() => _selectedIndex = index);
   }
 
+  void _showLogoutDialog() {
+    _controller.showLogoutDialog(context);
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(
-        title: const Text('Scooby App'),
-        actions: [
-          IconButton(
-            icon: const Icon(Icons.person),
-            onPressed: () {
-              Navigator.push(
-                context,
-                MaterialPageRoute(builder: (_) => const PetOwnerProfileScreen()),
-              );
-            },
-          ),
-        ],
-      ),
+     appBar: AppBar(
+  title: Text('Welcome, $_ownerName'),
+  actions: [
+    IconButton(
+      icon: const Icon(Icons.logout),
+      tooltip: 'Sign Out',
+      onPressed: _showLogoutDialog,
+    ),
+  ],
+),
+
       body: _screens[_selectedIndex],
       bottomNavigationBar: BottomNav(
         selectedIndex: _selectedIndex,

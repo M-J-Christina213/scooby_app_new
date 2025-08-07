@@ -160,34 +160,40 @@ class AuthService {
         galleryUrls.add(url);
       }
 
+      String sanitizeInput(String input) {
+        return input.replaceAll('\u0000', '');
+      }
+
       // Insert into database
       await _supabase.from('service_providers').insert({
         'user_id': userId,
-        'name': name,
-        'email': email,
-        'password': password,
-        'phone_no': phoneNo,
-        'address': address,
-        'city': city,
-        'role': role,
-        'service_description': serviceDescription,
-        'experience': experience,
-        'image_url': profileImageUrl,
-        'qualification_url': qualificationUrl,
-        'id_verification_url': idVerificationUrl,
-        'gallery_urls': galleryUrls,
-        'clinic_or_salon_name': clinicOrSalon,
-        'availability': availableTimes,
-        'notes': notes,
-        'pricing_details': pricingDetails,
-        'consultation_fee': consultationFee,
-        'about_clinic_or_salon': aboutClinicOrSalon,
-        'grooming_services': groomingServices,
-        'comfortable_with': comfortableWith,
-        'dislikes': dislikes,
-        'rate': rate,
+        'name': sanitizeInput(name),
+        'email': sanitizeInput(email),
+        'password': sanitizeInput(password),
+        'phone_no': sanitizeInput(phoneNo),
+        'address': sanitizeInput(address), 
+        'city': sanitizeInput(city),
+        'role': sanitizeInput(role),
+        'service_description': sanitizeInput(serviceDescription),
+        'experience': sanitizeInput(experience),
+        'profile_image_url': profileImageUrl != null ? sanitizeInput(profileImageUrl) : null,
+        'qualification_url': qualificationUrl != null ? sanitizeInput(qualificationUrl) : null,
+        'verification_url': idVerificationUrl != null ? sanitizeInput(idVerificationUrl) : null,
+        'gallery_images': galleryUrls.map(sanitizeInput).toList(),
+        'clinic_or_salon': sanitizeInput(clinicOrSalon),
+        'available_times': sanitizeInput(availableTimes),
+        'notes': sanitizeInput(notes),
+        'pricing_details': sanitizeInput(pricingDetails),
+        'consultation_fee': sanitizeInput(consultationFee),
+        'about_clinic_salon': sanitizeInput(aboutClinicOrSalon),
+        'grooming_services': groomingServices.map(sanitizeInput).toList(),
+        'comfortable_with': comfortableWith.map(sanitizeInput).toList(),
+        'dislikes': sanitizeInput(dislikes),
+        'rate': sanitizeInput(rate),
         'created_at': DateTime.now().toIso8601String(),
       });
+
+
     } catch (e) {
       log('Registration error: $e');
       rethrow;
