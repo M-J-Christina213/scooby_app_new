@@ -1,5 +1,6 @@
 import 'dart:io';
 
+import 'package:another_flushbar/flushbar.dart';
 import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:scooby_app_new/services/auth_services.dart';
@@ -59,9 +60,13 @@ class _PetOwnerRegisterScreenState extends State<PetOwnerRegisterScreen> {
         if (!mounted) return;
         Navigator.of(context).pop();
 
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Registered successfully. Please log in.')),
-        );
+        Flushbar(
+        message: 'Registered successfully. Please log in.',
+        duration: const Duration(seconds: 3),
+        backgroundColor: Colors.green,
+        margin: const EdgeInsets.all(8),
+        borderRadius: BorderRadius.circular(8),
+      ).show(context);
 
         Navigator.pushReplacement(
           context,
