@@ -45,11 +45,11 @@ class AuthService {
 
       String? imageUrl;
       if (profileImage != null) {
-        // Convert File to XFile before upload
         final xfile = XFile(profileImage.path);
+        // Upload to 'pet_owners' folder for pet owner profile images
         imageUrl = await _uploadFile(
-          bucketName: 'profile-images', // <-- Correct bucket here
-          path: 'profile_images/${user.id}.jpg',
+          bucketName: 'profile-images',
+          path: 'pet_owners/${user.id}.jpg',
           file: xfile,
           contentType: 'image/jpeg',
         );
@@ -111,12 +111,12 @@ class AuthService {
         throw Exception('Failed to get user ID');
       }
 
-      // Upload profile image
+      // Upload profile image - inside 'service_providers' folder
       String? profileImageUrl;
       if (profileImage != null) {
         profileImageUrl = await _uploadFile(
-          bucketName: 'profile-images', // <-- Correct bucket here
-          path: 'profile_images/$userId.jpg',
+          bucketName: 'profile-images',
+          path: 'service_providers/$userId.jpg',
           file: profileImage,
           contentType: 'image/jpeg',
         );
@@ -127,7 +127,7 @@ class AuthService {
       if (qualificationFile != null) {
         final fileExt = qualificationFile.path.split('.').last;
         qualificationUrl = await _uploadFile(
-          bucketName: 'qualifications', // <-- Correct bucket here
+          bucketName: 'qualifications',
           path: 'qualifications/$userId.$fileExt',
           file: qualificationFile,
           contentType: 'application/pdf',
@@ -139,7 +139,7 @@ class AuthService {
       if (idVerificationFile != null) {
         final fileExt = idVerificationFile.path.split('.').last;
         idVerificationUrl = await _uploadFile(
-          bucketName: 'verifications', // <-- Correct bucket here
+          bucketName: 'verifications',
           path: 'id_verifications/$userId.$fileExt',
           file: idVerificationFile,
           contentType: 'application/pdf',
@@ -152,7 +152,7 @@ class AuthService {
         final fileExt = img.path.split('.').last;
         final fileName = '${uuid.v4()}.$fileExt';
         final url = await _uploadFile(
-          bucketName: 'gallery-images', // <-- Correct bucket here
+          bucketName: 'gallery-images',
           path: 'provider-galleries/$userId/$fileName',
           file: img,
           contentType: 'image/jpeg',
@@ -202,17 +202,25 @@ class AuthService {
   }) async {
     final bytes = await file.readAsBytes();
 
-    await _supabase.storage.from(bucketName).uploadBinary(
-          path,
-          bytes,
-          fileOptions: FileOptions(
-            contentType: contentType,
-            upsert: true,
-          ),
-        );
+    try {
+      // Upload like video way - no awaiting response variable
+      await _supabase.storage.from(bucketName).uploadBinary(
+            path,
+            bytes,
+            fileOptions: FileOptions(
+              contentType: contentType,
+              upsert: true,
+            ),
+          );
+    } catch (e) {
+      log('Upload failed for $bucketName/$path: $e');
+      rethrow;
+    }
 
-    return _supabase.storage.from(bucketName).getPublicUrl(path);
-  }  // File upload to Supabase Storage
+    final url = _supabase.storage.from(bucketName).getPublicUrl(path);
+    log('File uploaded to $url');
+    return url;
+  }
 
   // Get Service Provider Email
   Future<String?> getServiceProviderEmail(String uid) async {
