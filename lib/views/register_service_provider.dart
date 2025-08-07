@@ -17,7 +17,6 @@ class _ServiceProviderRegisterScreenState extends State<ServiceProviderRegisterS
   final _phoneController = TextEditingController();
   final _emailController = TextEditingController();
   final _passwordController = TextEditingController();
-  final _clinicOrSalonController = TextEditingController();
   final _clinicNameController = TextEditingController();
  final _clinicAddressController = TextEditingController();
   final _descriptionController = TextEditingController();
@@ -92,8 +91,8 @@ class _ServiceProviderRegisterScreenState extends State<ServiceProviderRegisterS
   phoneNo: _phoneController.text.trim(),
   email: _emailController.text.trim(),
   password: _passwordController.text.trim(),
-  clinicOrSalon: _clinicNameController.text.trim(),
-  address: _clinicAddressController.text.trim(),
+  clinicOrSalonName: _clinicNameController.text.trim(),
+  clinicOrSalonAddress: _clinicAddressController.text.trim(),
   city: _selectedCity ?? '',
   role: _selectedServiceType ?? '',
 
@@ -210,7 +209,18 @@ class _ServiceProviderRegisterScreenState extends State<ServiceProviderRegisterS
                     const SizedBox(height: 16),
 
                     if (_selectedServiceType == 'Veterinarian' || _selectedServiceType == 'Pet Groomer') ...[
-                      TextFormField(controller: _clinicOrSalonController, decoration: _inputDecoration(_selectedServiceType == 'Veterinarian' ? 'Clinic Name & Address' : 'Salon Name & Address'), validator: (val) => val!.isEmpty ? 'Required' : null),
+                      TextFormField(
+                        controller: _clinicNameController,
+                        decoration: _inputDecoration(_selectedServiceType == 'Veterinarian' ? 'Clinic Name' : 'Salon Name'),
+                        validator: (val) => val!.isEmpty ? 'Required' : null,
+                      ),
+                      const SizedBox(height: 16),
+                      TextFormField(
+                        controller: _clinicAddressController,
+                        decoration: _inputDecoration(_selectedServiceType == 'Veterinarian' ? 'Clinic Address' : 'Salon Address'),
+                        validator: (val) => val!.isEmpty ? 'Required' : null,
+                      ),
+
                       const SizedBox(height: 16),
                       TextFormField(controller: _aboutClinicOrSalonController, decoration: _inputDecoration('About the Place'), maxLines: 2),
                       const SizedBox(height: 16),
