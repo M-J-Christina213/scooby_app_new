@@ -1,48 +1,47 @@
 import 'package:flutter/material.dart';
+import 'package:geolocator/geolocator.dart';
 import 'package:scooby_app_new/views/add_pet_screen.dart';
 import 'package:scooby_app_new/views/login_screen.dart';
 import 'package:scooby_app_new/views/pet_profile_view.dart';
-import 'package:supabase_flutter/supabase_flutter.dart';
+import 'package:scooby_app_new/views/service_list_screen.dart';
 import 'package:scooby_app_new/models/pet.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
 
 class HomeController {
   final SupabaseClient _supabase = Supabase.instance.client;
 
-  // Stream for pet owner name
+  List<Map<String, dynamic>> allServices = [];
+  List<Map<String, dynamic>> nearbyServices = [];
+  List<Map<String, dynamic>> recommendedServices = [];
+
+  // =========================
+  // OWNER PROFILE STREAMS
+  // =========================
   Stream<String> get ownerNameStream {
     final user = _supabase.auth.currentUser;
-    if (user == null) {
-      return Stream.value('Guest');
-    }
+    if (user == null) return Stream.value('Guest');
 
     return _supabase
         .from('pet_owners')
         .stream(primaryKey: ['id'])
         .eq('id', user.id)
-        .map((data) {
-      if (data.isEmpty) return 'User';
-      return data.first['name'] as String? ?? 'User';
-    });
+        .map((data) => data.isEmpty ? 'User' : (data.first['name'] ?? 'User'));
   }
 
-  // Stream for owner profile image
   Stream<String?> get ownerImageStream {
     final user = _supabase.auth.currentUser;
-    if (user == null) {
-      return Stream.value(null);
-    }
+    if (user == null) return Stream.value(null);
 
     return _supabase
         .from('pet_owners')
         .stream(primaryKey: ['id'])
         .eq('id', user.id)
-        .map((data) {
-      if (data.isEmpty) return null;
-      return data.first['image_url'] as String?;
-    });
+        .map((data) => data.isEmpty ? null : data.first['image_url']);
   }
 
-  // One-time fetch of name
+  // =========================
+  // OWNER PROFILE FETCH
+  // =========================
   Future<String> fetchOwnerName() async {
     final user = _supabase.auth.currentUser;
     if (user == null) return 'Guest';
@@ -51,17 +50,11 @@ class HomeController {
         .from('pet_owners')
         .select('name')
         .eq('id', user.id)
-        .single();
+        .maybeSingle();
 
-    if (response.error != null) {
-      debugPrint('Error fetching name: ${response.error!.message}');
-      return 'User';
-    }
-
-    return response.data?['name'] ?? 'User';
+    return response?['name'] ?? 'User';
   }
 
-  // One-time fetch of profile image
   Future<String?> fetchOwnerImage() async {
     final user = _supabase.auth.currentUser;
     if (user == null) return null;
@@ -70,17 +63,14 @@ class HomeController {
         .from('pet_owners')
         .select('image_url')
         .eq('id', user.id)
-        .single();
+        .maybeSingle();
 
-    if (response.error != null) {
-      debugPrint('Error fetching image: ${response.error!.message}');
-      return null;
-    }
-
-    return response.data?['image_url'];
+    return response?['image_url'];
   }
 
-  /// Sign out and navigate to login screen
+  // =========================
+  // SIGN OUT & LOGOUT
+  // =========================
   Future<void> signOut(BuildContext context) async {
     await _supabase.auth.signOut();
     if (context.mounted) {
@@ -92,7 +82,6 @@ class HomeController {
     }
   }
 
-  /// Shows logout confirmation dialog
   void showLogoutDialog(BuildContext context) {
     showDialog(
       context: context,
@@ -116,26 +105,20 @@ class HomeController {
     );
   }
 
-  // --- PETS RELATED ---
-
-  /// Stream of pets for the current logged-in user
+  // =========================
+  // PETS
+  // =========================
   Stream<List<Pet>> get petListStream {
     final user = _supabase.auth.currentUser;
-    if (user == null) {
-      return Stream.value([]);
-    }
+    if (user == null) return Stream.value([]);
 
-    // Listen to changes in 'pets' table for current user
     return _supabase
         .from('pets')
         .stream(primaryKey: ['id'])
         .eq('user_id', user.id)
-        .map((List<Map<String, dynamic>> data) {
-      return data.map((json) => Pet.fromJson(json)).toList();
-    });
+        .map((data) => data.map((json) => Pet.fromJson(json)).toList());
   }
 
-  /// Navigate to add pet screen
   void goToAddPet(BuildContext context) {
     Navigator.push(
       context,
@@ -143,7 +126,6 @@ class HomeController {
     );
   }
 
-  /// Navigate to pet profile view screen
   void goToViewPetProfile(BuildContext context, Pet pet) {
     Navigator.push(
       context,
@@ -151,8 +133,69 @@ class HomeController {
     );
   }
 
-  /// Placeholder for any init logic
-  void fetchPetOwnerData() {
-    // Can add caching or pre-fetch logic here if needed
+  // =========================
+  // SERVICES
+  // =========================
+  Future<void> fetchAllServices() async {
+    final data =
+        await _supabase.from('service_providers').select('*').order('created_at');
+    allServices = List<Map<String, dynamic>>.from(data);
+  }
+
+  Future<void> getNearbyServices() async {
+    try {
+      Position position = await Geolocator.getCurrentPosition(
+        desiredAccuracy: LocationAccuracy.high,
+      );
+
+      final data = await _supabase
+          .from('service_providers')
+          .select('*')
+          .order('created_at');
+
+      // For now, filtering by same city name is simplest
+      // Later, can add lat/lng & distance calculations
+      final userCity = await _fetchUserCity(position);
+      nearbyServices = data
+          .where((service) =>
+              (service['city'] ?? '').toString().toLowerCase() ==
+              userCity.toLowerCase())
+          .toList();
+    } catch (e) {
+      debugPrint('Error getting nearby services: $e');
+      nearbyServices = [];
+    }
+  }
+
+  Future<void> getRecommendedServices() async {
+    // Simple recommendation: top 5 rated
+    final data = await _supabase
+        .from('service_providers')
+        .select('*')
+        .order('rate', ascending: false)
+        .limit(5);
+
+    recommendedServices = List<Map<String, dynamic>>.from(data);
+  }
+
+  Future<String> _fetchUserCity(Position position) async {
+    // Placeholder: In production, use a reverse geocoding API
+    // For now, just return a fixed value
+    return "New York";
+  }
+
+  Future<void> refreshData() async {
+    await fetchAllServices();
+    await getNearbyServices();
+    await getRecommendedServices();
+  }
+
+  void goToServiceList(BuildContext context, String category) {
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (_) => ServiceListScreen(category: category),
+      ),
+    );
   }
 }

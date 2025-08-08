@@ -1,10 +1,5 @@
 import 'package:flutter/material.dart';
-import 'package:scooby_app_new/controllers/home_controller.dart';
-import 'package:scooby_app_new/models/pet.dart';
-import 'package:scooby_app_new/views/adoption_screen.dart';
-import 'package:scooby_app_new/views/bottom_nav.dart';
-import 'package:scooby_app_new/views/community_screen.dart';
-import 'package:scooby_app_new/views/services_screen.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
@@ -14,124 +9,194 @@ class HomeScreen extends StatefulWidget {
 }
 
 class _HomeScreenState extends State<HomeScreen> {
-  final HomeController _controller = HomeController();
-  int _selectedIndex = 0;
-  String _ownerName = 'User';
-
-  final List<Widget> _screens = [
-    PetsScreen(),
-    const ServicesScreen(),
-    const AdoptionScreen(),
-    const CommunityScreen(),
-  ];
+  final SupabaseClient supabase = Supabase.instance.client;
+  List<dynamic> nearbyServices = [];
+  List<dynamic> recommendedServices = [];
+  List<dynamic> topRatedServices = [];
 
   @override
   void initState() {
     super.initState();
-    _controller.fetchPetOwnerData();
+    fetchServices();
+  }
 
-    // Listen to name changes using the stream
-    _controller.ownerNameStream.listen((name) {
-      setState(() {
-        _ownerName = name;
-      });
+  Future<void> fetchServices() async {
+    final nearby = await supabase.from('services').select().limit(5);
+    final recommended = await supabase.from('services').select().limit(5);
+    final topRated = await supabase.from('services').select().limit(5);
+
+    setState(() {
+      nearbyServices = nearby;
+      recommendedServices = recommended;
+      topRatedServices = topRated;
     });
-  }
-
-  void _onItemTapped(int index) {
-    setState(() => _selectedIndex = index);
-  }
-
-  void _showLogoutDialog() {
-    _controller.showLogoutDialog(context);
   }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-     appBar: AppBar(
-  title: Text('Welcome, $_ownerName'),
-  actions: [
-    IconButton(
-      icon: const Icon(Icons.logout),
-      tooltip: 'Sign Out',
-      onPressed: _showLogoutDialog,
-    ),
-  ],
-),
+      backgroundColor: const Color(0xFFF7F2FA),
+      appBar: AppBar(
+        title: const Text(
+          "PetPal",
+          style: TextStyle(fontWeight: FontWeight.bold, color: Colors.white),
+        ),
+        centerTitle: true,
+        backgroundColor: const Color(0xFF9C27B0),
+        elevation: 0,
+      ),
+      body: SingleChildScrollView(
+        padding: const EdgeInsets.all(16),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            // Explore Our Services
+            const Text(
+              "Explore Our Services",
+              style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
+            ),
+            const SizedBox(height: 10),
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceAround,
+              children: [
+                _buildServiceIcon(Icons.local_hospital, "Veterinarian"),
+                _buildServiceIcon(Icons.content_cut, "Pet Groomer"),
+                _buildServiceIcon(Icons.pets, "Pet Sitter"),
+              ],
+            ),
+            const SizedBox(height: 20),
 
-      body: _screens[_selectedIndex],
-      bottomNavigationBar: BottomNav(
-        selectedIndex: _selectedIndex,
-        onTap: _onItemTapped,
+            // Nearby Services
+            _buildSectionTitle("Nearby Services"),
+            _buildHorizontalList(nearbyServices),
+
+            // Recommended for You
+            _buildSectionTitle("Recommended for You"),
+            _buildHorizontalList(recommendedServices),
+
+            // Top Rated
+            _buildSectionTitle("Top Rated"),
+            _buildHorizontalList(topRatedServices),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildServiceIcon(IconData icon, String label) {
+    return GestureDetector(
+      onTap: () {
+        // TODO: Navigate to respective service page
+      },
+      child: Column(
+        children: [
+          Container(
+            padding: const EdgeInsets.all(14),
+            decoration: BoxDecoration(
+              color: const Color(0xFFE1BEE7),
+              borderRadius: BorderRadius.circular(16),
+            ),
+            child: Icon(icon, size: 30, color: const Color(0xFF6A1B9A)),
+          ),
+          const SizedBox(height: 5),
+          Text(label, style: const TextStyle(fontSize: 14)),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildSectionTitle(String title) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 10),
+      child: Text(
+        title,
+        style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+      ),
+    );
+  }
+
+  Widget _buildHorizontalList(List<dynamic> services) {
+    if (services.isEmpty) {
+      return const Center(child: CircularProgressIndicator());
+    }
+    return SizedBox(
+      height: 200,
+      child: ListView.builder(
+        scrollDirection: Axis.horizontal,
+        itemCount: services.length,
+        itemBuilder: (context, index) {
+          final service = services[index];
+          return ServiceCard(
+            name: service['name'] ?? 'Unknown',
+            category: service['category'] ?? '',
+            imageUrl: service['image_url'] ?? '',
+          );
+        },
       ),
     );
   }
 }
 
-class PetsScreen extends StatelessWidget {
-  final HomeController _controller = HomeController();
+// Service Card Widget
+class ServiceCard extends StatelessWidget {
+  final String name;
+  final String category;
+  final String imageUrl;
 
-  PetsScreen({super.key});
+  const ServiceCard({
+    super.key,
+    required this.name,
+    required this.category,
+    required this.imageUrl,
+  });
 
   @override
   Widget build(BuildContext context) {
-    return ListView(
-      padding: const EdgeInsets.all(16),
-      children: [
-        Text("Your Pets", style: Theme.of(context).textTheme.titleLarge),
-        const SizedBox(height: 12),
-        StreamBuilder<List<Pet>>(
-          stream: _controller.petListStream,
-          builder: (context, snapshot) {
-            final pets = snapshot.data ?? [];
-            if (pets.isEmpty) {
-              return Center(
-                child: ElevatedButton(
-                  onPressed: () => _controller.goToAddPet(context),
-                  child: const Text("Add Your First Pet"),
-                ),
-              );
-            }
-
-            return Wrap(
-              spacing: 12,
-              runSpacing: 12,
-              children: pets.map((pet) {
-                return GestureDetector(
-                  onTap: () => _controller.goToViewPetProfile(context, pet),
-                  child: Column(
-                    children: [
-                      CircleAvatar(
-                        radius: 40,
-                        backgroundImage: NetworkImage(pet.imageUrl ?? ''),
-                      ),
-                      const SizedBox(height: 6),
-                      Text(pet.name,
-                          style: const TextStyle(fontWeight: FontWeight.bold))
-                    ],
+    return Container(
+      width: 150,
+      margin: const EdgeInsets.only(right: 12),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(16),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.grey.shade300,
+            blurRadius: 6,
+            spreadRadius: 2,
+            offset: const Offset(0, 3),
+          ),
+        ],
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          ClipRRect(
+            borderRadius: const BorderRadius.vertical(top: Radius.circular(16)),
+            child: imageUrl.isNotEmpty
+                ? Image.network(imageUrl,
+                    height: 100, width: double.infinity, fit: BoxFit.cover)
+                : Container(
+                    height: 100,
+                    color: Colors.grey.shade200,
+                    child: const Icon(Icons.image, size: 50),
                   ),
-                );
-              }).toList()
-                ..add(
-                  GestureDetector(
-                    onTap: () => _controller.goToAddPet(context),
-                    child: Column(
-                      children: const [
-                        CircleAvatar(
-                          radius: 40,
-                          child: Icon(Icons.add),
-                        ),
-                        SizedBox(height: 6),
-                        Text("Add Pet"),
-                      ],
-                    ),
-                  ),
-                ),
-            );
-          },
-        ),
-      ],
+          ),
+          Padding(
+            padding: const EdgeInsets.all(8),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(name,
+                    style: const TextStyle(
+                        fontWeight: FontWeight.bold, fontSize: 14)),
+                const SizedBox(height: 4),
+                Text(category,
+                    style: TextStyle(fontSize: 12, color: Colors.grey[600])),
+              ],
+            ),
+          ),
+        ],
+      ),
     );
   }
 }
