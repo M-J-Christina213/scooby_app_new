@@ -52,4 +52,6 @@ class ServiceProvider {
       description: map['description'],
     );
   }
+
+  get clinicOrSalonName => null;
 }

@@ -2,7 +2,7 @@ import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:scooby_app_new/services/auth_services.dart';
-import 'package:scooby_app_new/views/login_screen.dart';
+import 'package:scooby_app_new/views/screens/login_screen.dart';
 
 class ServiceProviderRegisterScreen extends StatefulWidget {
   const ServiceProviderRegisterScreen({super.key});

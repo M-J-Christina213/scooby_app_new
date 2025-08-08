@@ -1,10 +1,11 @@
 import 'package:flutter/material.dart';
+import 'package:scooby_app_new/models/service_provider.dart';
 import 'confirm_booking_screen.dart';
 
 class ServiceProviderDetailsScreen extends StatelessWidget {
   final Map<String, dynamic> data;
 
-  const ServiceProviderDetailsScreen({super.key, required this.data});
+  const ServiceProviderDetailsScreen({super.key, required this.data, required ServiceProvider serviceProvider});
 
   @override
   Widget build(BuildContext context) {

@@ -4,7 +4,7 @@ import 'package:another_flushbar/flushbar.dart';
 import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:scooby_app_new/services/auth_services.dart';
-import 'package:scooby_app_new/views/login_screen.dart';
+import 'package:scooby_app_new/views/screens/login_screen.dart';
 
 class PetOwnerRegisterScreen extends StatefulWidget {
   const PetOwnerRegisterScreen({super.key});

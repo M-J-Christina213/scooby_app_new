@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:scooby_app_new/models/service_provider.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 class HomeScreen extends StatefulWidget {
@@ -86,7 +87,7 @@ class _HomeScreenState extends State<HomeScreen> {
   Widget _buildServiceIcon(IconData icon, String label) {
     return GestureDetector(
       onTap: () {
-        // TODO: Navigate to respective service page
+       
       },
       child: Column(
         children: [
@@ -130,6 +131,8 @@ class _HomeScreenState extends State<HomeScreen> {
             name: service['name'] ?? 'Unknown',
             category: service['category'] ?? '',
             imageUrl: service['image_url'] ?? '',
+            provider: ServiceProvider.fromMap(service),
+            onTap: () {},
           );
         },
       ),
@@ -147,7 +150,7 @@ class ServiceCard extends StatelessWidget {
     super.key,
     required this.name,
     required this.category,
-    required this.imageUrl,
+    required this.imageUrl, required ServiceProvider provider, required Null Function() onTap,
   });
 
   @override

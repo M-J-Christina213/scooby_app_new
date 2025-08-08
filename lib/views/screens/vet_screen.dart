@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
+import 'package:scooby_app_new/models/service_provider.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
-import 'package:scooby_app_new/views/service_provider_details_screen.dart';
+import 'package:scooby_app_new/views/screens/service_provider_details_screen.dart';
 
 class VetScreen extends StatefulWidget {
   const VetScreen({super.key});
@@ -83,7 +84,10 @@ class _VetScreenState extends State<VetScreen> {
                     Navigator.push(
                       context,
                       MaterialPageRoute(
-                        builder: (_) => ServiceProviderDetailsScreen(data: vetData),
+                        builder: (_) => ServiceProviderDetailsScreen(
+                          serviceProvider: ServiceProvider.fromMap(vetData),
+                          data: {},
+                        ),
                       ),
                     );
                   },

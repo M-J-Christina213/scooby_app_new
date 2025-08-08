@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import 'package:scooby_app_new/views/auth_gate.dart';
+import 'package:scooby_app_new/views/screens/auth_gate.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:scooby_app_new/theme/app_theme.dart';
 

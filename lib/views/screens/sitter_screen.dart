@@ -1,37 +1,42 @@
 import 'package:flutter/material.dart';
+import 'package:scooby_app_new/models/service_provider.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
-import 'package:scooby_app_new/views/service_provider_details_screen.dart';
+import 'package:scooby_app_new/views/screens/service_provider_details_screen.dart';
 
-class PetGroomerScreen extends StatelessWidget {
-  const PetGroomerScreen({super.key});
+class PetSitterScreen extends StatefulWidget {
+  const PetSitterScreen({super.key});
 
-  Future<List<Map<String, dynamic>>> fetchGroomers() async {
-    final supabase = Supabase.instance.client;
+  @override
+  State<PetSitterScreen> createState() => _PetSitterScreenState();
+}
 
-    final response = await supabase
+class _PetSitterScreenState extends State<PetSitterScreen> {
+  late Future<List<Map<String, dynamic>>> _sitterListFuture;
+
+  @override
+  void initState() {
+    super.initState();
+    _sitterListFuture = _fetchPetSitters();
+  }
+
+  Future<List<Map<String, dynamic>>> _fetchPetSitters() async {
+    final response = await Supabase.instance.client
         .from('service_providers')
         .select()
-        .eq('providerRole', 'Pet Groomer');
+        .eq('providerRole', 'Pet Sitter');
 
-    // response is List<dynamic> directly, no more PostgrestResponse wrapper
-    // So no error property here, but if something went wrong, it'll throw
-
-    if (response == null) {
-      throw Exception('Failed to load groomers');
-    }
-
-    return List<Map<String, dynamic>>.from(response as List);
+    return List<Map<String, dynamic>>.from(response);
   }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Pet Groomer Booking'),
+        title: const Text('Pet Sitter Booking'),
         backgroundColor: Colors.deepPurple,
       ),
       body: FutureBuilder<List<Map<String, dynamic>>>(
-        future: fetchGroomers(),
+        future: _sitterListFuture,
         builder: (context, snapshot) {
           if (snapshot.connectionState == ConnectionState.waiting) {
             return const Center(child: CircularProgressIndicator());
@@ -39,16 +44,18 @@ class PetGroomerScreen extends StatelessWidget {
           if (snapshot.hasError) {
             return Center(child: Text('Error: ${snapshot.error}'));
           }
-          if (!snapshot.hasData || snapshot.data!.isEmpty) {
-            return const Center(child: Text('No pet groomers found.'));
+
+          final sitters = snapshot.data ?? [];
+
+          if (sitters.isEmpty) {
+            return const Center(child: Text('No pet sitters found.'));
           }
 
-          final groomers = snapshot.data!;
-
           return ListView.builder(
-            itemCount: groomers.length,
+            itemCount: sitters.length,
+            padding: const EdgeInsets.all(10),
             itemBuilder: (context, index) {
-              final groomerData = groomers[index];
+              final sitterData = sitters[index];
 
               return Card(
                 margin: const EdgeInsets.all(10),
@@ -59,17 +66,20 @@ class PetGroomerScreen extends StatelessWidget {
                   contentPadding:
                       const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
                   title: Text(
-                    groomerData['name'] ?? 'No Name',
+                    sitterData['name'] ?? 'No Name',
                     style: const TextStyle(fontWeight: FontWeight.bold),
                   ),
-                  subtitle: Text(groomerData['city'] ?? 'No City'),
+                  subtitle: Text(sitterData['city'] ?? 'No City'),
                   trailing: const Icon(Icons.arrow_forward_ios),
                   onTap: () {
                     Navigator.push(
                       context,
                       MaterialPageRoute(
                         builder: (_) =>
-                            ServiceProviderDetailsScreen(data: groomerData),
+                            ServiceProviderDetailsScreen(
+                              data: sitterData,
+                              serviceProvider: ServiceProvider.fromMap(sitterData),
+                            ),
                       ),
                     );
                   },

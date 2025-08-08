@@ -1,10 +1,12 @@
+// ignore_for_file: deprecated_member_use
+
 import 'package:flutter/material.dart';
 import 'package:geolocator/geolocator.dart';
-import 'package:scooby_app_new/views/add_pet_screen.dart';
-import 'package:scooby_app_new/views/login_screen.dart';
-import 'package:scooby_app_new/views/pet_profile_view.dart';
-import 'package:scooby_app_new/views/service_list_screen.dart';
 import 'package:scooby_app_new/models/pet.dart';
+import 'package:scooby_app_new/views/screens/add_pet_screen.dart';
+import 'package:scooby_app_new/views/screens/login_screen.dart';
+import 'package:scooby_app_new/views/screens/pet_profile_view.dart';
+import 'package:scooby_app_new/views/screens/service_list_screen.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 class HomeController {
@@ -194,7 +196,7 @@ class HomeController {
     Navigator.push(
       context,
       MaterialPageRoute(
-        builder: (_) => ServiceListScreen(category: category),
+        builder: (_) => ServiceListScreen(category: category, services: [],),
       ),
     );
   }

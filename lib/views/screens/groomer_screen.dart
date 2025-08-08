@@ -3,40 +3,36 @@ import 'package:scooby_app_new/models/service_provider.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:scooby_app_new/views/screens/service_provider_details_screen.dart';
 
-class PetSitterScreen extends StatefulWidget {
-  const PetSitterScreen({super.key});
+class PetGroomerScreen extends StatelessWidget {
+  const PetGroomerScreen({super.key});
 
-  @override
-  State<PetSitterScreen> createState() => _PetSitterScreenState();
-}
+  Future<List<Map<String, dynamic>>> fetchGroomers() async {
+    final supabase = Supabase.instance.client;
 
-class _PetSitterScreenState extends State<PetSitterScreen> {
-  late Future<List<Map<String, dynamic>>> _sitterListFuture;
-
-  @override
-  void initState() {
-    super.initState();
-    _sitterListFuture = _fetchPetSitters();
-  }
-
-  Future<List<Map<String, dynamic>>> _fetchPetSitters() async {
-    final response = await Supabase.instance.client
+    final response = await supabase
         .from('service_providers')
         .select()
-        .eq('providerRole', 'Pet Sitter');
+        .eq('providerRole', 'Pet Groomer');
 
-    return List<Map<String, dynamic>>.from(response);
+    // response is List<dynamic> directly, no more PostgrestResponse wrapper
+    // So no error property here, but if something went wrong, it'll throw
+
+    if (response == null) {
+      throw Exception('Failed to load groomers');
+    }
+
+    return List<Map<String, dynamic>>.from(response as List);
   }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Pet Sitter Booking'),
+        title: const Text('Pet Groomer Booking'),
         backgroundColor: Colors.deepPurple,
       ),
       body: FutureBuilder<List<Map<String, dynamic>>>(
-        future: _sitterListFuture,
+        future: fetchGroomers(),
         builder: (context, snapshot) {
           if (snapshot.connectionState == ConnectionState.waiting) {
             return const Center(child: CircularProgressIndicator());
@@ -44,18 +40,16 @@ class _PetSitterScreenState extends State<PetSitterScreen> {
           if (snapshot.hasError) {
             return Center(child: Text('Error: ${snapshot.error}'));
           }
-
-          final sitters = snapshot.data ?? [];
-
-          if (sitters.isEmpty) {
-            return const Center(child: Text('No pet sitters found.'));
+          if (!snapshot.hasData || snapshot.data!.isEmpty) {
+            return const Center(child: Text('No pet groomers found.'));
           }
 
+          final groomers = snapshot.data!;
+
           return ListView.builder(
-            itemCount: sitters.length,
-            padding: const EdgeInsets.all(10),
+            itemCount: groomers.length,
             itemBuilder: (context, index) {
-              final sitterData = sitters[index];
+              final groomerData = groomers[index];
 
               return Card(
                 margin: const EdgeInsets.all(10),
@@ -66,10 +60,10 @@ class _PetSitterScreenState extends State<PetSitterScreen> {
                   contentPadding:
                       const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
                   title: Text(
-                    sitterData['name'] ?? 'No Name',
+                    groomerData['name'] ?? 'No Name',
                     style: const TextStyle(fontWeight: FontWeight.bold),
                   ),
-                  subtitle: Text(sitterData['city'] ?? 'No City'),
+                  subtitle: Text(groomerData['city'] ?? 'No City'),
                   trailing: const Icon(Icons.arrow_forward_ios),
                   onTap: () {
                     Navigator.push(
@@ -77,8 +71,8 @@ class _PetSitterScreenState extends State<PetSitterScreen> {
                       MaterialPageRoute(
                         builder: (_) =>
                             ServiceProviderDetailsScreen(
-                              data: sitterData,
-                              serviceProvider: ServiceProvider.fromMap(sitterData),
+                              data: groomerData,
+                              serviceProvider: ServiceProvider.fromMap(groomerData),
                             ),
                       ),
                     );

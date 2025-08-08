@@ -1,8 +1,7 @@
 import 'package:flutter/material.dart';
-import 'package:scooby_app_new/views/screens/groomer_screen.dart';
-import 'package:scooby_app_new/views/screens/sitter_screen.dart';
-import 'package:scooby_app_new/views/screens/vet_screen.dart';
-
+import 'vet_screen.dart';
+import 'groomer_screen.dart';
+import 'sitter_screen.dart';
 
 class ServicesScreen extends StatelessWidget {
   const ServicesScreen({super.key});

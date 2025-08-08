@@ -1,10 +1,11 @@
 import 'package:flutter/material.dart';
+import 'package:scooby_app_new/views/screens/service_provider_home.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 import 'home_screen.dart';
 import 'login_screen.dart';
-import 'service_provider_home.dart';
-import '../services/auth_services.dart';
+
+import '../../services/auth_services.dart';
 
 class AuthGate extends StatefulWidget {
   const AuthGate({super.key});

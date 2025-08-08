@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:scooby_app_new/models/pet.dart';
-import 'package:scooby_app_new/views/add_pet_screen.dart';
+import 'package:scooby_app_new/views/screens/add_pet_screen.dart';
 
 class PetProfileScreen extends StatelessWidget {
   final Pet pet;
