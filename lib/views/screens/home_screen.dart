@@ -33,6 +33,43 @@ class _HomeScreenState extends State<HomeScreen> {
     });
   }
 
+  Future<void> _signOut() async {
+    await supabase.auth.signOut();
+    if (mounted) {
+      Navigator.of(context).pushReplacementNamed('/login'); 
+    }
+  }
+
+  Future<void> _confirmSignOut() async {
+  final bool? shouldSignOut = await showDialog<bool>(
+    context: context,
+    builder: (context) {
+      return AlertDialog(
+        title: const Text('Confirm Sign Out'),
+        content: const Text('Are you sure you want to log out?'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(false),
+            child: const Text('Cancel'),
+          ),
+          ElevatedButton(
+            style: ElevatedButton.styleFrom(
+              backgroundColor: const Color(0xFF842EAC),
+            ),
+            onPressed: () => Navigator.of(context).pop(true),
+            child: const Text('Log Out'),
+          ),
+        ],
+      );
+    },
+  );
+
+  if (shouldSignOut == true) {
+    await _signOut();
+  }
+}
+
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -43,8 +80,15 @@ class _HomeScreenState extends State<HomeScreen> {
           style: TextStyle(fontWeight: FontWeight.bold, color: Colors.white),
         ),
         centerTitle: true,
-        backgroundColor: const Color(0xFF9C27B0),
+        backgroundColor: const Color(0xFF842EAC), // updated purple
         elevation: 0,
+        actions: [
+          IconButton(
+            icon: const Icon(Icons.logout, color: Colors.white),
+            tooltip: 'Sign Out',
+            onPressed: _confirmSignOut,
+          ),
+        ],
       ),
       body: SingleChildScrollView(
         padding: const EdgeInsets.all(16),
@@ -86,9 +130,7 @@ class _HomeScreenState extends State<HomeScreen> {
 
   Widget _buildServiceIcon(IconData icon, String label) {
     return GestureDetector(
-      onTap: () {
-       
-      },
+      onTap: () {},
       child: Column(
         children: [
           Container(
@@ -145,60 +187,67 @@ class ServiceCard extends StatelessWidget {
   final String name;
   final String category;
   final String imageUrl;
+  final ServiceProvider provider;
+  final VoidCallback onTap;
 
   const ServiceCard({
     super.key,
     required this.name,
     required this.category,
-    required this.imageUrl, required ServiceProvider provider, required Null Function() onTap,
+    required this.imageUrl,
+    required this.provider,
+    required this.onTap,
   });
 
   @override
   Widget build(BuildContext context) {
-    return Container(
-      width: 150,
-      margin: const EdgeInsets.only(right: 12),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(16),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.grey.shade300,
-            blurRadius: 6,
-            spreadRadius: 2,
-            offset: const Offset(0, 3),
-          ),
-        ],
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          ClipRRect(
-            borderRadius: const BorderRadius.vertical(top: Radius.circular(16)),
-            child: imageUrl.isNotEmpty
-                ? Image.network(imageUrl,
-                    height: 100, width: double.infinity, fit: BoxFit.cover)
-                : Container(
-                    height: 100,
-                    color: Colors.grey.shade200,
-                    child: const Icon(Icons.image, size: 50),
-                  ),
-          ),
-          Padding(
-            padding: const EdgeInsets.all(8),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(name,
-                    style: const TextStyle(
-                        fontWeight: FontWeight.bold, fontSize: 14)),
-                const SizedBox(height: 4),
-                Text(category,
-                    style: TextStyle(fontSize: 12, color: Colors.grey[600])),
-              ],
+    return GestureDetector(
+      onTap: onTap,
+      child: Container(
+        width: 150,
+        margin: const EdgeInsets.only(right: 12),
+        decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(16),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.grey.shade300,
+              blurRadius: 6,
+              spreadRadius: 2,
+              offset: const Offset(0, 3),
             ),
-          ),
-        ],
+          ],
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            ClipRRect(
+              borderRadius: const BorderRadius.vertical(top: Radius.circular(16)),
+              child: imageUrl.isNotEmpty
+                  ? Image.network(imageUrl,
+                      height: 100, width: double.infinity, fit: BoxFit.cover)
+                  : Container(
+                      height: 100,
+                      color: Colors.grey.shade200,
+                      child: const Icon(Icons.image, size: 50),
+                    ),
+            ),
+            Padding(
+              padding: const EdgeInsets.all(8),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(name,
+                      style: const TextStyle(
+                          fontWeight: FontWeight.bold, fontSize: 14)),
+                  const SizedBox(height: 4),
+                  Text(category,
+                      style: TextStyle(fontSize: 12, color: Colors.grey[600])),
+                ],
+              ),
+            ),
+          ],
+        ),
       ),
     );
   }
