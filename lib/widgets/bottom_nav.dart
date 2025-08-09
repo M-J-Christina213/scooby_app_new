@@ -18,10 +18,22 @@ class BottomNav extends StatelessWidget {
       currentIndex: selectedIndex,
       onTap: onTap,
       items: const [
-        BottomNavigationBarItem(icon: Icon(Icons.home), label: 'Home'),
-        BottomNavigationBarItem(icon: Icon(Icons.pets), label: 'Services'),
-        BottomNavigationBarItem(icon: Icon(Icons.favorite), label: 'Adoption'),
-        BottomNavigationBarItem(icon: Icon(Icons.group), label: 'Community'),
+        BottomNavigationBarItem(
+          icon: Icon(Icons.home),
+          label: 'Home',
+        ),
+        BottomNavigationBarItem(
+          icon: Icon(Icons.pets),
+          label: 'My Pets',
+        ),
+        BottomNavigationBarItem(
+          icon: Icon(Icons.calendar_today),
+          label: 'Bookings',
+        ),
+        BottomNavigationBarItem(
+          icon: Icon(Icons.person),
+          label: 'Profile',
+        ),
       ],
     );
   }

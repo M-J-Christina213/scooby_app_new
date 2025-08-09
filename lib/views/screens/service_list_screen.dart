@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:scooby_app_new/models/service_provider.dart';
-import 'package:scooby_app_new/views/screens/home_screen.dart';
-import 'service_details_screen.dart';
+//import 'package:scooby_app_new/views/screens/home_screen.dart';
+//import 'service_details_screen.dart';
 
 class ServiceListScreen extends StatelessWidget {
   final String category;
@@ -24,19 +24,23 @@ class ServiceListScreen extends StatelessWidget {
         ),
         itemCount: services.length,
         itemBuilder: (context, index) {
-          return ServiceCard(
-            provider: services[index],
-            onTap: () {
-              Navigator.push(
-                context,
-                MaterialPageRoute(
-                  builder: (_) => ServiceDetailsScreen(serviceProvider: services[index]),
-                ),
-              );
-            }, name: '', category: '', imageUrl: '',
-          );
+          return null;
+        
+         // return ServiceCard(
+           // provider: services[index],
+          //  onTap: () {
+            //  Navigator.push(
+             //   context,
+             //   MaterialPageRoute(
+              //    builder: (_) => ServiceDetailsScreen(serviceProvider: services[index]),
+              //  ),
+            //  );
+          //  }, name: '', category: '', imageUrl: '',
+        //  );
         },
-      ),
+    ),
     );
+  
   }
 }
+
