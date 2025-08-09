@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
+import 'package:scooby_app_new/views/screens/my_pets_screen.dart';
 import 'package:scooby_app_new/widgets/bottom_nav.dart';
 import 'package:scooby_app_new/widgets/nav_bar_tabs.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
@@ -12,20 +14,29 @@ class HomeScreen extends StatefulWidget {
 class _HomeScreenState extends State<HomeScreen> {
   int selectedIndex = 0;
 
-  final List<Widget> _tabs = const [
-    HomeTab(),
-    MyPetsTab(),       // Use the real MyPetsScreen here
-    BookingsTab(),
-    ProfileTab(),
-  ];
+   late final List<Widget> _tabs;
+  late final String currentUserId;
 
+  @override
+  void initState() {
+    super.initState();
+
+    currentUserId = Supabase.instance.client.auth.currentUser?.id ?? '';
+
+    _tabs = [
+      const HomeTab(),
+      MyPetsScreen(userId: currentUserId),
+      const BookingsTab(),
+      const ProfileTab(),
+    ];
+  }
   final List<String> _titles = [
-    'PetPal',
+    'Home',
     'My Pets',
     'Bookings',
     'Profile',
   ];
-
+  
   void _onNavTap(int index) {
     setState(() {
       selectedIndex = index;

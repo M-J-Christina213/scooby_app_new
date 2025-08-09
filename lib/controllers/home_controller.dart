@@ -1,9 +1,8 @@
 // ignore_for_file: deprecated_member_use
-
+/*
 import 'package:flutter/material.dart';
 import 'package:geolocator/geolocator.dart';
 import 'package:scooby_app_new/models/pet.dart';
-import 'package:scooby_app_new/views/screens/add_pet_screen.dart';
 import 'package:scooby_app_new/views/screens/login_screen.dart';
 import 'package:scooby_app_new/views/screens/pet_profile_view.dart';
 import 'package:scooby_app_new/views/screens/service_list_screen.dart';
@@ -122,10 +121,10 @@ class HomeController {
   }
 
   void goToAddPet(BuildContext context) {
-    Navigator.push(
-      context,
-      MaterialPageRoute(builder: (_) => const PetFormScreen()),
-    );
+   // Navigator.push(
+    //  context,
+    //  MaterialPageRoute(builder: (_) => const PetFormScreen()),
+   // );
   }
 
   void goToViewPetProfile(BuildContext context, Pet pet) {
@@ -201,3 +200,4 @@ class HomeController {
     );
   }
 }
+*/
