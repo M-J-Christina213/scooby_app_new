@@ -232,7 +232,72 @@ class _ServiceProviderRegisterScreenState extends State<ServiceProviderRegisterS
                       const SizedBox(height: 16),
                       ElevatedButton.icon(onPressed: _pickQualification, icon: const Icon(Icons.file_present), label: const Text('Upload Qualification', style: TextStyle(color: Colors.white)), style: ElevatedButton.styleFrom(backgroundColor: purple)),
                       const SizedBox(height: 16),
-                      ElevatedButton.icon(onPressed: _pickGalleryImages, icon: const Icon(Icons.image), label: const Text('Upload Gallery Images', style: TextStyle(color: Colors.white)), style: ElevatedButton.styleFrom(backgroundColor: purple)),
+                      // Gallery image picker + preview
+                      Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text('Gallery Images', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
+                          const SizedBox(height: 8),
+                          GestureDetector(
+                            onTap: _pickGalleryImages,
+                            child: Container(
+                              height: 120,
+                              decoration: BoxDecoration(
+                                border: Border.all(color: Colors.grey.shade400),
+                                borderRadius: BorderRadius.circular(12),
+                              ),
+                              child: _galleryImages.isEmpty
+                                  ? Center(
+                                      child: Text(
+                                        'Tap to select images',
+                                        style: TextStyle(color: Colors.grey.shade600),
+                                      ),
+                                    )
+                                  : ListView.builder(
+                                      scrollDirection: Axis.horizontal,
+                                      padding: const EdgeInsets.all(8),
+                                      itemCount: _galleryImages.length,
+                                      itemBuilder: (context, index) {
+                                        return Stack(
+                                          children: [
+                                            Container(
+                                              margin: const EdgeInsets.only(right: 8),
+                                              width: 100,
+                                              decoration: BoxDecoration(
+                                                borderRadius: BorderRadius.circular(12),
+                                                image: DecorationImage(
+                                                  image: FileImage(_galleryImages[index]),
+                                                  fit: BoxFit.cover,
+                                                ),
+                                              ),
+                                            ),
+                                            Positioned(
+                                              top: 4,
+                                              right: 4,
+                                              child: GestureDetector(
+                                                onTap: () {
+                                                  setState(() {
+                                                    _galleryImages.removeAt(index);
+                                                  });
+                                                },
+                                                child: Container(
+                                                  decoration: BoxDecoration(
+                                                    color: Colors.black54,
+                                                    shape: BoxShape.circle,
+                                                  ),
+                                                  child: const Icon(Icons.close, size: 20, color: Colors.white),
+                                                ),
+                                              ),
+                                            ),
+                                          ],
+                                        );
+                                      },
+                                    ),
+                            ),
+                          ),
+                        ],
+                      ),
+
                     ],
 
                     if (_selectedServiceType == 'Pet Groomer') ...[

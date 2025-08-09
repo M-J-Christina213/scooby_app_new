@@ -74,133 +74,143 @@ class AuthService {
   }
 
   // Register Service Provider
-  Future<void> registerServiceProvider({
-    required String name,
-    required String phoneNo,
-    required String email,
-    required String password,
-    required String city,
-    required String role,
-    required XFile? profileImage,
-    required String clinicOrSalonName,
-    required String clinicOrSalonAddress,
-    required List<XFile> galleryImages,
-    required XFile? qualificationFile,
-    required XFile? idVerificationFile,
-    required String experience,
-    required String serviceDescription,
-    required String notes,
-    required String pricingDetails,
-    required String consultationFee,
-    required String aboutClinicOrSalon,
-    required List<String> groomingServices,
-    required List<String> comfortableWith,
-    required String availableTimes,
-    required String dislikes,
-    required String rate,
-  }) async {
-    final uuid = Uuid();
-    try {
-      final authResponse = await _supabase.auth.signUp(
-        email: email,
-        password: password,
-      );
+Future<void> registerServiceProvider({
+  required String name,
+  required String phoneNo,
+  required String email,
+  required String password,
+  required String city,
+  required String role,
+  required XFile? profileImage,
+  required String clinicOrSalonName,
+  required String clinicOrSalonAddress,
+  required List<XFile> galleryImages,
+  required XFile? qualificationFile,
+  required XFile? idVerificationFile,
+  required String experience,
+  required String serviceDescription,
+  required String notes,
+  required String pricingDetails,
+  required String consultationFee,
+  required String aboutClinicOrSalon,
+  required List<String> groomingServices,
+  required List<String> comfortableWith,
+  required String availableTimes,
+  required String dislikes,
+  required String rate,
+}) async {
+  final uuid = Uuid();
+  try {
+    // 1️⃣ Create the Auth user
+    final authResponse = await _supabase.auth.signUp(
+      email: email,
+      password: password,
+    );
 
-      final userId = authResponse.user?.id;
-      if (userId == null) {
-        throw Exception('Failed to get user ID');
-      }
-
-      // Upload profile image - inside 'service_providers' folder
-      String? profileImageUrl;
-      if (profileImage != null) {
-        profileImageUrl = await _uploadFile(
-          bucketName: 'profile-images',
-          path: 'service_providers/$userId.jpg',
-          file: profileImage,
-          contentType: 'image/jpeg',
-        );
-      }
-
-      // Upload qualification file
-      String? qualificationUrl;
-      if (qualificationFile != null) {
-        final fileExt = qualificationFile.path.split('.').last;
-        qualificationUrl = await _uploadFile(
-          bucketName: 'qualifications',
-          path: 'qualifications/$userId.$fileExt',
-          file: qualificationFile,
-          contentType: 'application/pdf',
-        );
-      }
-
-      // Upload ID verification file
-      String? idVerificationUrl;
-      if (idVerificationFile != null) {
-        final fileExt = idVerificationFile.path.split('.').last;
-        idVerificationUrl = await _uploadFile(
-          bucketName: 'verifications',
-          path: 'id_verifications/$userId.$fileExt',
-          file: idVerificationFile,
-          contentType: 'application/pdf',
-        );
-      }
-
-      // Upload gallery images
-      List<String> galleryUrls = [];
-      for (XFile img in galleryImages) {
-        final fileExt = img.path.split('.').last;
-        final fileName = '${uuid.v4()}.$fileExt';
-        final url = await _uploadFile(
-          bucketName: 'gallery-images',
-          path: 'provider-galleries/$userId/$fileName',
-          file: img,
-          contentType: 'image/jpeg',
-        );
-        galleryUrls.add(url);
-      }
-
-      String sanitizeInput(String input) {
-        return input.replaceAll('\u0000', '');
-      }
-
-      // Insert into database
-      await _supabase.from('service_providers').insert({
-        'user_id': userId,
-        'name': sanitizeInput(name),
-        'email': sanitizeInput(email),
-        'password': sanitizeInput(password),
-        'phone_no': sanitizeInput(phoneNo),
-        'city': sanitizeInput(city),
-        'role': sanitizeInput(role),
-        'service_description': sanitizeInput(serviceDescription),
-        'experience': sanitizeInput(experience),
-        'profile_image_url': profileImageUrl != null ? sanitizeInput(profileImageUrl) : null,
-        'qualification_url': qualificationUrl != null ? sanitizeInput(qualificationUrl) : null,
-        'verification_url': idVerificationUrl != null ? sanitizeInput(idVerificationUrl) : null,
-        'gallery_images': galleryUrls.map(sanitizeInput).toList(),
-        'clinic_or_salon_name': sanitizeInput(clinicOrSalonName),
-        'clinic_or_salon_anuddress': sanitizeInput(clinicOrSalonAddress),
-        'available_times': sanitizeInput(availableTimes),
-        'notes': sanitizeInput(notes),
-        'pricing_details': sanitizeInput(pricingDetails),
-        'consultation_fee': sanitizeInput(consultationFee),
-        'about_clinic_salon': sanitizeInput(aboutClinicOrSalon),
-        'grooming_services': groomingServices.map(sanitizeInput).toList(),
-        'comfortable_with': comfortableWith.map(sanitizeInput).toList(),
-        'dislikes': sanitizeInput(dislikes),
-        'rate': sanitizeInput(rate),
-        'created_at': DateTime.now().toIso8601String(),
-      });
-
-
-    } catch (e) {
-      log('Registration error: $e');
-      rethrow;
+    final userId = authResponse.user?.id;
+    if (userId == null) {
+      throw Exception('Failed to get user ID from sign-up.');
     }
-  }
 
- Future<String> _uploadFile({
+    // 2️⃣ Optional small pause for propagation
+    await Future.delayed(const Duration(milliseconds: 300));
+
+    // 3️⃣ Upload files as before...
+    String? profileImageUrl;
+    if (profileImage != null) {
+      profileImageUrl = await _uploadFile(
+        bucketName: 'profile-images',
+        path: 'service_providers/$userId.jpg',
+        file: profileImage,
+        contentType: 'image/jpeg',
+      );
+    }
+
+    String? qualificationUrl;
+    if (qualificationFile != null) {
+      final ext = qualificationFile.path.split('.').last;
+      qualificationUrl = await _uploadFile(
+        bucketName: 'qualifications',
+        path: 'qualifications/$userId.$ext',
+        file: qualificationFile,
+        contentType: 'application/pdf',
+      );
+    }
+
+    String? idVerificationUrl;
+    if (idVerificationFile != null) {
+      final ext = idVerificationFile.path.split('.').last;
+      idVerificationUrl = await _uploadFile(
+        bucketName: 'verifications',
+        path: 'verifications/$userId.$ext',
+        file: idVerificationFile,
+        contentType: 'application/pdf',
+      );
+    }
+
+    List<String> galleryUrls = [];
+    for (XFile img in galleryImages) {
+      final ext = img.path.split('.').last;
+      final fileName = '${uuid.v4()}.$ext';
+      final url = await _uploadFile(
+        bucketName: 'gallery-images',
+        path: 'provider-galleries/$userId/$fileName',
+        file: img,
+        contentType: 'image/jpeg',
+      );
+      galleryUrls.add(url);
+    }
+
+    String sanitize(String input) => input.replaceAll('\u0000', '');
+
+    // 4️⃣ Insert into database with error handling
+    final response = await _supabase
+    .from('service_providers')
+    .insert([
+      {
+        'user_id': userId,
+        'name': sanitize(name),
+        'email': sanitize(email),
+        'password': sanitize(password),
+        'phone_no': sanitize(phoneNo),
+        'city': sanitize(city),
+        'role': sanitize(role),
+        'service_description': sanitize(serviceDescription),
+        'experience': sanitize(experience),
+        'profile_image_url': profileImageUrl != null ? sanitize(profileImageUrl) : null,
+        'qualification_url': qualificationUrl != null ? sanitize(qualificationUrl) : null,
+        'verification_url': idVerificationUrl != null ? sanitize(idVerificationUrl) : null,
+        'gallery_images': galleryUrls.map(sanitize).toList(),
+        'clinic_or_salon_name': sanitize(clinicOrSalonName),
+        'clinic_or_salon_address': sanitize(clinicOrSalonAddress),
+        'available_times': sanitize(availableTimes),
+        'notes': sanitize(notes),
+        'pricing_details': sanitize(pricingDetails),
+        'consultation_fee': sanitize(consultationFee),
+        'about_clinic_salon': sanitize(aboutClinicOrSalon),
+        'grooming_services': groomingServices.map(sanitize).toList(),
+        'comfortable_with': comfortableWith.map(sanitize).toList(),
+        'dislikes': sanitize(dislikes),
+        'rate': sanitize(rate),
+        'created_at': DateTime.now().toUtc().toIso8601String(),
+      }
+    ])
+    .select()
+    .maybeSingle();
+
+if (response.error != null) {
+  log('Supabase insert error: ${response.error!.message}');
+  throw Exception('Failed to insert service provider: ${response.error!.message}');
+}
+
+  } catch (e) {
+    log('Register ServiceProvider Error: $e');
+    rethrow;
+  }
+}
+
+
+Future<String> _uploadFile({
   required String bucketName,
   required String path,
   required XFile file,
@@ -210,13 +220,13 @@ class AuthService {
 
   try {
     await _supabase.storage.from(bucketName).uploadBinary(
-      path,
-      bytes,
-      fileOptions: FileOptions(
-        contentType: contentType,
-        upsert: true,
-      ),
-    );
+          path,
+          bytes,
+          fileOptions: FileOptions(
+            contentType: contentType,
+            upsert: true,
+          ),
+        );
   } catch (e) {
     log('Upload failed for $bucketName/$path: $e');
     rethrow;
@@ -226,7 +236,6 @@ class AuthService {
   log('File uploaded to $url');
   return url;
 }
-
 
   // Get Service Provider Email
   Future<String?> getServiceProviderEmail(String uid) async {

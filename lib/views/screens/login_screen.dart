@@ -2,7 +2,6 @@
 
 import 'package:flutter/material.dart';
 import 'package:scooby_app_new/views/screens/home_screen.dart';
-import 'package:scooby_app_new/views/screens/service_provider_home.dart';
 import 'package:scooby_app_new/views/screens/register_pet_owner.dart';
 import 'package:scooby_app_new/views/screens/register_service_provider.dart';
 import 'package:another_flushbar/flushbar.dart';
@@ -74,7 +73,8 @@ class _LoginScreenState extends State<LoginScreen> {
           if (providerResponse != null) {
             Navigator.pushReplacement(
               context,
-              MaterialPageRoute(builder: (_) => const ServiceProviderHomeScreen(serviceProviderEmail: '',)),
+              // Replace with your concrete implementation of ServiceProviderHomeScreen
+              MaterialPageRoute(builder: (_) => const ServiceProviderHome()), // Make sure ServiceProviderHome is a concrete class
             );
             showFlushBar("Welcome Service Provider!", Colors.green);
           } else {
@@ -296,6 +296,26 @@ class _LoginScreenState extends State<LoginScreen> {
               ),
             ],
           ),
+        ),
+      ),
+    );
+  }
+}
+
+class ServiceProviderHome extends StatelessWidget {
+  const ServiceProviderHome({super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      appBar: AppBar(
+        title: const Text('Service Provider Home'),
+        backgroundColor: const Color(0xFF842EAC),
+      ),
+      body: const Center(
+        child: Text(
+          'Welcome to the Service Provider Home!',
+          style: TextStyle(fontSize: 20),
         ),
       ),
     );
