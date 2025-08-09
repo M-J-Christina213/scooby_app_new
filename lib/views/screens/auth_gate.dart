@@ -84,8 +84,27 @@ class _AuthGateState extends State<AuthGate> {
             },
           );
         } else if (role == 'pet_owner') {
-          return const HomeScreen();
-        } else {
+  return FutureBuilder<String?>(
+    future: AuthService().getPetOwnerIdFromAuthId(_session!.user.id),
+    builder: (context, idSnapshot) {
+      if (idSnapshot.connectionState == ConnectionState.waiting) {
+        return const Scaffold(
+          body: Center(child: CircularProgressIndicator()),
+        );
+      }
+
+      if (idSnapshot.hasError || idSnapshot.data == null) {
+        Supabase.instance.client.auth.signOut();
+        return const LoginScreen();
+      }
+
+      final petOwnerId = idSnapshot.data!;
+      return HomeScreen(userId: petOwnerId); // send correct pet_owners.id
+    },
+  );
+}
+
+ else {
           Supabase.instance.client.auth.signOut();
           return const LoginScreen();
         }

@@ -23,6 +23,18 @@ class AuthService {
       rethrow;
     }
   }
+ 
+Future<String?> getPetOwnerIdFromAuthId(String authUserId) async {
+  final data = await Supabase.instance.client
+      .from('pet_owners')
+      .select('id')
+      .eq('user_id', authUserId) // match auth.users.id to pet_owners.user_id
+      .maybeSingle();
+
+  return data?['id'] as String?;
+}
+
+
 
   // Register Pet Owner
   Future<User?> registerPetOwner({

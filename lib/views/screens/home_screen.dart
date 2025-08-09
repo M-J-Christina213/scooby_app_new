@@ -5,7 +5,7 @@ import 'package:scooby_app_new/widgets/nav_bar_tabs.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 class HomeScreen extends StatefulWidget {
-  const HomeScreen({super.key});
+  const HomeScreen({super.key, required String userId});
 
   @override
   State<HomeScreen> createState() => _HomeScreenState();

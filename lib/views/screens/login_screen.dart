@@ -57,12 +57,16 @@ class _LoginScreenState extends State<LoginScreen> {
             .maybeSingle();
 
         if (petOwnerResponse != null) {
-          Navigator.pushReplacement(
-            context,
-            MaterialPageRoute(builder: (_) => const HomeScreen()),
-          );
-          showFlushBar("Welcome Pet Owner!", Colors.green);
-        } else {
+            final petOwnerId = petOwnerResponse['id']; 
+            Navigator.pushReplacement(
+              context,
+              MaterialPageRoute(
+                builder: (_) => HomeScreen(userId: petOwnerId),
+              ),
+            );
+            showFlushBar("Welcome Pet Owner!", Colors.green);
+          }
+ else {
           // Check in service_providers
           final providerResponse = await Supabase.instance.client
               .from('service_providers')
