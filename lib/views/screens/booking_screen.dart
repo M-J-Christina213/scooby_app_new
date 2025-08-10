@@ -1,177 +1,387 @@
 import 'package:flutter/material.dart';
-import '../../models/service_provider.dart';
+import 'package:intl/intl.dart'; // For formatting date/time
+import 'package:scooby_app_new/models/service_provider.dart';
 
 class BookingScreen extends StatefulWidget {
-  final ServiceProvider provider;
-  const BookingScreen({required this.provider, super.key});
+  final ServiceProvider serviceProvider;
+
+  const BookingScreen({super.key, required this.serviceProvider});
 
   @override
   State<BookingScreen> createState() => _BookingScreenState();
 }
 
 class _BookingScreenState extends State<BookingScreen> {
-  DateTime? selectedDate;
-  String? selectedTimeSlot;
-  List<String> timeSlots = [];
-  List<String> availableDays = [];
+  final _formKey = GlobalKey<FormState>();
+  DateTime? _selectedDate;
+  TimeOfDay? _selectedTime;
 
-  @override
-  void initState() {
-    super.initState();
+  // For Groomer: selected grooming services for booking
+  final Set<String> _selectedServices = {};
 
-    if (widget.provider.role == 'Veterinarian' || widget.provider.role == 'Pet Groomer') {
-      // Simulate some time slots for demo
-      timeSlots = ['9:00 AM', '10:30 AM', '12:00 PM', '2:00 PM', '4:00 PM'];
-    } else if (widget.provider.role == 'Pet Sitter') {
-      // Simulate available days
-      availableDays = ['Monday', 'Wednesday', 'Friday', 'Saturday'];
-    }
-  }
+  // For Pet Sitter: select range of days (from-to)
+  DateTime? _rangeStartDate;
+  DateTime? _rangeEndDate;
 
-  Future<void> _pickDate() async {
-    DateTime today = DateTime.now();
-    final DateTime? picked = await showDatePicker(
-      context: context,
-      initialDate: selectedDate ?? today,
-      firstDate: today,
-      lastDate: today.add(const Duration(days: 30)),
-    );
-    if (picked != null) {
-      setState(() {
-        selectedDate = picked;
-        selectedTimeSlot = null; // Reset time slot on date change
-      });
-    }
-  }
+  Color get primaryColor => const Color(0xFF842EAC);
 
   @override
   Widget build(BuildContext context) {
-    final Color primaryColor = const Color(0xFF842EAC);
-
     return Scaffold(
       appBar: AppBar(
         title: const Text('Book Appointment'),
         backgroundColor: primaryColor,
       ),
-      body: Padding(
+      body: SingleChildScrollView(
         padding: const EdgeInsets.all(16),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text('Booking for: ${widget.provider.name}', style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 18)),
-            const SizedBox(height: 16),
-
-            // Date picker
-            ElevatedButton.icon(
-              icon: const Icon(Icons.calendar_today),
-              label: Text(selectedDate == null ? 'Select Date' : selectedDate!.toLocal().toString().split(' ')[0]),
-              onPressed: _pickDate,
-              style: ElevatedButton.styleFrom(backgroundColor: primaryColor),
+        child: Form(
+          key: _formKey,
+          child: _buildContentByServiceType(),
+        ),
+      ),
+      bottomNavigationBar: SafeArea(
+        child: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+          child: ElevatedButton(
+            onPressed: _confirmBooking,
+            style: ElevatedButton.styleFrom(
+              backgroundColor: primaryColor,
+              padding: const EdgeInsets.symmetric(vertical: 14),
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
             ),
+            child: const Text('Confirm Booking', style: TextStyle(fontSize: 18)),
+          ),
+        ),
+      ),
+    );
+  }
 
-            const SizedBox(height: 20),
+  Widget _buildContentByServiceType() {
+    switch (widget.serviceProvider.role) {
+      case 'Veterinarian':
+        return _buildVetBooking();
+      case 'Pet Groomer':
+        return _buildGroomerBooking();
+      case 'Pet Sitter':
+        return _buildPetSitterBooking();
+      default:
+        return const Text('Service booking not available');
+    }
+  }
 
-            if (widget.provider.role == 'Veterinarian' || widget.provider.role == 'Pet Groomer') ...[
-              Text('Available Time Slots:', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
-              const SizedBox(height: 12),
-              if (selectedDate == null)
-                const Text('Please select a date first.')
-              else
-                Wrap(
-                  spacing: 8,
-                  children: timeSlots.map((slot) {
-                    final isSelected = slot == selectedTimeSlot;
-                    return ChoiceChip(
-                      label: Text(slot),
-                      selected: isSelected,
-                      onSelected: (_) {
-                        setState(() {
-                          selectedTimeSlot = slot;
-                        });
-                      },
-                      selectedColor: primaryColor,
-                      labelStyle: TextStyle(color: isSelected ? Colors.white : null),
-                    );
-                  }).toList(),
-                ),
-            ] else if (widget.provider.role == 'Pet Sitter') ...[
-              Text('Available Days:', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
-              const SizedBox(height: 12),
-              Wrap(
-                spacing: 8,
-                children: availableDays.map((day) {
-                  final isSelected = selectedDate != null && selectedDate!.weekday == _weekdayFromName(day);
-                  return ChoiceChip(
-                    label: Text(day),
-                    selected: isSelected,
-                    onSelected: (selected) {
-                      if (selected) {
-                        // Pick date that matches this weekday
-                        DateTime now = DateTime.now();
-                        DateTime nextDate = now.add(const Duration(days: 7));
-                        for (int i = 0; i < 14; i++) {
-                          DateTime check = now.add(Duration(days: i));
-                          if (check.weekday == _weekdayFromName(day)) {
-                            nextDate = check;
-                            break;
-                          }
-                        }
-                        setState(() {
-                          selectedDate = nextDate;
-                        });
-                      } else {
-                        setState(() {
-                          selectedDate = null;
-                        });
-                      }
-                    },
-                    selectedColor: primaryColor,
-                    labelStyle: TextStyle(color: isSelected ? Colors.white : null),
-                  );
-                }).toList(),
-              ),
-            ],
+  // =================== VET BOOKING ===================
+  Widget _buildVetBooking() {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        const Text(
+          'Select Appointment Date',
+          style: TextStyle(fontWeight: FontWeight.bold, fontSize: 18),
+        ),
+        const SizedBox(height: 8),
+        _buildBigCalendar(),
+        const SizedBox(height: 16),
+        const Text(
+          'Select Appointment Time',
+          style: TextStyle(fontWeight: FontWeight.bold, fontSize: 18),
+        ),
+        const SizedBox(height: 8),
+        _buildBigTimePicker(),
+        const SizedBox(height: 24),
+        Text(
+          'Consultation Fee:',
+          style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 18),
+        ),
+        Text(
+          widget.serviceProvider.consultationFee.isNotEmpty
+              ? widget.serviceProvider.consultationFee
+              : 'Not specified',
+          style: const TextStyle(fontSize: 16),
+        ),
+        const SizedBox(height: 24),
+      ],
+    );
+  }
 
-            const Spacer(),
+  Widget _buildBigCalendar() {
+    final now = DateTime.now();
+    final firstDate = now;
+    final lastDate = DateTime(now.year + 1);
 
-            Center(
-              child: ElevatedButton(
-                onPressed: () {
-                  
-                  ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Booking confirmation coming soon!')));
-                },
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: primaryColor,
-                  padding: const EdgeInsets.symmetric(horizontal: 40, vertical: 14),
-                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
-                ),
-                child: const Text('Confirm Booking', style: TextStyle(fontSize: 16)),
-              ),
-            )
+    return Container(
+      decoration: BoxDecoration(
+        border: Border.all(color: primaryColor, width: 2),
+        borderRadius: BorderRadius.circular(14),
+      ),
+      padding: const EdgeInsets.all(8),
+      child: CalendarDatePicker(
+        initialDate: _selectedDate ?? now,
+        firstDate: firstDate,
+        lastDate: lastDate,
+        onDateChanged: (date) {
+          setState(() {
+            _selectedDate = date;
+            _selectedTime = null; // reset time on date change
+          });
+        },
+      ),
+    );
+  }
+
+  Widget _buildBigTimePicker() {
+    return GestureDetector(
+      onTap: _pickTime,
+      child: Container(
+        decoration: BoxDecoration(
+          color: primaryColor,
+          borderRadius: BorderRadius.circular(14),
+        ),
+        height: 60,
+        child: Row(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            const Icon(Icons.access_time, color: Colors.white, size: 28),
+            const SizedBox(width: 12),
+            Text(
+              _selectedTime == null ? 'Select Time' : _selectedTime!.format(context),
+              style: const TextStyle(color: Colors.white, fontSize: 20),
+            ),
           ],
         ),
       ),
     );
   }
 
-  int _weekdayFromName(String name) {
-    switch (name.toLowerCase()) {
-      case 'monday':
-        return DateTime.monday;
-      case 'tuesday':
-        return DateTime.tuesday;
-      case 'wednesday':
-        return DateTime.wednesday;
-      case 'thursday':
-        return DateTime.thursday;
-      case 'friday':
-        return DateTime.friday;
-      case 'saturday':
-        return DateTime.saturday;
-      case 'sunday':
-        return DateTime.sunday;
-      default:
-        return 0;
+  // =================== GROOMER BOOKING ===================
+  Widget _buildGroomerBooking() {
+    final services = widget.serviceProvider.groomingServices;
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        _datePicker(),
+        const SizedBox(height: 8),
+        _timePicker(),
+        const SizedBox(height: 24),
+        const Text('Select Services:', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 18)),
+        const SizedBox(height: 8),
+        services.isEmpty
+            ? const Text('No grooming services specified.')
+            : Wrap(
+                spacing: 8,
+                children: services.map((service) {
+                  final selected = _selectedServices.contains(service);
+                  return FilterChip(
+                    label: Text(service),
+                    selected: selected,
+                    onSelected: (val) {
+                      setState(() {
+                        if (val) {
+                          _selectedServices.add(service);
+                        } else {
+                          _selectedServices.remove(service);
+                        }
+                      });
+                    },
+                  );
+                }).toList(),
+              ),
+        const SizedBox(height: 24),
+        Text('Pricing Details:', style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 18)),
+        Text(
+          widget.serviceProvider.pricingDetails.isNotEmpty
+              ? widget.serviceProvider.pricingDetails
+              : 'Not specified',
+          style: const TextStyle(fontSize: 16),
+        ),
+        const SizedBox(height: 24),
+      ],
+    );
+  }
+
+  // For groomer, using small pickers like before
+  Widget _datePicker() {
+    return ListTile(
+      title: const Text('Select Date'),
+      subtitle: Text(_selectedDate == null ? 'No date chosen' : DateFormat.yMMMMd().format(_selectedDate!)),
+      trailing: const Icon(Icons.calendar_today),
+      onTap: _pickDate,
+    );
+  }
+
+  Widget _timePicker() {
+    return ListTile(
+      title: const Text('Select Time'),
+      subtitle: Text(_selectedTime == null ? 'No time chosen' : _selectedTime!.format(context)),
+      trailing: const Icon(Icons.access_time),
+      onTap: _pickTime,
+    );
+  }
+
+  // =================== PET SITTER BOOKING ===================
+  Widget _buildPetSitterBooking() {
+    final hourlyDailyRate = widget.serviceProvider.rate;
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        const Text('Select Booking Period', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 18)),
+        const SizedBox(height: 8),
+        _buildDateRangePicker(),
+
+        const SizedBox(height: 24),
+
+        Text('Hourly / Daily Rate:', style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 18)),
+        Text(
+          hourlyDailyRate.isNotEmpty ? hourlyDailyRate : 'Not specified',
+          style: const TextStyle(fontSize: 16),
+        ),
+
+        const SizedBox(height: 24),
+
+        Container(
+          padding: const EdgeInsets.all(12),
+          decoration: BoxDecoration(
+            color: Colors.yellow.shade100,
+            borderRadius: BorderRadius.circular(12),
+          ),
+          child: const Text(
+            'Note: Your address will be shared only with the pet sitter for security and trust reasons.',
+            style: TextStyle(color: Colors.black87, fontWeight: FontWeight.w600),
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildDateRangePicker() {
+    final displayText = (_rangeStartDate != null && _rangeEndDate != null)
+        ? '${DateFormat.yMMMMd().format(_rangeStartDate!)} - ${DateFormat.yMMMMd().format(_rangeEndDate!)}'
+        : 'Select date range';
+
+    return GestureDetector(
+      onTap: () async {
+        final now = DateTime.now();
+        final picked = await showDateRangePicker(
+          context: context,
+          firstDate: now,
+          lastDate: DateTime(now.year + 1),
+          initialDateRange: _rangeStartDate != null && _rangeEndDate != null
+              ? DateTimeRange(start: _rangeStartDate!, end: _rangeEndDate!)
+              : null,
+        );
+
+        if (picked != null) {
+          setState(() {
+            _rangeStartDate = picked.start;
+            _rangeEndDate = picked.end;
+          });
+        }
+      },
+      child: Container(
+        padding: const EdgeInsets.symmetric(vertical: 16, horizontal: 20),
+        decoration: BoxDecoration(
+          border: Border.all(color: primaryColor, width: 2),
+          borderRadius: BorderRadius.circular(14),
+        ),
+        child: Row(
+          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          children: [
+            Text(displayText, style: const TextStyle(fontSize: 16)),
+            Icon(Icons.date_range, color: primaryColor, size: 28),
+          ],
+        ),
+      ),
+    );
+  }
+
+  // =================== PICKERS ===================
+  Future<void> _pickDate() async {
+    final now = DateTime.now();
+    final picked = await showDatePicker(
+      context: context,
+      initialDate: _selectedDate ?? now,
+      firstDate: now,
+      lastDate: DateTime(now.year + 1),
+    );
+    if (picked != null) {
+      setState(() {
+        _selectedDate = picked;
+        _selectedTime = null; // reset time on date change
+      });
     }
+  }
+
+  Future<void> _pickTime() async {
+    final picked = await showTimePicker(
+      context: context,
+      initialTime: _selectedTime ?? const TimeOfDay(hour: 9, minute: 0),
+    );
+    if (picked != null) {
+      setState(() {
+        _selectedTime = picked;
+      });
+    }
+  }
+
+  // =================== CONFIRMATION ===================
+  void _confirmBooking() {
+    if (widget.serviceProvider.role == 'Pet Sitter') {
+      if (_rangeStartDate == null || _rangeEndDate == null) {
+        _showError('Please select a booking period.');
+        return;
+      }
+    } else {
+      if (_selectedDate == null) {
+        _showError('Please select a date.');
+        return;
+      }
+      if (_selectedTime == null) {
+        _showError('Please select a time.');
+        return;
+      }
+    }
+
+    if (widget.serviceProvider.role == 'Pet Groomer' && _selectedServices.isEmpty) {
+      _showError('Please select at least one grooming service.');
+      return;
+    }
+
+    //  Save booking data to backend or local DB here
+
+    showDialog(
+      context: context,
+      builder: (_) => AlertDialog(
+        title: const Text('Booking Confirmed'),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            const Icon(Icons.check_circle, color: Colors.green, size: 64),
+            const SizedBox(height: 16),
+            const Text('Your appointment has been successfully booked.'),
+            if (widget.serviceProvider.role == 'Pet Sitter') ...[
+              const SizedBox(height: 12),
+              const Text(
+                'Note: Your address will be shared only with the pet sitter for security and trust reasons.',
+                style: TextStyle(fontWeight: FontWeight.bold),
+              ),
+            ],
+          ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: () {
+              Navigator.pop(context); // Close dialog
+              Navigator.pop(context); // Go back to previous screen
+            },
+            child: const Text('OK'),
+          ),
+        ],
+      ),
+    );
+  }
+
+  void _showError(String msg) {
+    ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(msg)));
   }
 }

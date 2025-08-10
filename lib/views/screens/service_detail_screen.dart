@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:scooby_app_new/models/service_provider.dart';
+import 'package:scooby_app_new/views/screens/booking_screen.dart';
 
 class ServiceDetailScreen extends StatelessWidget {
   final ServiceProvider serviceProvider;
@@ -27,22 +28,21 @@ class ServiceDetailScreen extends StatelessWidget {
             ],
           ),
           child: ElevatedButton.icon(
-            onPressed: () {
-             
-              ScaffoldMessenger.of(context).showSnackBar(
-                const SnackBar(content: Text('Booking not implemented yet')),
-              );
-            },
-            icon: const Icon(Icons.calendar_today),
-            label: const Text('Book Appointment', style: TextStyle(fontSize: 18)),
-            style: ElevatedButton.styleFrom(
-              backgroundColor: primaryColor,
-              padding: const EdgeInsets.symmetric(vertical: 14),
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(14),
+                onPressed: () {
+                  // Navigate to booking screen with a smooth slide transition
+                  Navigator.of(context).push(_createRoute());
+                },
+                icon: const Icon(Icons.calendar_today),
+                label: const Text('Book Appointment', style: TextStyle(fontSize: 18)),
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: primaryColor,
+                  padding: const EdgeInsets.symmetric(vertical: 14),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(14),
+                  ),
+                ),
               ),
-            ),
-          ),
+
         ),
       ),
       body: CustomScrollView(
@@ -100,6 +100,24 @@ class ServiceDetailScreen extends StatelessWidget {
       ),
     );
   }
+
+ Route _createRoute() {
+  return PageRouteBuilder(
+    pageBuilder: (context, animation, secondaryAnimation) => BookingScreen(serviceProvider: serviceProvider),
+    transitionsBuilder: (context, animation, secondaryAnimation, child) {
+      const begin = Offset(1.0, 0.0); // Slide from right
+      const end = Offset.zero;
+      const curve = Curves.ease;
+
+      var tween = Tween(begin: begin, end: end).chain(CurveTween(curve: curve));
+
+      return SlideTransition(
+        position: animation.drive(tween),
+        child: child,
+      );
+    },
+  );
+}
 
   Widget _buildRatingRow(String rate) {
     double rating = 4.5; // default/fake rating or parse from rate
