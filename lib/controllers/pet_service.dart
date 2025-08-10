@@ -1,14 +1,13 @@
-// lib/controllers/pet_service.dart
-
 import 'dart:io';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import '../models/pet.dart';
+
 class PetService {
   final SupabaseClient supabase = Supabase.instance.client;
 
   Future<List<Pet>> fetchPetsForUser(String userId) async {
     try {
-      // First get pet_owner.id by userId
+      // Get pet_owner.id by userId
       final ownerData = await supabase
           .from('pet_owners')
           .select('id')
@@ -37,14 +36,14 @@ class PetService {
 
   Future<String?> uploadPetImage(String userId, String filePath, String fileName) async {
     try {
-      final String _ = await supabase.storage
+      await supabase.storage
           .from('pet-images')
           .upload('$userId/$fileName', File(filePath));
 
       final publicUrl = supabase.storage.from('pet-images').getPublicUrl('$userId/$fileName');
       return publicUrl;
     } catch (e) {
-      ('Upload error: $e');
+      // Handle or log upload error
       return null;
     }
   }
@@ -63,14 +62,41 @@ class PetService {
       throw Exception('Pet owner not found for user ID: $authUserId');
     }
 
-    // Assign the petOwnerId as user_id in pets table
-    final petJson = pet.toJson();
+    final petJson = pet.toJson(forInsert: true);
     petJson['user_id'] = petOwnerId;
 
     final response = await supabase.from('pets').insert([petJson]);
 
     if (response.error != null) {
       throw Exception('Failed to add pet: ${response.error!.message}');
+    }
+  }
+
+  Future<void> updatePet(Pet pet, String authUserId) async {
+    // Get pet_owner.id from pet_owners table using authUserId
+    final ownerData = await supabase
+        .from('pet_owners')
+        .select('id')
+        .eq('user_id', authUserId)
+        .single();
+
+    final String? petOwnerId = ownerData != null ? ownerData['id'] as String? : null;
+
+    if (petOwnerId == null) {
+      throw Exception('Pet owner not found for user ID: $authUserId');
+    }
+
+    final petJson = pet.toJson(forInsert: true);
+    petJson['user_id'] = petOwnerId;
+
+    final response = await supabase
+        .from('pets')
+        .update(petJson)
+        .eq('id', pet.id)
+        .eq('user_id', petOwnerId);
+
+    if (response.error != null) {
+      throw Exception('Failed to update pet: ${response.error!.message}');
     }
   }
 }

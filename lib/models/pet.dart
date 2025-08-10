@@ -55,15 +55,12 @@ class Pet {
       healthStatus: json['health_status'],
       description: json['description'],
       imageUrl: json['image_url'],
-      createdAt: json['created_at'] != null
-          ? DateTime.parse(json['created_at'])
-          : null,
+      createdAt: json['created_at'] != null ? DateTime.parse(json['created_at']) : null,
     );
   }
 
-  Map<String, dynamic> toJson() {
-    return {
-      'id': id,
+  Map<String, dynamic> toJson({bool forInsert = false}) {
+    final map = <String, dynamic>{
       'user_id': userId,
       'name': name,
       'type': type,
@@ -79,7 +76,13 @@ class Pet {
       'health_status': healthStatus,
       'description': description,
       'image_url': imageUrl,
-      'created_at': createdAt?.toIso8601String(),
     };
+
+    if (!forInsert) {
+      map['id'] = id;
+      map['created_at'] = createdAt?.toIso8601String();
+    }
+
+    return map;
   }
 }

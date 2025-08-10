@@ -2,10 +2,13 @@ import 'package:flutter/material.dart';
 import 'package:another_flushbar/flushbar.dart';
 import 'package:scooby_app_new/controllers/pet_form_controller.dart';
 import 'package:scooby_app_new/controllers/pet_service.dart';
+import 'package:scooby_app_new/models/pet.dart';
 
 class AddPetScreen extends StatefulWidget {
   final String userId; // auth user id
-  const AddPetScreen({required this.userId, super.key});
+  final Pet? existingPet; // null for adding new, non-null for editing
+
+  const AddPetScreen({required this.userId, this.existingPet, super.key});
 
   @override
   State<AddPetScreen> createState() => _AddPetScreenState();
@@ -15,11 +18,16 @@ class _AddPetScreenState extends State<AddPetScreen> {
   late final PetFormController _formController;
   final _formKey = GlobalKey<FormState>();
   final Color _primaryColor = const Color(0xFF842EAC);
+  bool _isEditing = false;
 
   @override
   void initState() {
     super.initState();
-    _formController = PetFormController(petService: PetService());
+    _isEditing = widget.existingPet != null;
+    _formController = PetFormController(
+      existingPet: widget.existingPet,
+      petService: PetService(),
+    );
   }
 
   @override
@@ -48,13 +56,21 @@ class _AddPetScreenState extends State<AddPetScreen> {
       return;
     }
 
-    final success = await _formController.savePet(widget.userId, context);
+    // Use existing pet id if editing, else null
+    final existingId = _isEditing ? widget.existingPet!.id : null;
+
+    final success = await _formController.savePet(widget.userId, context, existingId: existingId);
     if (success) {
-      _showFlushbar('Pet added successfully!');
+      _showFlushbar(_isEditing ? 'Pet updated successfully!' : 'Pet added successfully!');
       if (mounted) Navigator.of(context).pop(true);
     } else {
-      _showFlushbar('Failed to add pet', backgroundColor: Colors.redAccent, icon: Icons.error);
+      _showFlushbar(_isEditing ? 'Failed to update pet' : 'Failed to add pet',
+          backgroundColor: Colors.redAccent, icon: Icons.error);
     }
+  }
+
+  void _cancelEditing() {
+    if (mounted) Navigator.of(context).pop(false);
   }
 
   Widget _buildSectionTitle(String title) => Padding(
@@ -76,7 +92,7 @@ class _AddPetScreenState extends State<AddPetScreen> {
 
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Add New Pet'),
+        title: Text(_isEditing ? 'Edit Pet' : 'Add New Pet'),
         backgroundColor: _primaryColor,
         centerTitle: true,
         elevation: 0,
@@ -323,28 +339,47 @@ class _AddPetScreenState extends State<AddPetScreen> {
                   textInputAction: TextInputAction.newline,
                 ),
                 const SizedBox(height: 40),
-                SizedBox(
-                  width: double.infinity,
-                  height: 56,
-                  child: ElevatedButton(
-                    onPressed: _formController.isSaving ? null : _savePet,
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: _primaryColor,
-                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
-                      elevation: 4,
-                      shadowColor: _primaryColor.withAlpha((0.5 * 255).round()),
+                Row(
+                  children: [
+                    Expanded(
+                      child: ElevatedButton(
+                        onPressed: _formController.isSaving ? null : _savePet,
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: _primaryColor,
+                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+                          elevation: 4,
+                          shadowColor: _primaryColor.withAlpha((0.5 * 255).round()),
+                        ),
+                        child: _formController.isSaving
+                            ? const SizedBox(
+                                height: 26,
+                                width: 26,
+                                child: CircularProgressIndicator(color: Colors.white, strokeWidth: 3),
+                              )
+                            : Text(
+                                _isEditing ? 'Save Changes' : 'Add Pet',
+                                style: const TextStyle(fontSize: 20, fontWeight: FontWeight.w600),
+                              ),
+                      ),
                     ),
-                    child: _formController.isSaving
-                        ? const SizedBox(
-                            height: 26,
-                            width: 26,
-                            child: CircularProgressIndicator(color: Colors.white, strokeWidth: 3),
-                          )
-                        : const Text(
-                            'Add Pet',
+                    if (_isEditing) ...[
+                      const SizedBox(width: 16),
+                      Expanded(
+                        child: ElevatedButton(
+                          onPressed: _formController.isSaving ? null : _cancelEditing,
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: Colors.grey,
+                            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+                            elevation: 2,
+                          ),
+                          child: const Text(
+                            'Cancel',
                             style: TextStyle(fontSize: 20, fontWeight: FontWeight.w600),
                           ),
-                  ),
+                        ),
+                      ),
+                    ],
+                  ],
                 ),
               ],
             ),

@@ -3,9 +3,8 @@
 import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
+import 'package:scooby_app_new/controllers/pet_service.dart';
 import 'package:uuid/uuid.dart';
-
-import 'pet_service.dart';
 import '../models/pet.dart';
 
 class PetFormController {
@@ -99,9 +98,8 @@ class PetFormController {
     }
 
     final pet = Pet(
-      id: existingId ?? const Uuid().v4(),
-      // NOTE: Do NOT set userId here; PetService.addPet will set correct pet_owner.id
-      userId: '', 
+      id: existingId, // Use existingId if editing, else null to let DB generate
+      userId: '', // will be set in service
       name: nameController.text.trim(),
       type: type.value,
       breed: breedController.text.trim(),
@@ -116,10 +114,16 @@ class PetFormController {
       healthStatus: healthController.text.trim().isEmpty ? null : healthController.text.trim(),
       description: descriptionController.text.trim().isEmpty ? null : descriptionController.text.trim(),
       imageUrl: imageUrl,
-      createdAt: DateTime.now(),
+      createdAt: null, // DB handles created_at
     );
 
-    await petService.addPet(pet, authUserId);
+    if (existingId == null) {
+      // Add new pet
+      await petService.addPet(pet, authUserId);
+    } else {
+      // Update existing pet
+      await petService.updatePet(pet, authUserId);
+    }
 
     return true;
   } catch (e) {
