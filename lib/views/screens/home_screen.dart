@@ -1,3 +1,5 @@
+// ignore_for_file: deprecated_member_use
+
 import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:scooby_app_new/controllers/service_provider_service.dart';
@@ -309,6 +311,7 @@ class _HomeScreenState extends State<HomeScreen> {
       ),
     );
   }
+  
 }
 
 class _ServiceProviderCard extends StatelessWidget {
@@ -330,6 +333,13 @@ class _ServiceProviderCard extends StatelessWidget {
         decoration: BoxDecoration(
           color: Colors.white,
           borderRadius: BorderRadius.circular(16),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.purple.withOpacity(0.1),
+              blurRadius: 10,
+              spreadRadius: 2,
+            )
+          ],
         ),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
@@ -358,11 +368,14 @@ class _ServiceProviderCard extends StatelessWidget {
                   ? provider.clinicOrSalonName
                   : provider.name,
               style: const TextStyle(fontWeight: FontWeight.bold),
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
             ),
             Text(
               provider.serviceDescription,
               maxLines: 2,
               overflow: TextOverflow.ellipsis,
+              style: TextStyle(color: Colors.grey[700]),
             ),
             const Spacer(),
             Row(
@@ -429,7 +442,12 @@ class ServiceDetailScreen extends StatelessWidget {
             Text('Rating: ⭐ ${serviceProvider.rate}'),
             const SizedBox(height: 20),
             ElevatedButton.icon(
-              onPressed: () {},
+              onPressed: () {
+                
+                ScaffoldMessenger.of(context).showSnackBar(
+                  const SnackBar(content: Text('Booking not implemented yet')),
+                );
+              },
               icon: const Icon(Icons.calendar_today),
               label: const Text('Book an Appointment'),
               style: ElevatedButton.styleFrom(backgroundColor: primaryColor),
