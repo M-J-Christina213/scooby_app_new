@@ -4,7 +4,7 @@ import 'package:scooby_app_new/controllers/pet_form_controller.dart';
 import 'package:scooby_app_new/controllers/pet_service.dart';
 
 class AddPetScreen extends StatefulWidget {
-  final String userId;
+  final String userId; // auth user id
   const AddPetScreen({required this.userId, super.key});
 
   @override
@@ -199,7 +199,6 @@ class _AddPetScreenState extends State<AddPetScreen> {
                       value: value,
                       decoration: InputDecoration(
                         labelText: 'Gender *',
-                        
                         border: inputBorder,
                         focusedBorder: inputBorder.copyWith(
                           borderSide: BorderSide(color: _primaryColor, width: 2),

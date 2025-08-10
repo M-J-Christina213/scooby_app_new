@@ -84,51 +84,52 @@ class PetFormController {
   }
 
   /// Save pet to backend (add or update)
-  Future<bool> savePet(String userId, BuildContext context, {String? existingId}) async {
-    if (!validate(context)) return false;
+  Future<bool> savePet(String authUserId, BuildContext context, {String? existingId}) async {
+  if (!validate(context)) return false;
 
-    _isSaving = true;
+  _isSaving = true;
 
-    try {
-      String? imageUrl;
+  try {
+    String? imageUrl;
 
-      // Upload new image if picked
-      if (imageFile != null) {
-        final fileName = '${const Uuid().v4()}.jpg';
-        imageUrl = await petService.uploadPetImage(userId, imageFile!.path, fileName);
-      }
-
-      final pet = Pet(
-        id: existingId ?? const Uuid().v4(),
-        userId: userId,
-        name: nameController.text.trim(),
-        type: type.value,
-        breed: breedController.text.trim(),
-        age: int.tryParse(ageController.text.trim()),
-        gender: gender.value,
-        color: colorController.text.trim().isEmpty ? null : colorController.text.trim(),
-        weight: double.tryParse(weightController.text.trim()),
-        height: double.tryParse(heightController.text.trim()),
-        medicalHistory: medicalController.text.trim().isEmpty ? null : medicalController.text.trim(),
-        foodPreference: foodController.text.trim().isEmpty ? null : foodController.text.trim(),
-        mood: moodController.text.trim().isEmpty ? null : moodController.text.trim(),
-        healthStatus: healthController.text.trim().isEmpty ? null : healthController.text.trim(),
-        description: descriptionController.text.trim().isEmpty ? null : descriptionController.text.trim(),
-        imageUrl: imageUrl,
-        createdAt: DateTime.now(),
-      );
-
-      // If updating existing pet, you might want to implement update logic, here we only add
-      await petService.addPet(pet);
-
-      return true;
-    } catch (e) {
-      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Failed to save pet: $e')));
-      return false;
-    } finally {
-      _isSaving = false;
+    // Upload new image if picked
+    if (imageFile != null) {
+      final fileName = '${const Uuid().v4()}.jpg';
+      imageUrl = await petService.uploadPetImage(authUserId, imageFile!.path, fileName);
     }
+
+    final pet = Pet(
+      id: existingId ?? const Uuid().v4(),
+      // NOTE: Do NOT set userId here; PetService.addPet will set correct pet_owner.id
+      userId: '', 
+      name: nameController.text.trim(),
+      type: type.value,
+      breed: breedController.text.trim(),
+      age: int.tryParse(ageController.text.trim()),
+      gender: gender.value,
+      color: colorController.text.trim().isEmpty ? null : colorController.text.trim(),
+      weight: double.tryParse(weightController.text.trim()),
+      height: double.tryParse(heightController.text.trim()),
+      medicalHistory: medicalController.text.trim().isEmpty ? null : medicalController.text.trim(),
+      foodPreference: foodController.text.trim().isEmpty ? null : foodController.text.trim(),
+      mood: moodController.text.trim().isEmpty ? null : moodController.text.trim(),
+      healthStatus: healthController.text.trim().isEmpty ? null : healthController.text.trim(),
+      description: descriptionController.text.trim().isEmpty ? null : descriptionController.text.trim(),
+      imageUrl: imageUrl,
+      createdAt: DateTime.now(),
+    );
+
+    await petService.addPet(pet, authUserId);
+
+    return true;
+  } catch (e) {
+    ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Failed to save pet: $e')));
+    return false;
+  } finally {
+    _isSaving = false;
   }
+}
+
 
   void dispose() {
     nameController.dispose();
