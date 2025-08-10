@@ -34,6 +34,20 @@ Future<String?> getPetOwnerIdFromAuthId(String authUserId) async {
   return data?['id'] as String?;
 }
 
+Future<String?> getPetOwnerCityFromAuthId(String authUserId) async {
+  final response = await _supabase
+      .from('pet_owners')
+      .select('city')
+      .eq('user_id', authUserId)
+      .maybeSingle();
+
+  if (response == null || response['city'] == null) {
+    return null;
+  }
+
+  return response['city'] as String;
+}
+
 
 
   // Register Pet Owner

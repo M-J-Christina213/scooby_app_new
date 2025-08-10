@@ -58,10 +58,11 @@ class _LoginScreenState extends State<LoginScreen> {
 
         if (petOwnerResponse != null) {
             final petOwnerId = petOwnerResponse['id']; 
+            final userCity = petOwnerResponse['city']; 
             Navigator.pushReplacement(
               context,
               MaterialPageRoute(
-                builder: (_) => HomeScreen(userId: petOwnerId),
+                builder: (_) => HomeScreen(userId: petOwnerId, userCity: userCity),
               ),
             );
             showFlushBar("Welcome Pet Owner!", Colors.green);
