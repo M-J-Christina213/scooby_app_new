@@ -43,10 +43,12 @@ class _HomeScreenState extends State<HomeScreen> {
     'Healthy diet leads to happy pets.',
   ];
 
+
   @override
   void initState() {
     super.initState();
     _loadData();
+
   }
 
   Future<void> _loadData() async {
@@ -81,41 +83,7 @@ class _HomeScreenState extends State<HomeScreen> {
 
   void _onNavTap(int index) {
     setState(() => _selectedIndex = index);
-
-    setState(() {
-    _selectedIndex = index;
-  });
-
-  switch (index) {
-    case 0:
-      // Already on HomeScreen, no action needed
-      break;
-    case 1:
-      Navigator.pushReplacement(
-        context,
-        MaterialPageRoute(
-          builder: (_) => MyPetsScreen(userId: widget.userId),
-        ),
-      );
-      break;
-    case 2:
-      Navigator.pushReplacement(
-        context,
-        MaterialPageRoute(
-          builder: (_) => BookingsScreen(),
-        ),
-      );
-      break;
-  case 3:
-    Navigator.pushReplacement(
-      context,
-      MaterialPageRoute(
-        builder: (_) => ProfileScreen(),
-      ),
-    );
-    break;
-}
-}
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -123,72 +91,90 @@ class _HomeScreenState extends State<HomeScreen> {
 
     return Scaffold(
       appBar: AppBar(
-        title: const Text(
-          'Welcome to Scooby',
-          style: TextStyle(fontWeight: FontWeight.bold),
+        title: Text(
+          _selectedIndex == 0
+              ? 'Welcome to Scooby'
+              : _selectedIndex == 1
+                  ? 'My Pets'
+                  : _selectedIndex == 2
+                      ? 'Bookings'
+                      : 'Profile',
+          style: const TextStyle(fontWeight: FontWeight.bold),
         ),
         backgroundColor: primaryColor,
         centerTitle: true,
       ),
-      body: _loading
-          ? const Center(child: CircularProgressIndicator())
-          : RefreshIndicator(
-              onRefresh: _loadData,
-              child: ListView(
-                padding: const EdgeInsets.all(16),
-                children: [
-                  // Banner
-                  Container(
-                    height: 140,
-                    decoration: BoxDecoration(
-                      borderRadius: BorderRadius.circular(20),
-                      image: const DecorationImage(
-                        image: AssetImage('assets/images/banner1bg.jpg'),
-                        fit: BoxFit.cover,
-                      ),
-                    ),
-                    alignment: Alignment.center,
-                    child: const Text(
-                      'Caring for your pets, always!',
-                      style: TextStyle(
-                        color: Colors.deepPurple,
-                        fontSize: 18,
-                        fontWeight: FontWeight.bold,
-                      ),
-                    ),
-                  ),
-                  const SizedBox(height: 20),
-
-                  // Service Types
-                  _buildSectionTitle('Service Types', primaryColor),
-                  const SizedBox(height: 12),
-                  _buildServiceTypeList(primaryColor),
-                  const SizedBox(height: 24),
-
-                  // Nearby
-                  _buildSectionTitle('Nearby $_selectedRole"s', primaryColor),
-                  const SizedBox(height: 12),
-                  _buildProviderList(_nearbyProviders, 'No nearby providers found.'),
-
-                  const SizedBox(height: 24),
-
-                  // Recommended
-                  _buildSectionTitle('Recommended for You', primaryColor),
-                  const SizedBox(height: 12),
-                  _buildProviderList(_recommendedProviders, 'No recommendations available.'),
-
-                  const SizedBox(height: 24),
-
-                  // Pet Care Tips
-                  _buildPetCareTips(primaryColor),
-                ],
-              ),
-            ),
+      body: IndexedStack(
+        index: _selectedIndex,
+        children: [
+          _buildHomeContent(),
+          MyPetsScreen(userId: widget.userId),
+          BookingsScreen(),
+          ProfileScreen(),
+        ],
+      ),
       bottomNavigationBar: BottomNav(
         selectedIndex: _selectedIndex,
         onTap: _onNavTap,
       ),
     );
+  }
+
+  Widget _buildHomeContent() {
+    final primaryColor = const Color(0xFF842EAC);
+
+    return _loading
+        ? const Center(child: CircularProgressIndicator())
+        : RefreshIndicator(
+            onRefresh: _loadData,
+            child: ListView(
+              padding: const EdgeInsets.all(16),
+              children: [
+                // Banner
+                Container(
+                  height: 140,
+                  decoration: BoxDecoration(
+                    borderRadius: BorderRadius.circular(20),
+                    image: const DecorationImage(
+                      image: AssetImage('assets/images/banner1bg.jpg'),
+                      fit: BoxFit.cover,
+                    ),
+                  ),
+                  alignment: Alignment.center,
+                  child: const Text(
+                    'Caring for your pets, always!',
+                    style: TextStyle(
+                      color: Colors.deepPurple,
+                      fontSize: 18,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 20),
+
+                // Service Types
+                _buildSectionTitle('Service Types', primaryColor),
+                const SizedBox(height: 12),
+                _buildServiceTypeList(primaryColor),
+                const SizedBox(height: 24),
+
+                // Nearby
+                _buildSectionTitle('Nearby $_selectedRole"s', primaryColor),
+                const SizedBox(height: 12),
+                _buildProviderList(_nearbyProviders, 'No nearby providers found.'),
+                const SizedBox(height: 24),
+
+                // Recommended
+                _buildSectionTitle('Recommended for You', primaryColor),
+                const SizedBox(height: 12),
+                _buildProviderList(_recommendedProviders, 'No recommendations available.'),
+                const SizedBox(height: 24),
+
+                // Pet Care Tips
+                _buildPetCareTips(primaryColor),
+              ],
+            ),
+          );
   }
 
   Widget _buildSectionTitle(String title, Color color) {
@@ -369,7 +355,8 @@ class _ServiceProviderCard extends StatelessWidget {
             Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
-                Text('⭐ ${provider.rate}', style: const TextStyle(fontWeight: FontWeight.bold)),
+                Text('⭐ ${provider.rate}',
+                    style: const TextStyle(fontWeight: FontWeight.bold)),
                 IconButton(
                   icon: const Icon(Icons.message, color: Colors.purple),
                   onPressed: () {},
@@ -413,15 +400,18 @@ class ServiceDetailScreen extends StatelessWidget {
                 ),
               ),
             const SizedBox(height: 12),
-            Text(serviceProvider.aboutClinicSalon, style: const TextStyle(fontSize: 16)),
+            Text(serviceProvider.aboutClinicSalon,
+                style: const TextStyle(fontSize: 16)),
             const SizedBox(height: 12),
             Text('Experience: ${serviceProvider.experience} years'),
             const SizedBox(height: 8),
             Text('Description: ${serviceProvider.serviceDescription}'),
             const SizedBox(height: 8),
-            Text('Pricing: ${serviceProvider.pricingDetails.isNotEmpty ? serviceProvider.pricingDetails : "Not specified"}'),
+            Text(
+                'Pricing: ${serviceProvider.pricingDetails.isNotEmpty ? serviceProvider.pricingDetails : "Not specified"}'),
             const SizedBox(height: 8),
-            Text('Consultation Fee: ${serviceProvider.consultationFee.isNotEmpty ? serviceProvider.consultationFee : "Not specified"}'),
+            Text(
+                'Consultation Fee: ${serviceProvider.consultationFee.isNotEmpty ? serviceProvider.consultationFee : "Not specified"}'),
             const SizedBox(height: 8),
             Text('Rating: ⭐ ${serviceProvider.rate}'),
             const SizedBox(height: 20),

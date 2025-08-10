@@ -5,8 +5,11 @@ class ServiceProvider {
   final String phoneNo;
   final String email;
   final String city;
-  final String role; // Veterinarian, Pet Groomer, Pet Sitter
+  final String role;
   final String profileImageUrl;
+  final List<String> galleryImages;
+  final String qualificationUrl;
+  final String verificationUrl;
   final String clinicOrSalonName;
   final String clinicOrSalonAddress;
   final String aboutClinicSalon;
@@ -19,7 +22,7 @@ class ServiceProvider {
   final String availableTimes;
   final String dislikes;
   final String rate;
-  final DateTime createdAt;
+  final String notes;
 
   ServiceProvider({
     required this.id,
@@ -30,6 +33,9 @@ class ServiceProvider {
     required this.city,
     required this.role,
     required this.profileImageUrl,
+    required this.galleryImages,
+    required this.qualificationUrl,
+    required this.verificationUrl,
     required this.clinicOrSalonName,
     required this.clinicOrSalonAddress,
     required this.aboutClinicSalon,
@@ -42,19 +48,22 @@ class ServiceProvider {
     required this.availableTimes,
     required this.dislikes,
     required this.rate,
-    required this.createdAt,
+    required this.notes,
   });
 
   factory ServiceProvider.fromMap(Map<String, dynamic> map) {
     return ServiceProvider(
-      id: map['id'],
-      userId: map['user_id'],
-      name: map['name'],
-      phoneNo: map['phone_no'],
-      email: map['email'],
-      city: map['city'],
-      role: map['role'],
+      id: map['id'] ?? 0,
+      userId: map['user_id'] ?? '',
+      name: map['name'] ?? '',
+      phoneNo: map['phone_no'] ?? '',
+      email: map['email'] ?? '',
+      city: map['city'] ?? '',
+      role: map['role'] ?? '',
       profileImageUrl: map['profile_image_url'] ?? '',
+      galleryImages: List<String>.from(map['gallery_images'] ?? []),
+      qualificationUrl: map['qualification_url'] ?? '',
+      verificationUrl: map['verification_url'] ?? '',
       clinicOrSalonName: map['clinic_or_salon_name'] ?? '',
       clinicOrSalonAddress: map['clinic_or_salon_address'] ?? '',
       aboutClinicSalon: map['about_clinic_salon'] ?? '',
@@ -67,7 +76,7 @@ class ServiceProvider {
       availableTimes: map['available_times'] ?? '',
       dislikes: map['dislikes'] ?? '',
       rate: map['rate'] ?? '',
-      createdAt: DateTime.parse(map['created_at']),
+      notes: map['notes'] ?? '',
     );
   }
 }
