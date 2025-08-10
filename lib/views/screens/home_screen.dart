@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:scooby_app_new/controllers/service_provider_service.dart';
 import 'package:scooby_app_new/models/service_provider.dart';
 import 'package:scooby_app_new/views/screens/bookings_screen.dart';
@@ -7,13 +8,13 @@ import 'package:scooby_app_new/views/screens/profile_screen.dart';
 import 'package:scooby_app_new/widgets/bottom_nav.dart';
 
 class HomeScreen extends StatefulWidget {
-  final String userId;
   final String userCity;
+  final String userId;
 
   const HomeScreen({
     super.key,
-    required this.userId,
     required this.userCity,
+    required this.userId,
   });
 
   @override
@@ -29,6 +30,10 @@ class _HomeScreenState extends State<HomeScreen> {
   List<ServiceProvider> _recommendedProviders = [];
   bool _loading = true;
 
+  late String currentUserId;
+
+  late List<Widget> _tabsWithoutHome;
+
   final List<Map<String, String>> _serviceTypes = const [
     {'title': 'Veterinarian', 'image': 'assets/images/vet.png'},
     {'title': 'Pet Groomer', 'image': 'assets/images/groomer.png'},
@@ -43,12 +48,20 @@ class _HomeScreenState extends State<HomeScreen> {
     'Healthy diet leads to happy pets.',
   ];
 
-
   @override
   void initState() {
     super.initState();
-    _loadData();
 
+    currentUserId = Supabase.instance.client.auth.currentUser?.id ?? '';
+
+    // Initialize other tabs (excluding home)
+    _tabsWithoutHome = [
+      MyPetsScreen(userId: currentUserId),
+      BookingsScreen(),
+      ProfileScreen(),
+    ];
+
+    _loadData();
   }
 
   Future<void> _loadData() async {
@@ -60,8 +73,11 @@ class _HomeScreenState extends State<HomeScreen> {
         _selectedRole,
       );
       final recommended = await _service.fetchRecommendedServiceProviders(
-        widget.userId,
+        currentUserId,
       );
+
+      debugPrint('Nearby providers count: ${nearby.length}');
+      debugPrint('Recommended providers count: ${recommended.length}');
 
       setState(() {
         _nearbyProviders = nearby;
@@ -104,15 +120,9 @@ class _HomeScreenState extends State<HomeScreen> {
         backgroundColor: primaryColor,
         centerTitle: true,
       ),
-      body: IndexedStack(
-        index: _selectedIndex,
-        children: [
-          _buildHomeContent(),
-          MyPetsScreen(userId: widget.userId),
-          BookingsScreen(),
-          ProfileScreen(),
-        ],
-      ),
+      body: _selectedIndex == 0
+          ? _buildHomeContent()
+          : _tabsWithoutHome[_selectedIndex - 1],
       bottomNavigationBar: BottomNav(
         selectedIndex: _selectedIndex,
         onTap: _onNavTap,
@@ -161,13 +171,15 @@ class _HomeScreenState extends State<HomeScreen> {
                 // Nearby
                 _buildSectionTitle('Nearby $_selectedRole"s', primaryColor),
                 const SizedBox(height: 12),
-                _buildProviderList(_nearbyProviders, 'No nearby providers found.'),
+                _buildProviderList(
+                    _nearbyProviders, 'No nearby providers found.'),
                 const SizedBox(height: 24),
 
                 // Recommended
                 _buildSectionTitle('Recommended for You', primaryColor),
                 const SizedBox(height: 12),
-                _buildProviderList(_recommendedProviders, 'No recommendations available.'),
+                _buildProviderList(
+                    _recommendedProviders, 'No recommendations available.'),
                 const SizedBox(height: 24),
 
                 // Pet Care Tips
@@ -246,7 +258,8 @@ class _HomeScreenState extends State<HomeScreen> {
                     Navigator.push(
                       context,
                       MaterialPageRoute(
-                        builder: (_) => ServiceDetailScreen(serviceProvider: provider),
+                        builder: (_) =>
+                            ServiceDetailScreen(serviceProvider: provider),
                       ),
                     );
                   },
