@@ -43,42 +43,51 @@ class _PetDetailScreenState extends State<PetDetailScreen> {
     });
   }
 
-  void _showFlushbar(String message,
-      {Color backgroundColor = const Color(0xFF842EAC), IconData icon = Icons.pets}) {
-    Flushbar(
-      message: message,
+
+Future<void> _saveChanges() async {
+  if (!_formController.validate(context)) return;
+
+  setState(() {
+    _isSaving = true;
+  });
+
+  final success = await _formController.savePet(widget.userId, context, existingId: widget.pet.id);
+
+  setState(() {
+    _isSaving = false;
+  });
+
+  if (success) {
+    // Await the flushbar so pop happens after flushbar finishes
+    await Flushbar(
+      message: 'Pet updated successfully!',
       duration: const Duration(seconds: 3),
       flushbarPosition: FlushbarPosition.TOP,
-      backgroundColor: backgroundColor,
+      backgroundColor: const Color(0xFF842EAC),
       margin: const EdgeInsets.all(8),
       borderRadius: BorderRadius.circular(12),
-      icon: Icon(icon, color: Colors.white),
+      icon: const Icon(Icons.pets, color: Colors.white),
     ).show(context);
-  }
 
-  Future<void> _saveChanges() async {
-    if (!_formController.validate(context)) return;
-
-    setState(() {
-      _isSaving = true;
-    });
-
-    final success = await _formController.savePet(widget.userId, context, existingId: widget.pet.id);
-
-    setState(() {
-      _isSaving = false;
-    });
-
-    if (success) {
-      _showFlushbar('Pet updated successfully!');
+    if (mounted) {
       setState(() {
         _isEditing = false;
       });
       Navigator.of(context).pop(true); // Indicate to refresh list
-    } else {
-      _showFlushbar('Failed to update pet', backgroundColor: Colors.redAccent, icon: Icons.error);
     }
+  } else {
+    await Flushbar(
+      message: 'Failed to update pet',
+      duration: const Duration(seconds: 3),
+      flushbarPosition: FlushbarPosition.TOP,
+      backgroundColor: Colors.redAccent,
+      margin: const EdgeInsets.all(8),
+      borderRadius: BorderRadius.circular(12),
+      icon: const Icon(Icons.error, color: Colors.white),
+    ).show(context);
   }
+}
+
 
   void _cancelEdit() {
     setState(() {
