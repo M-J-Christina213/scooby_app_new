@@ -12,16 +12,32 @@ class MyPetsScreen extends StatefulWidget {
   State<MyPetsScreen> createState() => _MyPetsScreenState();
 }
 
-class _MyPetsScreenState extends State<MyPetsScreen> {
+class _MyPetsScreenState extends State<MyPetsScreen> with SingleTickerProviderStateMixin {
   final PetService _petService = PetService();
   late Future<List<Pet>> _petsFuture;
-
   final Color _primaryColor = const Color(0xFF842EAC);
+
+  late AnimationController _animationController;
+  late Animation<double> _fadeAnimation;
 
   @override
   void initState() {
     super.initState();
     _loadPets();
+
+    _animationController = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 500),
+    );
+    _fadeAnimation = Tween<double>(begin: 0.0, end: 1.0).animate(_animationController);
+
+    _animationController.forward();
+  }
+
+  @override
+  void dispose() {
+    _animationController.dispose();
+    super.dispose();
   }
 
   void _loadPets() {
@@ -66,11 +82,7 @@ class _MyPetsScreenState extends State<MyPetsScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(
-        title: const Text('My Pets'),
-        backgroundColor: _primaryColor,
-        centerTitle: true,
-      ),
+     
       body: FutureBuilder<List<Pet>>(
         future: _petsFuture,
         builder: (context, snapshot) {
@@ -107,24 +119,76 @@ class _MyPetsScreenState extends State<MyPetsScreen> {
           return RefreshIndicator(
             onRefresh: _refreshPets,
             child: ListView.builder(
-              padding: const EdgeInsets.all(12),
+              padding: const EdgeInsets.symmetric(vertical: 20, horizontal: 16),
               itemCount: pets.length,
               itemBuilder: (context, index) {
                 final pet = pets[index];
-                return Card(
-                  elevation: 2,
-                  margin: const EdgeInsets.symmetric(vertical: 8),
-                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-                  child: ListTile(
-                    leading: CircleAvatar(
-                      backgroundColor: Colors.grey[300],
-                      backgroundImage: pet.imageUrl != null ? NetworkImage(pet.imageUrl!) : null,
-                      child: pet.imageUrl == null ? Icon(Icons.pets, color: _primaryColor) : null,
-                    ),
-                    title: Text(pet.name, style: const TextStyle(fontWeight: FontWeight.bold)),
-                    subtitle: Text('${pet.type} • Age: ${pet.age ?? 'N/A'}'),
-                    trailing: const Icon(Icons.chevron_right),
+                return FadeTransition(
+                  opacity: _fadeAnimation,
+                  child: GestureDetector(
                     onTap: () => _goToPetDetails(pet),
+                    child: Container(
+                      margin: const EdgeInsets.only(bottom: 24),
+                      decoration: BoxDecoration(
+                        color: Colors.white,
+                        borderRadius: BorderRadius.circular(20),
+                        boxShadow: [
+                          BoxShadow(
+                            color: _primaryColor.withAlpha(40),
+                            blurRadius: 10,
+                            offset: const Offset(0, 6),
+                          ),
+                        ],
+                      ),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.center,
+                        children: [
+                          ClipRRect(
+                            borderRadius: const BorderRadius.vertical(top: Radius.circular(20)),
+                            child: pet.imageUrl != null
+                                ? Image.network(
+                                    pet.imageUrl!,
+                                    width: double.infinity,
+                                    height: 220,
+                                    fit: BoxFit.cover,
+                                  )
+                                : Container(
+                                    width: double.infinity,
+                                    height: 220,
+                                    color: _primaryColor.withAlpha(50),
+                                    child: Icon(
+                                      Icons.pets,
+                                      size: 100,
+                                      color: _primaryColor,
+                                    ),
+                                  ),
+                          ),
+                          Padding(
+                            padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 16),
+                            child: Column(
+                              children: [
+                                Text(
+                                  pet.name,
+                                  style: TextStyle(
+                                    color: _primaryColor,
+                                    fontSize: 24,
+                                    fontWeight: FontWeight.bold,
+                                  ),
+                                ),
+                                const SizedBox(height: 8),
+                                Text(
+                                  '${pet.breed ?? 'Unknown Breed'} • Age: ${pet.age ?? 'N/A'}',
+                                  style: TextStyle(
+                                    color: _primaryColor.withAlpha(180),
+                                    fontSize: 16,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
                   ),
                 );
               },
@@ -137,6 +201,7 @@ class _MyPetsScreenState extends State<MyPetsScreen> {
         backgroundColor: _primaryColor,
         child: const Icon(Icons.add),
       ),
+      backgroundColor: _primaryColor.withAlpha(20),
     );
   }
 }
