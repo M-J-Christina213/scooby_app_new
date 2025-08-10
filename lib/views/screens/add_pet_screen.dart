@@ -36,9 +36,9 @@ class _AddPetScreenState extends State<AddPetScreen> {
     super.dispose();
   }
 
-  void _showFlushbar(String message,
+  Future<void> _showFlushbar(String message,
       {Color backgroundColor = const Color(0xFF842EAC), IconData icon = Icons.pets}) {
-    Flushbar(
+    return Flushbar(
       message: message,
       duration: const Duration(seconds: 3),
       flushbarPosition: FlushbarPosition.TOP,
@@ -51,7 +51,7 @@ class _AddPetScreenState extends State<AddPetScreen> {
 
   Future<void> _savePet() async {
     if (!_formKey.currentState!.validate()) {
-      _showFlushbar('Please fix the errors in the form',
+      await _showFlushbar('Please fix the errors in the form',
           backgroundColor: Colors.redAccent, icon: Icons.error);
       return;
     }
@@ -61,10 +61,11 @@ class _AddPetScreenState extends State<AddPetScreen> {
 
     final success = await _formController.savePet(widget.userId, context, existingId: existingId);
     if (success) {
-      _showFlushbar(_isEditing ? 'Pet updated successfully!' : 'Pet added successfully!');
+      // Wait for flushbar to finish before popping to avoid debug locked error
+      await _showFlushbar(_isEditing ? 'Pet updated successfully!' : 'Pet added successfully!');
       if (mounted) Navigator.of(context).pop(true);
     } else {
-      _showFlushbar(_isEditing ? 'Failed to update pet' : 'Failed to add pet',
+      await _showFlushbar(_isEditing ? 'Failed to update pet' : 'Failed to add pet',
           backgroundColor: Colors.redAccent, icon: Icons.error);
     }
   }
