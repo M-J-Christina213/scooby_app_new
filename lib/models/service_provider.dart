@@ -1,57 +1,73 @@
 class ServiceProvider {
-  final String uid;
+  final int id;
+  final String userId;
   final String name;
+  final String phoneNo;
   final String email;
-  final String phone;
-  final String address;
   final String city;
-  final String role;
-  final String serviceRole;
+  final String role; // Veterinarian, Pet Groomer, Pet Sitter
+  final String profileImageUrl;
+  final String clinicOrSalonName;
+  final String clinicOrSalonAddress;
+  final String aboutClinicSalon;
   final String experience;
-  final String description;
+  final String serviceDescription;
+  final String pricingDetails;
+  final String consultationFee;
+  final List<String> groomingServices;
+  final List<String> comfortableWith;
+  final String availableTimes;
+  final String dislikes;
+  final String rate;
+  final DateTime createdAt;
 
   ServiceProvider({
-    required this.uid,
+    required this.id,
+    required this.userId,
     required this.name,
+    required this.phoneNo,
     required this.email,
-    required this.phone,
-    required this.address,
     required this.city,
     required this.role,
-    required this.serviceRole,
+    required this.profileImageUrl,
+    required this.clinicOrSalonName,
+    required this.clinicOrSalonAddress,
+    required this.aboutClinicSalon,
     required this.experience,
-    required this.description,
+    required this.serviceDescription,
+    required this.pricingDetails,
+    required this.consultationFee,
+    required this.groomingServices,
+    required this.comfortableWith,
+    required this.availableTimes,
+    required this.dislikes,
+    required this.rate,
+    required this.createdAt,
   });
-
-  Map<String, dynamic> toMap() {
-    return {
-      'uid': uid,
-      'name': name,
-      'email': email,
-      'phone': phone,
-      'address': address,
-      'city': city,
-      'role': role,
-      'service_role': serviceRole,
-      'experience': experience,
-      'description': description,
-    };
-  }
 
   factory ServiceProvider.fromMap(Map<String, dynamic> map) {
     return ServiceProvider(
-      uid: map['uid'],
+      id: map['id'],
+      userId: map['user_id'],
       name: map['name'],
+      phoneNo: map['phone_no'],
       email: map['email'],
-      phone: map['phone'],
-      address: map['address'],
       city: map['city'],
       role: map['role'],
-      serviceRole: map['service_role'],
-      experience: map['experience'],
-      description: map['description'],
+      profileImageUrl: map['profile_image_url'] ?? '',
+      clinicOrSalonName: map['clinic_or_salon_name'] ?? '',
+      clinicOrSalonAddress: map['clinic_or_salon_address'] ?? '',
+      aboutClinicSalon: map['about_clinic_salon'] ?? '',
+      experience: map['experience'] ?? '',
+      serviceDescription: map['service_description'] ?? '',
+      pricingDetails: map['pricing_details'] ?? '',
+      consultationFee: map['consultation_fee'] ?? '',
+      groomingServices: List<String>.from(map['grooming_services'] ?? []),
+      comfortableWith: List<String>.from(map['comfortable_with'] ?? []),
+      availableTimes: map['available_times'] ?? '',
+      dislikes: map['dislikes'] ?? '',
+      rate: map['rate'] ?? '',
+      createdAt: DateTime.parse(map['created_at']),
     );
   }
-
-  get clinicOrSalonName => null;
 }

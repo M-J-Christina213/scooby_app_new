@@ -1,8 +1,12 @@
 import 'package:flutter/material.dart';
 import 'package:scooby_app_new/views/screens/my_pets_screen.dart';
+import 'package:scooby_app_new/views/screens/pet_services_screen.dart';
 import 'package:scooby_app_new/widgets/bottom_nav.dart';
 import 'package:scooby_app_new/widgets/nav_bar_tabs.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
+
+// Import your login screen here
+import 'package:scooby_app_new/views/screens/login_screen.dart';
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key, required String userId});
@@ -14,7 +18,7 @@ class HomeScreen extends StatefulWidget {
 class _HomeScreenState extends State<HomeScreen> {
   int selectedIndex = 0;
 
-   late final List<Widget> _tabs;
+  late final List<Widget> _tabs;
   late final String currentUserId;
 
   @override
@@ -24,23 +28,56 @@ class _HomeScreenState extends State<HomeScreen> {
     currentUserId = Supabase.instance.client.auth.currentUser?.id ?? '';
 
     _tabs = [
-      const HomeTab(),
+      PetServicesScreen(),
       MyPetsScreen(userId: currentUserId),
       const BookingsTab(),
       const ProfileTab(),
     ];
   }
+
   final List<String> _titles = [
     'Home',
     'My Pets',
     'Bookings',
     'Profile',
   ];
-  
+
   void _onNavTap(int index) {
     setState(() {
       selectedIndex = index;
     });
+  }
+
+  Future<void> _signOut() async {
+    final confirmSignOut = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Confirm Sign Out'),
+        content: const Text('Do you really want to sign out?'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(false), // Cancel
+            child: const Text('No'),
+          ),
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(true), // Confirm
+            child: const Text('Yes'),
+          ),
+        ],
+      ),
+    );
+
+    if (confirmSignOut == true) {
+      // Sign out from Supabase
+      await Supabase.instance.client.auth.signOut();
+
+      // Navigate to LoginScreen, clear all previous routes
+      if (!mounted) return;
+      Navigator.of(context).pushAndRemoveUntil(
+        MaterialPageRoute(builder: (context) => const LoginScreen()),
+        (route) => false,
+      );
+    }
   }
 
   @override
@@ -60,9 +97,7 @@ class _HomeScreenState extends State<HomeScreen> {
                 IconButton(
                   icon: const Icon(Icons.logout, color: Colors.white),
                   tooltip: 'Sign Out',
-                  onPressed: () {
-                   
-                  },
+                  onPressed: _signOut,
                 ),
               ]
             : null,
