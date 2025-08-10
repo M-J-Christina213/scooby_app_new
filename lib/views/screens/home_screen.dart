@@ -1,12 +1,14 @@
 // ignore_for_file: deprecated_member_use
 
 import 'package:flutter/material.dart';
+import 'package:scooby_app_new/views/screens/service_detail_screen.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:scooby_app_new/controllers/service_provider_service.dart';
 import 'package:scooby_app_new/models/service_provider.dart';
 import 'package:scooby_app_new/views/screens/bookings_screen.dart';
 import 'package:scooby_app_new/views/screens/my_pets_screen.dart';
 import 'package:scooby_app_new/views/screens/profile_screen.dart';
+import 'package:scooby_app_new/views/screens/nearby_services_screen.dart'; // You need to create this!
 import 'package:scooby_app_new/widgets/bottom_nav.dart';
 
 class HomeScreen extends StatefulWidget {
@@ -56,7 +58,6 @@ class _HomeScreenState extends State<HomeScreen> {
 
     currentUserId = Supabase.instance.client.auth.currentUser?.id ?? '';
 
-    // Initialize other tabs (excluding home)
     _tabsWithoutHome = [
       MyPetsScreen(userId: currentUserId),
       BookingsScreen(),
@@ -78,15 +79,14 @@ class _HomeScreenState extends State<HomeScreen> {
         currentUserId,
       );
 
-      debugPrint('Nearby providers count: ${nearby.length}');
-      debugPrint('Recommended providers count: ${recommended.length}');
-
       setState(() {
         _nearbyProviders = nearby;
         _recommendedProviders = recommended;
       });
     } catch (e) {
       debugPrint('Error loading providers: $e');
+      _nearbyProviders = [];
+      _recommendedProviders = [];
     } finally {
       setState(() => _loading = false);
     }
@@ -170,18 +170,103 @@ class _HomeScreenState extends State<HomeScreen> {
                 _buildServiceTypeList(primaryColor),
                 const SizedBox(height: 24),
 
-                // Nearby
-                _buildSectionTitle('Nearby $_selectedRole"s', primaryColor),
+                // Nearby Services with See All
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    Text(
+                      'Nearby $_selectedRole\'s',
+                      style: TextStyle(
+                          fontSize: 20,
+                          fontWeight: FontWeight.bold,
+                          color: primaryColor),
+                    ),
+                    if (_nearbyProviders.length > 4)
+                      GestureDetector(
+                        onTap: () {
+                          Navigator.push(
+                            context,
+                            MaterialPageRoute(
+                              builder: (_) => NearbyServicesScreen(
+                                providers: _nearbyProviders,
+                                role: _selectedRole,
+                              ),
+                            ),
+                          );
+                        },
+                        child: Text(
+                          'See All',
+                          style: TextStyle(
+                              color: primaryColor,
+                              fontWeight: FontWeight.w600,
+                              decoration: TextDecoration.underline),
+                        ),
+                      ),
+                  ],
+                ),
                 const SizedBox(height: 12),
-                _buildProviderList(
-                    _nearbyProviders, 'No nearby providers found.'),
+
+                _nearbyProviders.isEmpty
+                    ? Text('No nearby providers found.')
+                    : SizedBox(
+                        height: 220,
+                        child: ListView.separated(
+                          scrollDirection: Axis.horizontal,
+                          itemCount: _nearbyProviders.length > 4
+                              ? 4
+                              : _nearbyProviders.length,
+                          separatorBuilder: (_, __) =>
+                              const SizedBox(width: 16),
+                          itemBuilder: (context, index) {
+                            final provider = _nearbyProviders[index];
+                            return ServiceProviderCard(
+                              provider: provider,
+                              onTap: () {
+                                Navigator.push(
+                                  context,
+                                  MaterialPageRoute(
+                                    builder: (_) =>
+                                        ServiceDetailScreen(serviceProvider: provider),
+                                  ),
+                                );
+                              },
+                            );
+                          },
+                        ),
+                      ),
+
                 const SizedBox(height: 24),
 
                 // Recommended
                 _buildSectionTitle('Recommended for You', primaryColor),
                 const SizedBox(height: 12),
-                _buildProviderList(
-                    _recommendedProviders, 'No recommendations available.'),
+                _recommendedProviders.isEmpty
+                    ? Text('No recommendations available.')
+                    : SizedBox(
+                        height: 220,
+                        child: ListView.separated(
+                          scrollDirection: Axis.horizontal,
+                          itemCount: _recommendedProviders.length,
+                          separatorBuilder: (_, __) =>
+                              const SizedBox(width: 16),
+                          itemBuilder: (context, index) {
+                            final provider = _recommendedProviders[index];
+                            return ServiceProviderCard(
+                              provider: provider,
+                              onTap: () {
+                                Navigator.push(
+                                  context,
+                                  MaterialPageRoute(
+                                    builder: (_) =>
+                                        ServiceDetailScreen(serviceProvider: provider),
+                                  ),
+                                );
+                              },
+                            );
+                          },
+                        ),
+                      ),
+
                 const SizedBox(height: 24),
 
                 // Pet Care Tips
@@ -214,7 +299,9 @@ class _HomeScreenState extends State<HomeScreen> {
               width: 140,
               padding: const EdgeInsets.all(12),
               decoration: BoxDecoration(
-                color: isSelected ? primaryColor.withAlpha(51) : Colors.grey[200],
+                color: isSelected
+                    ? primaryColor.withAlpha(51)
+                    : Colors.grey[200],
                 borderRadius: BorderRadius.circular(16),
                 border: Border.all(
                   color: isSelected ? primaryColor : Colors.transparent,
@@ -241,34 +328,6 @@ class _HomeScreenState extends State<HomeScreen> {
         },
       ),
     );
-  }
-
-  Widget _buildProviderList(List<ServiceProvider> providers, String emptyMessage) {
-    return providers.isEmpty
-        ? Text(emptyMessage)
-        : SizedBox(
-            height: 220,
-            child: ListView.separated(
-              scrollDirection: Axis.horizontal,
-              itemCount: providers.length,
-              separatorBuilder: (_, __) => const SizedBox(width: 16),
-              itemBuilder: (context, index) {
-                final provider = providers[index];
-                return _ServiceProviderCard(
-                  provider: provider,
-                  onTap: () {
-                    Navigator.push(
-                      context,
-                      MaterialPageRoute(
-                        builder: (_) =>
-                            ServiceDetailScreen(serviceProvider: provider),
-                      ),
-                    );
-                  },
-                );
-              },
-            ),
-          );
   }
 
   Widget _buildPetCareTips(Color primaryColor) {
@@ -311,20 +370,51 @@ class _HomeScreenState extends State<HomeScreen> {
       ),
     );
   }
-  
 }
 
-class _ServiceProviderCard extends StatelessWidget {
+class ServiceProviderCard extends StatelessWidget {
   final ServiceProvider provider;
-  final VoidCallback onTap;
+  final VoidCallback? onTap;
 
-  const _ServiceProviderCard({
+  const ServiceProviderCard({
+    super.key,
     required this.provider,
-    required this.onTap,
+    this.onTap,
   });
+
+  Widget _buildStarRating(double rating) {
+    int fullStars = rating.floor();
+    bool halfStar = (rating - fullStars) >= 0.5;
+    return Row(
+      children: List.generate(5, (index) {
+        if (index < fullStars) {
+          return const Icon(Icons.star, color: Colors.amber, size: 16);
+        } else if (index == fullStars && halfStar) {
+          return const Icon(Icons.star_half, color: Colors.amber, size: 16);
+        } else {
+          return const Icon(Icons.star_border, color: Colors.amber, size: 16);
+        }
+      }),
+    );
+  }
+
+  String _getPricingInfo(ServiceProvider p) {
+    switch (p.role.toLowerCase()) {
+      case 'veterinarian':
+        return 'Consultation: ${p.consultationFee.isNotEmpty ? p.consultationFee : "N/A"}';
+      case 'pet groomer':
+        return 'Price: ${p.pricingDetails.isNotEmpty ? p.pricingDetails : "N/A"}';
+      case 'pet sitter':
+        return 'Rate: ${p.pricingDetails.isNotEmpty ? p.pricingDetails : "N/A"}';
+      default:
+        return '';
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
+    final purple = const Color(0xFF842EAC);
+
     return GestureDetector(
       onTap: onTap,
       child: Container(
@@ -334,123 +424,46 @@ class _ServiceProviderCard extends StatelessWidget {
           color: Colors.white,
           borderRadius: BorderRadius.circular(16),
           boxShadow: [
-            BoxShadow(
-              color: Colors.purple.withOpacity(0.1),
-              blurRadius: 10,
-              spreadRadius: 2,
-            )
+            BoxShadow(color: purple.withOpacity(0.15), blurRadius: 8, spreadRadius: 1),
           ],
         ),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            provider.profileImageUrl.isNotEmpty
-                ? ClipRRect(
-                    borderRadius: BorderRadius.circular(12),
-                    child: Image.network(
+            ClipRRect(
+              borderRadius: BorderRadius.circular(12),
+              child: provider.profileImageUrl.isNotEmpty
+                  ? Image.network(
                       provider.profileImageUrl,
                       height: 100,
                       width: double.infinity,
                       fit: BoxFit.cover,
+                    )
+                  : Container(
+                      height: 100,
+                      color: Colors.grey[300],
+                      child: const Icon(Icons.pets, size: 60, color: Colors.white),
                     ),
-                  )
-                : Container(
-                    height: 100,
-                    decoration: BoxDecoration(
-                      color: Colors.grey.shade300,
-                      borderRadius: BorderRadius.circular(12),
-                    ),
-                    child: const Icon(Icons.pets, size: 60, color: Colors.white),
-                  ),
+            ),
             const SizedBox(height: 8),
             Text(
               provider.clinicOrSalonName.isNotEmpty
                   ? provider.clinicOrSalonName
                   : provider.name,
-              style: const TextStyle(fontWeight: FontWeight.bold),
+              style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
               maxLines: 1,
               overflow: TextOverflow.ellipsis,
             ),
             Text(
-              provider.serviceDescription,
-              maxLines: 2,
-              overflow: TextOverflow.ellipsis,
-              style: TextStyle(color: Colors.grey[700]),
+              'Experience: ${provider.experience} yrs',
+              style: TextStyle(color: Colors.grey[700], fontSize: 13),
             ),
-            const Spacer(),
-            Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                Text('⭐ ${provider.rate}',
-                    style: const TextStyle(fontWeight: FontWeight.bold)),
-                IconButton(
-                  icon: const Icon(Icons.message, color: Colors.purple),
-                  onPressed: () {},
-                ),
-              ],
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-}
-
-class ServiceDetailScreen extends StatelessWidget {
-  final ServiceProvider serviceProvider;
-
-  const ServiceDetailScreen({super.key, required this.serviceProvider});
-
-  @override
-  Widget build(BuildContext context) {
-    final primaryColor = const Color(0xFF842EAC);
-
-    return Scaffold(
-      appBar: AppBar(
-        title: Text(serviceProvider.clinicOrSalonName.isNotEmpty
-            ? serviceProvider.clinicOrSalonName
-            : serviceProvider.name),
-        backgroundColor: primaryColor,
-      ),
-      body: Padding(
-        padding: const EdgeInsets.all(16),
-        child: ListView(
-          children: [
-            if (serviceProvider.profileImageUrl.isNotEmpty)
-              ClipRRect(
-                borderRadius: BorderRadius.circular(12),
-                child: Image.network(
-                  serviceProvider.profileImageUrl,
-                  height: 200,
-                  fit: BoxFit.cover,
-                ),
-              ),
-            const SizedBox(height: 12),
-            Text(serviceProvider.aboutClinicSalon,
-                style: const TextStyle(fontSize: 16)),
-            const SizedBox(height: 12),
-            Text('Experience: ${serviceProvider.experience} years'),
-            const SizedBox(height: 8),
-            Text('Description: ${serviceProvider.serviceDescription}'),
-            const SizedBox(height: 8),
+            const SizedBox(height: 4),
+            _buildStarRating(4.5), // fixed fake rating
+            const SizedBox(height: 6),
             Text(
-                'Pricing: ${serviceProvider.pricingDetails.isNotEmpty ? serviceProvider.pricingDetails : "Not specified"}'),
-            const SizedBox(height: 8),
-            Text(
-                'Consultation Fee: ${serviceProvider.consultationFee.isNotEmpty ? serviceProvider.consultationFee : "Not specified"}'),
-            const SizedBox(height: 8),
-            Text('Rating: ⭐ ${serviceProvider.rate}'),
-            const SizedBox(height: 20),
-            ElevatedButton.icon(
-              onPressed: () {
-                
-                ScaffoldMessenger.of(context).showSnackBar(
-                  const SnackBar(content: Text('Booking not implemented yet')),
-                );
-              },
-              icon: const Icon(Icons.calendar_today),
-              label: const Text('Book an Appointment'),
-              style: ElevatedButton.styleFrom(backgroundColor: primaryColor),
+              _getPricingInfo(provider),
+              style: TextStyle(color: purple, fontWeight: FontWeight.w600),
             ),
           ],
         ),
