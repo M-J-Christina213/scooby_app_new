@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 import 'package:scooby_app_new/models/service_provider.dart';
-import 'confirm_booking_screen.dart';
 
 class ServiceProviderDetailsScreen extends StatelessWidget {
   final Map<String, dynamic> data;
@@ -118,12 +117,13 @@ class ServiceProviderDetailsScreen extends StatelessWidget {
               width: double.infinity,
               child: ElevatedButton(
                 onPressed: () {
-                  Navigator.push(
-                        context,
-                        MaterialPageRoute(
-                          builder: (_) => ConfirmBookingScreen(serviceProviderEmail: data['email']),
-                        ),
-                      );
+               //   Navigator.push(
+                      //  context,
+                     //   MaterialPageRoute(
+                    //      builder: (_) => CBookingScreen(
+       // serviceProvider: ServiceProvider.fromMap(data),
+             //           ),
+                //      );
                 },
                 style: ElevatedButton.styleFrom(
                   backgroundColor: const Color(0xFF8E24AA),

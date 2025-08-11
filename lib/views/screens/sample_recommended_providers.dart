@@ -1,11 +1,9 @@
-// sample_recommended_providers.dart
-
 import 'package:scooby_app_new/models/service_provider.dart';
 
 final List<ServiceProvider> sampleRecommendedProviders = [
   // 3 Veterinarians
   ServiceProvider(
-    id: 1,
+    id: '1',
     userId: 'user_001',
     name: 'Dr. Chamari Silva',
     phoneNo: '+94 77 123 4567',
@@ -35,7 +33,7 @@ final List<ServiceProvider> sampleRecommendedProviders = [
     notes: '',
   ),
   ServiceProvider(
-    id: 2,
+    id: '2',
     userId: 'user_002',
     name: 'Dr. Nimal Perera',
     phoneNo: '+94 71 234 5678',
@@ -65,7 +63,7 @@ final List<ServiceProvider> sampleRecommendedProviders = [
     notes: '',
   ),
   ServiceProvider(
-    id: 3,
+    id: '3',
     userId: 'user_003',
     name: 'Dr. Anusha Fernando',
     phoneNo: '+94 77 345 6789',
@@ -96,12 +94,12 @@ final List<ServiceProvider> sampleRecommendedProviders = [
 
   // 2 Pet Groomers
   ServiceProvider(
-    id: 4,
+    id: '4',
     userId: 'user_004',
     name: 'Lalitha Wickramasinghe',
     phoneNo: '+94 76 123 4567',
     email: 'lalitha.groomer@gmail.com',
-    city: 'Galle', // Changed from Colombo
+    city: 'Galle',
     role: 'Pet Groomer',
     profileImageUrl: 'https://example.com/images/lalitha_wickramasinghe.jpg',
     galleryImages: [
@@ -126,7 +124,7 @@ final List<ServiceProvider> sampleRecommendedProviders = [
     notes: '',
   ),
   ServiceProvider(
-    id: 5,
+    id: '5',
     userId: 'user_005',
     name: 'Kamal Perera',
     phoneNo: '+94 77 987 6543',
@@ -157,7 +155,7 @@ final List<ServiceProvider> sampleRecommendedProviders = [
 
   // 3 Pet Sitters
   ServiceProvider(
-    id: 6,
+    id: '6',
     userId: 'user_006',
     name: 'Samantha Jayasinghe',
     phoneNo: '+94 71 654 3210',
@@ -187,7 +185,7 @@ final List<ServiceProvider> sampleRecommendedProviders = [
     notes: '',
   ),
   ServiceProvider(
-    id: 7,
+    id: '7',
     userId: 'user_007',
     name: 'Ruwan Silva',
     phoneNo: '+94 72 987 6543',
@@ -216,7 +214,7 @@ final List<ServiceProvider> sampleRecommendedProviders = [
     notes: '',
   ),
   ServiceProvider(
-    id: 8,
+    id: '8',
     userId: 'user_008',
     name: 'Nadeesha Fernando',
     phoneNo: '+94 77 765 4321',

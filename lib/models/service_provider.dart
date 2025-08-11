@@ -1,5 +1,5 @@
 class ServiceProvider {
-  final int id;
+  final String id;  
   final String userId;
   final String name;
   final String phoneNo;
@@ -53,7 +53,7 @@ class ServiceProvider {
 
   factory ServiceProvider.fromMap(Map<String, dynamic> map) {
     return ServiceProvider(
-      id: map['id'] ?? 0,
+      id: map['id'] ?? '',
       userId: map['user_id'] ?? '',
       name: map['name'] ?? '',
       phoneNo: map['phone_no'] ?? '',

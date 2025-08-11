@@ -189,8 +189,8 @@ Future<void> registerServiceProvider({
 
     String sanitize(String input) => input.replaceAll('\u0000', '');
 
-    // 4️⃣ Insert into database with error handling
-    final response = await _supabase
+   // 4️⃣ Insert into database with error handling
+final response = await _supabase
     .from('service_providers')
     .insert([
       {
@@ -224,16 +224,18 @@ Future<void> registerServiceProvider({
     .select()
     .maybeSingle();
 
-if (response.error != null) {
-  log('Supabase insert error: ${response.error!.message}');
-  throw Exception('Failed to insert service provider: ${response.error!.message}');
+if (response == null) {
+  log('Supabase insert error: Insert returned null');
+  throw Exception('Failed to insert service provider');
 }
-
+    log('Service Provider registered successfully: $userId');
   } catch (e) {
     log('Register ServiceProvider Error: $e');
     rethrow;
   }
 }
+
+  // Upload File to Supabase Storage
 
 
 Future<String> _uploadFile({

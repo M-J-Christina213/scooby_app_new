@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart'; // For formatting date/time
 import 'package:scooby_app_new/models/service_provider.dart';
+import 'confirm_booking_screen.dart'; // Import ConfirmBookingScreen
 
 class BookingScreen extends StatefulWidget {
   final ServiceProvider serviceProvider;
@@ -16,10 +17,8 @@ class _BookingScreenState extends State<BookingScreen> {
   DateTime? _selectedDate;
   TimeOfDay? _selectedTime;
 
-  // For Groomer: selected grooming services for booking
   final Set<String> _selectedServices = {};
 
-  // For Pet Sitter: select range of days (from-to)
   DateTime? _rangeStartDate;
   DateTime? _rangeEndDate;
 
@@ -43,7 +42,7 @@ class _BookingScreenState extends State<BookingScreen> {
         child: Padding(
           padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
           child: ElevatedButton(
-            onPressed: _confirmBooking,
+            onPressed: _onConfirmBookingPressed,
             style: ElevatedButton.styleFrom(
               backgroundColor: primaryColor,
               padding: const EdgeInsets.symmetric(vertical: 14),
@@ -69,33 +68,22 @@ class _BookingScreenState extends State<BookingScreen> {
     }
   }
 
-  // =================== VET BOOKING ===================
   Widget _buildVetBooking() {
+    final consultationFee = widget.serviceProvider.consultationFee;
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        const Text(
-          'Select Appointment Date',
-          style: TextStyle(fontWeight: FontWeight.bold, fontSize: 18),
-        ),
+        const Text('Select Appointment Date', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 18)),
         const SizedBox(height: 8),
         _buildBigCalendar(),
         const SizedBox(height: 16),
-        const Text(
-          'Select Appointment Time',
-          style: TextStyle(fontWeight: FontWeight.bold, fontSize: 18),
-        ),
+        const Text('Select Appointment Time', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 18)),
         const SizedBox(height: 8),
         _buildBigTimePicker(),
         const SizedBox(height: 24),
+        Text('Consultation Fee:', style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 18)),
         Text(
-          'Consultation Fee:',
-          style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 18),
-        ),
-        Text(
-          widget.serviceProvider.consultationFee.isNotEmpty
-              ? widget.serviceProvider.consultationFee
-              : 'Not specified',
+          consultationFee.isNotEmpty ? consultationFee : 'Not specified',
           style: const TextStyle(fontSize: 16),
         ),
         const SizedBox(height: 24),
@@ -107,7 +95,6 @@ class _BookingScreenState extends State<BookingScreen> {
     final now = DateTime.now();
     final firstDate = now;
     final lastDate = DateTime(now.year + 1);
-
     return Container(
       decoration: BoxDecoration(
         border: Border.all(color: primaryColor, width: 2),
@@ -121,7 +108,7 @@ class _BookingScreenState extends State<BookingScreen> {
         onDateChanged: (date) {
           setState(() {
             _selectedDate = date;
-            _selectedTime = null; // reset time on date change
+            _selectedTime = null;
           });
         },
       ),
@@ -152,10 +139,8 @@ class _BookingScreenState extends State<BookingScreen> {
     );
   }
 
-  // =================== GROOMER BOOKING ===================
   Widget _buildGroomerBooking() {
     final services = widget.serviceProvider.groomingServices;
-
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -188,18 +173,14 @@ class _BookingScreenState extends State<BookingScreen> {
               ),
         const SizedBox(height: 24),
         Text('Pricing Details:', style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 18)),
-        Text(
-          widget.serviceProvider.pricingDetails.isNotEmpty
-              ? widget.serviceProvider.pricingDetails
-              : 'Not specified',
-          style: const TextStyle(fontSize: 16),
-        ),
+        Text(widget.serviceProvider.pricingDetails.isNotEmpty
+            ? widget.serviceProvider.pricingDetails
+            : 'Not specified', style: const TextStyle(fontSize: 16)),
         const SizedBox(height: 24),
       ],
     );
   }
 
-  // For groomer, using small pickers like before
   Widget _datePicker() {
     return ListTile(
       title: const Text('Select Date'),
@@ -218,27 +199,18 @@ class _BookingScreenState extends State<BookingScreen> {
     );
   }
 
-  // =================== PET SITTER BOOKING ===================
   Widget _buildPetSitterBooking() {
     final hourlyDailyRate = widget.serviceProvider.rate;
-
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         const Text('Select Booking Period', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 18)),
         const SizedBox(height: 8),
         _buildDateRangePicker(),
-
         const SizedBox(height: 24),
-
         Text('Hourly / Daily Rate:', style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 18)),
-        Text(
-          hourlyDailyRate.isNotEmpty ? hourlyDailyRate : 'Not specified',
-          style: const TextStyle(fontSize: 16),
-        ),
-
+        Text(hourlyDailyRate.isNotEmpty ? hourlyDailyRate : 'Not specified', style: const TextStyle(fontSize: 16)),
         const SizedBox(height: 24),
-
         Container(
           padding: const EdgeInsets.all(12),
           decoration: BoxDecoration(
@@ -295,7 +267,6 @@ class _BookingScreenState extends State<BookingScreen> {
     );
   }
 
-  // =================== PICKERS ===================
   Future<void> _pickDate() async {
     final now = DateTime.now();
     final picked = await showDatePicker(
@@ -307,7 +278,7 @@ class _BookingScreenState extends State<BookingScreen> {
     if (picked != null) {
       setState(() {
         _selectedDate = picked;
-        _selectedTime = null; // reset time on date change
+        _selectedTime = null;
       });
     }
   }
@@ -324,8 +295,12 @@ class _BookingScreenState extends State<BookingScreen> {
     }
   }
 
-  // =================== CONFIRMATION ===================
-  void _confirmBooking() {
+  void _showError(String msg) {
+    ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(msg)));
+  }
+
+  void _onConfirmBookingPressed() {
+    // Validate inputs first
     if (widget.serviceProvider.role == 'Pet Sitter') {
       if (_rangeStartDate == null || _rangeEndDate == null) {
         _showError('Please select a booking period.');
@@ -347,41 +322,16 @@ class _BookingScreenState extends State<BookingScreen> {
       return;
     }
 
-    //  Save booking data to backend or local DB here
-
-    showDialog(
-      context: context,
-      builder: (_) => AlertDialog(
-        title: const Text('Booking Confirmed'),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            const Icon(Icons.check_circle, color: Colors.green, size: 64),
-            const SizedBox(height: 16),
-            const Text('Your appointment has been successfully booked.'),
-            if (widget.serviceProvider.role == 'Pet Sitter') ...[
-              const SizedBox(height: 12),
-              const Text(
-                'Note: Your address will be shared only with the pet sitter for security and trust reasons.',
-                style: TextStyle(fontWeight: FontWeight.bold),
-              ),
-            ],
-          ],
+    // Navigate to ConfirmBookingScreen and pass date/time info
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (context) => ConfirmBookingScreen(
+          serviceProviderEmail: widget.serviceProvider.email,
+          preselectedDate: _selectedDate!,
+          preselectedTime: _selectedTime!,
         ),
-        actions: [
-          TextButton(
-            onPressed: () {
-              Navigator.pop(context); // Close dialog
-              Navigator.pop(context); // Go back to previous screen
-            },
-            child: const Text('OK'),
-          ),
-        ],
       ),
     );
-  }
-
-  void _showError(String msg) {
-    ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(msg)));
   }
 }

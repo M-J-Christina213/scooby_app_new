@@ -3,14 +3,20 @@
 
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
+import 'package:scooby_app_new/controllers/pet_service.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
-
-import '../../models/booking_model.dart';
 
 class ConfirmBookingScreen extends StatefulWidget {
   final String serviceProviderEmail;
+  final DateTime preselectedDate;
+  final TimeOfDay preselectedTime;
 
-  const ConfirmBookingScreen({super.key, required this.serviceProviderEmail});
+  const ConfirmBookingScreen({
+    super.key,
+    required this.serviceProviderEmail,
+    required this.preselectedDate,
+    required this.preselectedTime,
+  });
 
   @override
   State<ConfirmBookingScreen> createState() => _ConfirmBookingScreenState();
@@ -19,49 +25,31 @@ class ConfirmBookingScreen extends StatefulWidget {
 class _ConfirmBookingScreenState extends State<ConfirmBookingScreen> {
   final supabase = Supabase.instance.client;
 
-  DateTime? _selectedDate;
-  String? _selectedTime;
+  late DateTime _selectedDate;
+  late TimeOfDay _selectedTime;
 
-  final List<String> _timeSlots = [
-    '09:00 AM', '10:00 AM', '11:00 AM', '12:00 PM',
-    '02:00 PM', '03:00 PM', '04:00 PM', '05:00 PM',
-  ];
-
-  void _pickDate() async {
-    final now = DateTime.now();
-    final picked = await showDatePicker(
-      context: context,
-      initialDate: _selectedDate ?? now,
-      firstDate: now,
-      lastDate: DateTime(now.year + 1),
-    );
-    if (picked != null) {
-      setState(() => _selectedDate = picked);
-    }
+  @override
+  void initState() {
+    super.initState();
+    _selectedDate = widget.preselectedDate;
+    _selectedTime = widget.preselectedTime;
   }
 
   Future<Map<String, String?>> getPetOwnerInfo(String userId) async {
     final response = await supabase
         .from('pet_owners')
-        .select('name, phone')
-        .eq('id', userId)
-        .single();
+        .select('name, phone_number')
+        .eq('user_id', userId)
+        .maybeSingle();
 
     if (response == null) return {};
     return {
       'name': response['name'] as String?,
-      'phone': response['phone'] as String?,
+      'phone': response['phone_number'] as String?,
     };
   }
 
   Future<void> _confirmBooking() async {
-    if (_selectedDate == null || _selectedTime == null) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Please select date and time')),
-      );
-      return;
-    }
-
     final user = supabase.auth.currentUser;
     if (user == null) {
       ScaffoldMessenger.of(context).showSnackBar(
@@ -70,32 +58,88 @@ class _ConfirmBookingScreenState extends State<ConfirmBookingScreen> {
       return;
     }
 
+    final petService = PetService();
+    final pets = await petService.fetchPetsForUser(user.id);
+
+    if (pets.isEmpty) {
+      showDialog(
+        context: context,
+        builder: (_) => AlertDialog(
+          title: const Text('No Pets Found'),
+          content: const Text('Please add a pet in your profile before booking.'),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(context),
+              child: const Text('OK'),
+            ),
+          ],
+        ),
+      );
+      return;
+    }
+
+    final selectedPetId = await showDialog<String>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Select a Pet'),
+        content: SizedBox(
+          width: double.maxFinite,
+          child: ListView.builder(
+            shrinkWrap: true,
+            itemCount: pets.length,
+            itemBuilder: (context, index) {
+              final pet = pets[index];
+              return ListTile(
+                title: Text(pet.name),
+                onTap: () => Navigator.pop(context, pet.id),
+              );
+            },
+          ),
+        ),
+      ),
+    );
+
+    if (selectedPetId == null) {
+      return; // user canceled pet selection
+    }
+
     final extraInfo = await getPetOwnerInfo(user.id);
     final petOwnerName = extraInfo['name'] ?? 'No Name';
     final petOwnerPhone = extraInfo['phone'] ?? 'No Phone';
     final petOwnerEmail = user.email ?? 'No Email';
 
-    final booking = Booking(
-      name: petOwnerName,
-      email: petOwnerEmail,
-      phone: petOwnerPhone,
-      date: _selectedDate!,
-      time: _selectedTime!,
-      serviceProviderEmail: widget.serviceProviderEmail,
-    );
+    final bookingData = {
+      'pet_id': selectedPetId,
+      'service_provider_email': widget.serviceProviderEmail,
+      'owner_id': user.id,
+      'owner_name': petOwnerName,
+      'owner_phone': petOwnerPhone,
+      'owner_email': petOwnerEmail,
+      'date': _selectedDate.toIso8601String(),
+      'time': _selectedTime.format(context),
+      'status': 'pending',
+      'created_at': DateTime.now().toUtc().toIso8601String(),
+    };
 
     try {
-      await supabase.from('bookings').insert(booking.toMap());
-      
-      final formattedDate = DateFormat('EEE, MMM d, yyyy').format(_selectedDate!);
+      await supabase.from('bookings').insert(bookingData);
+
       showDialog(
         context: context,
         builder: (_) => AlertDialog(
-          title: const Text('Booking Confirmed'),
-          content: Text('Your booking is confirmed for\n$formattedDate at $_selectedTime'),
+          title: const Text('Booking Request Sent'),
+          content: const Text(
+            'Thank you for your booking request.\n'
+            'Please wait for approval from the service provider.\n'
+            'Check "My Bookings" to see the status of your appointment.',
+          ),
           actions: [
             TextButton(
-              onPressed: () => Navigator.pop(context),
+              onPressed: () {
+                Navigator.pop(context); // Close dialog
+                Navigator.pop(context); // Back to previous screen
+                Navigator.pop(context); // Back to main or previous (adjust as needed)
+              },
               child: const Text('OK'),
             ),
           ],
@@ -110,9 +154,8 @@ class _ConfirmBookingScreenState extends State<ConfirmBookingScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final dateText = _selectedDate == null
-        ? 'Select Date'
-        : DateFormat('EEE, MMM d, yyyy').format(_selectedDate!);
+    final dateText = DateFormat('EEE, MMM d, yyyy').format(_selectedDate);
+    final timeText = _selectedTime.format(context);
 
     return Scaffold(
       appBar: AppBar(title: const Text('Confirm Booking')),
@@ -121,19 +164,9 @@ class _ConfirmBookingScreenState extends State<ConfirmBookingScreen> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
-            ElevatedButton(onPressed: _pickDate, child: Text(dateText)),
-            const SizedBox(height: 24),
-            DropdownButtonFormField<String>(
-              decoration: const InputDecoration(
-                border: OutlineInputBorder(),
-                labelText: 'Select Time',
-              ),
-              items: _timeSlots
-                  .map((time) => DropdownMenuItem(value: time, child: Text(time)))
-                  .toList(),
-              value: _selectedTime,
-              onChanged: (val) => setState(() => _selectedTime = val),
-            ),
+            Text('Date: $dateText', style: const TextStyle(fontSize: 18)),
+            const SizedBox(height: 12),
+            Text('Time: $timeText', style: const TextStyle(fontSize: 18)),
             const SizedBox(height: 36),
             ElevatedButton(
               onPressed: _confirmBooking,
