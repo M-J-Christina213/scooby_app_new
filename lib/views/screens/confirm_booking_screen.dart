@@ -103,15 +103,30 @@ class _ConfirmBookingScreenState extends State<ConfirmBookingScreen> {
       return; // user canceled pet selection
     }
 
+    // Get extra owner info (name, phone)
     final extraInfo = await getPetOwnerInfo(user.id);
     final petOwnerName = extraInfo['name'] ?? 'No Name';
     final petOwnerPhone = extraInfo['phone'] ?? 'No Phone';
     final petOwnerEmail = user.email ?? 'No Email';
 
+    // Fetch the correct pet_owners.id for the logged-in user
+    final petOwnerRow = await supabase
+        .from('pet_owners')
+        .select('id')
+        .eq('user_id', user.id)
+        .maybeSingle();
+
+    if (petOwnerRow == null || petOwnerRow['id'] == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Pet owner record not found.')),
+      );
+      return;
+    }
+
     final bookingData = {
       'pet_id': selectedPetId,
       'service_provider_email': widget.serviceProviderEmail,
-      'owner_id': user.id,
+      'owner_id': petOwnerRow['id'], // Correct FK value
       'owner_name': petOwnerName,
       'owner_phone': petOwnerPhone,
       'owner_email': petOwnerEmail,
@@ -125,26 +140,64 @@ class _ConfirmBookingScreenState extends State<ConfirmBookingScreen> {
       await supabase.from('bookings').insert(bookingData);
 
       showDialog(
-        context: context,
-        builder: (_) => AlertDialog(
-          title: const Text('Booking Request Sent'),
-          content: const Text(
-            'Thank you for your booking request.\n'
-            'Please wait for approval from the service provider.\n'
-            'Check "My Bookings" to see the status of your appointment.',
+  context: context,
+  builder: (_) => AlertDialog(
+    contentPadding: const EdgeInsets.all(20),
+    shape: RoundedRectangleBorder(
+      borderRadius: BorderRadius.circular(16),
+    ),
+    content: Column(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        // Green circle with white tick
+        Container(
+          decoration: BoxDecoration(
+            color: Colors.green,
+            shape: BoxShape.circle,
           ),
-          actions: [
-            TextButton(
-              onPressed: () {
-                Navigator.pop(context); // Close dialog
-                Navigator.pop(context); // Back to previous screen
-                Navigator.pop(context); // Back to main or previous (adjust as needed)
-              },
-              child: const Text('OK'),
-            ),
-          ],
+          padding: const EdgeInsets.all(16),
+          child: const Icon(
+            Icons.check,
+            color: Colors.white,
+            size: 48,
+          ),
         ),
-      );
+        const SizedBox(height: 16),
+        const Text(
+          'Booking Request Sent!',
+          style: TextStyle(
+            fontSize: 20,
+            fontWeight: FontWeight.bold,
+          ),
+          textAlign: TextAlign.center,
+        ),
+        const SizedBox(height: 8),
+        const Text(
+          'Thank you for your booking request.\n'
+          'Please wait for approval from the service provider.\n'
+          'Check "My Bookings" to see the status of your appointment.',
+          textAlign: TextAlign.center,
+        ),
+        const SizedBox(height: 16),
+        ElevatedButton(
+          style: ElevatedButton.styleFrom(
+            backgroundColor: Colors.green,
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(8),
+            ),
+          ),
+          onPressed: () {
+            Navigator.pop(context); // Close dialog
+            Navigator.pop(context); // Back to previous screen
+            Navigator.pop(context); // Back to main or previous
+          },
+          child: const Text('OK'),
+        ),
+      ],
+    ),
+  ),
+);
+
     } catch (e) {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(content: Text('Error saving booking: $e')),
