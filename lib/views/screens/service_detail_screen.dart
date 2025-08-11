@@ -2,21 +2,35 @@ import 'package:flutter/material.dart';
 import 'package:scooby_app_new/models/service_provider.dart';
 import 'package:scooby_app_new/views/screens/booking_screen.dart';
 
-class ServiceDetailScreen extends StatelessWidget {
+class ServiceDetailScreen extends StatefulWidget {
   final ServiceProvider serviceProvider;
 
   const ServiceDetailScreen({super.key, required this.serviceProvider});
 
   @override
+  State<ServiceDetailScreen> createState() => _ServiceDetailScreenState();
+}
+
+class _ServiceDetailScreenState extends State<ServiceDetailScreen> {
+  final Color primaryColor = const Color(0xFF842EAC);
+  int _currentGalleryIndex = 0;
+  final PageController _pageController = PageController();
+
+  @override
+  void dispose() {
+    _pageController.dispose();
+    super.dispose();
+  }
+
+  @override
   Widget build(BuildContext context) {
-    final Color primaryColor = const Color(0xFF842EAC);
+    final sp = widget.serviceProvider;
 
     return Scaffold(
       appBar: AppBar(
-        title: Text(serviceProvider.clinicOrSalonName.isNotEmpty
-            ? serviceProvider.clinicOrSalonName
-            : serviceProvider.name),
+        title: Text(sp.clinicOrSalonName.isNotEmpty ? sp.clinicOrSalonName : sp.name),
         backgroundColor: primaryColor,
+        elevation: 0,
       ),
       bottomNavigationBar: SafeArea(
         child: Container(
@@ -28,96 +42,165 @@ class ServiceDetailScreen extends StatelessWidget {
             ],
           ),
           child: ElevatedButton.icon(
-                onPressed: () {
-                  // Navigate to booking screen with a smooth slide transition
-                  Navigator.of(context).push(_createRoute());
-                },
-                icon: const Icon(Icons.calendar_today),
-                label: const Text('Book Appointment', style: TextStyle(fontSize: 18)),
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: primaryColor,
-                  padding: const EdgeInsets.symmetric(vertical: 14),
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(14),
-                  ),
-                ),
+            onPressed: () {
+              Navigator.of(context).push(_createRoute());
+            },
+            icon: const Icon(Icons.calendar_today),
+            label: const Text('Book Appointment', style: TextStyle(fontSize: 18)),
+            style: ElevatedButton.styleFrom(
+              backgroundColor: primaryColor,
+              padding: const EdgeInsets.symmetric(vertical: 14),
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(14),
               ),
-
+            ),
+          ),
         ),
       ),
       body: CustomScrollView(
         slivers: [
           SliverAppBar(
             backgroundColor: primaryColor,
-            expandedHeight: 280,
+            expandedHeight: 320,
             pinned: true,
             flexibleSpace: FlexibleSpaceBar(
-              background: serviceProvider.profileImageUrl.isNotEmpty
-                  ? Image.network(
-                      serviceProvider.profileImageUrl,
-                      fit: BoxFit.cover,
-                    )
-                  : Image.asset(
-                      'assets/images/default_user.png',
-                      fit: BoxFit.cover,
-                    ),
+              background: sp.profileImageUrl.isNotEmpty
+                  ? Image.network(sp.profileImageUrl, fit: BoxFit.cover)
+                  : Image.asset('assets/images/default_user.png', fit: BoxFit.cover),
             ),
           ),
           SliverPadding(
-            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
+            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 20),
             sliver: SliverList(
               delegate: SliverChildListDelegate([
+                // Name & City
                 Text(
-                  serviceProvider.clinicOrSalonName.isNotEmpty
-                      ? serviceProvider.clinicOrSalonName
-                      : serviceProvider.name,
-                  style: const TextStyle(
-                    fontSize: 26,
-                    fontWeight: FontWeight.bold,
-                    color: Colors.black87,
-                  ),
+                  sp.clinicOrSalonName.isNotEmpty ? sp.clinicOrSalonName : sp.name,
+                  style: const TextStyle(fontSize: 28, fontWeight: FontWeight.bold, color: Colors.black87),
                 ),
-                const SizedBox(height: 8),
-                Text(
-                  serviceProvider.city,
-                  style: TextStyle(
-                    fontSize: 16,
-                    color: Colors.grey.shade700,
-                  ),
+                const SizedBox(height: 6),
+                Row(
+                  children: [
+                    const Icon(Icons.location_on, color: Colors.grey, size: 18),
+                    const SizedBox(width: 4),
+                    Text(sp.city, style: TextStyle(fontSize: 16, color: Colors.grey.shade700)),
+                  ],
                 ),
                 const SizedBox(height: 12),
-                _buildRatingRow(serviceProvider.rate),
+
+                _buildRatingRow(sp.rate),
                 const SizedBox(height: 20),
 
-                // Dynamic Details Based on Service Type
-                _buildDynamicDetails(serviceProvider),
+                // Gallery Section
+                if (sp.galleryImages.isNotEmpty) _buildGallery(sp.galleryImages),
+                if (sp.galleryImages.isNotEmpty) const SizedBox(height: 20),
 
+                // Details Card
+                Card(
+                  elevation: 3,
+                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+                  shadowColor: primaryColor.withAlpha((0.2 * 255).round()),
+                  child: Padding(
+                    padding: const EdgeInsets.all(18),
+                    child: _buildDynamicDetails(sp),
+                  ),
+                ),
                 const SizedBox(height: 30),
               ]),
             ),
-          )
+          ),
         ],
       ),
     );
   }
 
- Route _createRoute() {
-  return PageRouteBuilder(
-    pageBuilder: (context, animation, secondaryAnimation) => BookingScreen(serviceProvider: serviceProvider),
-    transitionsBuilder: (context, animation, secondaryAnimation, child) {
-      const begin = Offset(1.0, 0.0); // Slide from right
-      const end = Offset.zero;
-      const curve = Curves.ease;
+  Widget _buildGallery(List<String> images) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          'Gallery',
+          style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold, color: primaryColor),
+        ),
+        const SizedBox(height: 12),
+        SizedBox(
+          height: 160,
+          child: PageView.builder(
+            controller: _pageController,
+            itemCount: images.length,
+            onPageChanged: (index) {
+              setState(() => _currentGalleryIndex = index);
+            },
+            itemBuilder: (context, index) {
+              final imgUrl = images[index];
+              return Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 8),
+                child: ClipRRect(
+                  borderRadius: BorderRadius.circular(16),
+                  child: Image.network(
+                    imgUrl,
+                    fit: BoxFit.cover,
+                    loadingBuilder: (context, child, loadingProgress) {
+                      if (loadingProgress == null) return child;
+                      return Center(
+                        child: CircularProgressIndicator(
+                          value: loadingProgress.expectedTotalBytes != null
+                              ? loadingProgress.cumulativeBytesLoaded / loadingProgress.expectedTotalBytes!
+                              : null,
+                        ),
+                      );
+                    },
+                    errorBuilder: (context, error, stackTrace) => Container(
+                      color: Colors.grey[300],
+                      child: const Icon(Icons.broken_image, size: 64, color: Colors.grey),
+                    ),
+                  ),
+                ),
+              );
+            },
+          ),
+        ),
+        const SizedBox(height: 12),
 
-      var tween = Tween(begin: begin, end: end).chain(CurveTween(curve: curve));
+        // Dots Indicator
+        Row(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: List.generate(images.length, (index) {
+            bool isActive = index == _currentGalleryIndex;
+            return AnimatedContainer(
+              duration: const Duration(milliseconds: 300),
+              margin: const EdgeInsets.symmetric(horizontal: 4),
+              width: isActive ? 16 : 8,
+              height: 8,
+              decoration: BoxDecoration(
+                color: isActive ? primaryColor : primaryColor.withAlpha((0.3 * 255).round()),
+                borderRadius: BorderRadius.circular(4),
+              ),
+            );
+          }),
+        ),
+      ],
+    );
+  }
 
-      return SlideTransition(
-        position: animation.drive(tween),
-        child: child,
-      );
-    },
-  );
-}
+  Route _createRoute() {
+    return PageRouteBuilder(
+      pageBuilder: (context, animation, secondaryAnimation) =>
+          BookingScreen(serviceProvider: widget.serviceProvider),
+      transitionsBuilder: (context, animation, secondaryAnimation, child) {
+        const begin = Offset(1.0, 0.0); // Slide from right
+        const end = Offset.zero;
+        const curve = Curves.ease;
+
+        var tween = Tween(begin: begin, end: end).chain(CurveTween(curve: curve));
+
+        return SlideTransition(
+          position: animation.drive(tween),
+          child: child,
+        );
+      },
+    );
+  }
 
   Widget _buildRatingRow(String rate) {
     double rating = 4.5; // default/fake rating or parse from rate
@@ -147,7 +230,6 @@ class ServiceDetailScreen extends StatelessWidget {
   }
 
   Widget _buildDynamicDetails(ServiceProvider sp) {
-    // Common text style
     const contentStyle = TextStyle(fontSize: 15, color: Colors.black87);
 
     switch (sp.role) {
@@ -243,7 +325,6 @@ class ServiceDetailScreen extends StatelessWidget {
         );
 
       default:
-        // Fallback if role unknown
         return Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
@@ -259,10 +340,10 @@ class ServiceDetailScreen extends StatelessWidget {
       padding: const EdgeInsets.only(bottom: 6),
       child: Text(
         title,
-        style: const TextStyle(
+        style: TextStyle(
           fontSize: 18,
           fontWeight: FontWeight.bold,
-          color: Color(0xFF842EAC),
+          color: primaryColor,
         ),
       ),
     );

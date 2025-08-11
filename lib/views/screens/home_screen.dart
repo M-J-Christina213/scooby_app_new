@@ -1,6 +1,8 @@
-// ignore_for_file: deprecated_member_use
+// ignore_for_file: deprecated_member_use, use_build_context_synchronously
 
 import 'package:flutter/material.dart';
+import 'package:scooby_app_new/views/screens/login_screen.dart';
+import 'package:scooby_app_new/views/screens/sample_recommended_providers.dart';
 import 'package:scooby_app_new/views/screens/service_detail_screen.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:scooby_app_new/controllers/service_provider_service.dart';
@@ -75,9 +77,9 @@ class _HomeScreenState extends State<HomeScreen> {
         widget.userCity,
         _selectedRole,
       );
-      final recommended = await _service.fetchRecommendedServiceProviders(
-        currentUserId,
-      );
+      final recommended = sampleRecommendedProviders;
+
+      
 
       setState(() {
         _nearbyProviders = nearby;
@@ -103,34 +105,69 @@ class _HomeScreenState extends State<HomeScreen> {
     setState(() => _selectedIndex = index);
   }
 
-  @override
-  Widget build(BuildContext context) {
-    final primaryColor = const Color(0xFF842EAC);
+@override
+Widget build(BuildContext context) {
+  final primaryColor = const Color(0xFF842EAC);
 
-    return Scaffold(
-      appBar: AppBar(
-        title: Text(
-          _selectedIndex == 0
-              ? 'Welcome to Scooby'
-              : _selectedIndex == 1
-                  ? 'My Pets'
-                  : _selectedIndex == 2
-                      ? 'Bookings'
-                      : 'Profile',
-          style: const TextStyle(fontWeight: FontWeight.bold),
+  return Scaffold(
+    appBar: AppBar(
+      title: Text(
+        _selectedIndex == 0
+            ? 'Welcome to Scooby'
+            : _selectedIndex == 1
+                ? 'My Pets'
+                : _selectedIndex == 2
+                    ? 'Bookings'
+                    : 'Profile',
+        style: const TextStyle(fontWeight: FontWeight.bold),
+      ),
+      backgroundColor: primaryColor,
+      centerTitle: true,
+      actions: [
+        IconButton(
+          icon: const Icon(Icons.logout, color: Colors.white),
+          onPressed: () => _confirmLogout(context),
+          tooltip: 'Logout',
         ),
-        backgroundColor: primaryColor,
-        centerTitle: true,
-      ),
-      body: _selectedIndex == 0
-          ? _buildHomeContent()
-          : _tabsWithoutHome[_selectedIndex - 1],
-      bottomNavigationBar: BottomNav(
-        selectedIndex: _selectedIndex,
-        onTap: _onNavTap,
-      ),
+      ],
+    ),
+    body: _selectedIndex == 0 ? _buildHomeContent() : _tabsWithoutHome[_selectedIndex - 1],
+    bottomNavigationBar: BottomNav(
+      selectedIndex: _selectedIndex,
+      onTap: _onNavTap,
+    ),
+  );
+}
+
+void _confirmLogout(BuildContext context) async {
+  final bool? logout = await showDialog<bool>(
+    context: context,
+    builder: (context) {
+      return AlertDialog(
+        title: const Text('Confirm Logout'),
+        content: const Text('Do you confirm to logout?'),
+        actions: [
+          TextButton(
+            child: const Text('Cancel'),
+            onPressed: () => Navigator.of(context).pop(false),
+          ),
+          TextButton(
+            child: const Text('Logout'),
+            onPressed: () => Navigator.of(context).pop(true),
+          ),
+        ],
+      );
+    },
+  );
+
+  if (logout == true) {
+    await Supabase.instance.client.auth.signOut();
+    if (!mounted) return;
+    Navigator.of(context).pushReplacement(
+      MaterialPageRoute(builder: (_) => const LoginScreen()),
     );
   }
+}
 
   Widget _buildHomeContent() {
     final primaryColor = const Color(0xFF842EAC);
