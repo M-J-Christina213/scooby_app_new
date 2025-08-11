@@ -1,7 +1,6 @@
 // ignore_for_file: use_build_context_synchronously
 
 import 'package:flutter/material.dart';
-import 'package:scooby_app_new/views/screens/home_screen.dart';
 import 'package:scooby_app_new/views/screens/register_pet_owner.dart';
 import 'package:scooby_app_new/views/screens/register_service_provider.dart';
 import 'package:another_flushbar/flushbar.dart';
@@ -19,8 +18,8 @@ class _LoginScreenState extends State<LoginScreen> {
   final TextEditingController passwordController = TextEditingController();
 
   bool isLoading = false;
-  String selectedRole = ''; // no default selected
-  bool rememberMe = false; // For checkbox
+  String selectedRole = '';
+  bool rememberMe = false;
 
   void showFlushBar(String message, Color color) {
     Flushbar(
@@ -57,17 +56,9 @@ class _LoginScreenState extends State<LoginScreen> {
             .maybeSingle();
 
         if (petOwnerResponse != null) {
-            final petOwnerId = petOwnerResponse['id']; 
-            final userCity = petOwnerResponse['city']; 
-            Navigator.pushReplacement(
-              context,
-              MaterialPageRoute(
-                builder: (_) => HomeScreen(userId: petOwnerId, userCity: userCity),
-              ),
-            );
-            showFlushBar("Welcome Pet Owner!", Colors.green);
-          }
- else {
+          showFlushBar("Welcome Pet Owner!", Colors.green);
+          // Navigation handled by AuthGate
+        } else {
           // Check in service_providers
           final providerResponse = await Supabase.instance.client
               .from('service_providers')
@@ -76,21 +67,20 @@ class _LoginScreenState extends State<LoginScreen> {
               .maybeSingle();
 
           if (providerResponse != null) {
-            Navigator.pushReplacement(
-              context,
-              // Replace with your concrete implementation of ServiceProviderHomeScreen
-              MaterialPageRoute(builder: (_) =>  ServiceProviderHome(serviceProviderEmail: email)), // Make sure ServiceProviderHome is a concrete class
-            );
             showFlushBar("Welcome Service Provider!", Colors.green);
+            // Navigation handled by AuthGate
           } else {
             showFlushBar("User role not recognized", Colors.orange);
           }
         }
       }
     } catch (e) {
+      if (!mounted) return;
       showFlushBar("Login failed: $e", Colors.red);
     } finally {
-      setState(() => isLoading = false);
+      if (mounted) {
+        setState(() => isLoading = false);
+      }
     }
   }
 
@@ -140,9 +130,6 @@ class _LoginScreenState extends State<LoginScreen> {
                           height: 240,
                         ),
                       ),
-
-
-                      // Email TextField with envelope icon
                       TextField(
                         controller: emailController,
                         style: const TextStyle(color: Colors.black),
@@ -161,10 +148,6 @@ class _LoginScreenState extends State<LoginScreen> {
                         ),
                       ),
                       const SizedBox(height: 16),
-
-                 
-
-                      // Password TextField with lock icon
                       TextField(
                         controller: passwordController,
                         obscureText: true,
@@ -183,8 +166,6 @@ class _LoginScreenState extends State<LoginScreen> {
                         ),
                       ),
                       const SizedBox(height: 8),
-
-                      // Row with Remember Me checkbox and Forgot Password button
                       Row(
                         mainAxisAlignment: MainAxisAlignment.spaceBetween,
                         children: [
@@ -203,16 +184,12 @@ class _LoginScreenState extends State<LoginScreen> {
                             ],
                           ),
                           TextButton(
-                            onPressed: () {
-                              // Add forgot password functionality here
-                            },
+                            onPressed: () {},
                             child: const Text('Forgot Password?'),
                           ),
                         ],
                       ),
-
                       const SizedBox(height: 12),
-
                       ElevatedButton(
                         onPressed: isLoading ? null : login,
                         style: ElevatedButton.styleFrom(
@@ -232,9 +209,7 @@ class _LoginScreenState extends State<LoginScreen> {
                                 ),
                               ),
                       ),
-
                       const SizedBox(height: 20),
-
                       const Text(
                         'or connect with',
                         style: TextStyle(
@@ -243,13 +218,9 @@ class _LoginScreenState extends State<LoginScreen> {
                           fontSize: 16,
                         ),
                       ),
-
                       const SizedBox(height: 16),
-
                       ElevatedButton.icon(
-                        onPressed: () {
-                          // Your Google sign-in logic here
-                        },
+                        onPressed: () {},
                         icon: Image.asset('assets/images/google_logo.png', height: 24),
                         label: const Text('Sign-in with Google', style: TextStyle(color: Colors.black)),
                         style: ElevatedButton.styleFrom(
@@ -261,22 +232,16 @@ class _LoginScreenState extends State<LoginScreen> {
                           padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 30),
                         ),
                       ),
-
                       const SizedBox(height: 20),
-
                       Divider(color: Colors.grey[400], thickness: 1),
-
                       const SizedBox(height: 20),
-
                       buildRegisterOption('Register as Pet Owner', 'pet_owner', () {
                         Navigator.push(
                           context,
                           MaterialPageRoute(builder: (context) => const PetOwnerRegisterScreen()),
                         );
                       }),
-
                       const SizedBox(height: 10),
-
                       buildRegisterOption('Register as Service Provider', 'service_provider', () {
                         Navigator.push(
                           context,
@@ -287,7 +252,6 @@ class _LoginScreenState extends State<LoginScreen> {
                   ),
                 ),
               ),
-
               Container(
                 width: double.infinity,
                 color: const Color(0xFF842EAC),
@@ -301,26 +265,6 @@ class _LoginScreenState extends State<LoginScreen> {
               ),
             ],
           ),
-        ),
-      ),
-    );
-  }
-}
-
-class ServiceProviderHome extends StatelessWidget {
-  const ServiceProviderHome({super.key, required String serviceProviderEmail});
-
-  @override
-  Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: AppBar(
-        title: const Text('Service Provider Home'),
-        backgroundColor: const Color(0xFF842EAC),
-      ),
-      body: const Center(
-        child: Text(
-          'Welcome to the Service Provider Home!',
-          style: TextStyle(fontSize: 20),
         ),
       ),
     );

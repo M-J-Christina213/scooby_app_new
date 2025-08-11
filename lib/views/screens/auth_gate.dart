@@ -1,9 +1,8 @@
 import 'package:flutter/material.dart';
+import 'package:scooby_app_new/views/screens/service_provider_home.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
-
 import 'home_screen.dart';
 import 'login_screen.dart';
-
 import '../../services/auth_services.dart';
 
 class AuthGate extends StatefulWidget {
@@ -21,11 +20,25 @@ class _AuthGateState extends State<AuthGate> {
   void initState() {
     super.initState();
     _loadInitialSession();
-    Supabase.instance.client.auth.onAuthStateChange.listen((event) {
-      setState(() {
-        _session = event.session;
-      });
-    });
+
+    // Listen to changes in authentication state
+   Supabase.instance.client.auth.onAuthStateChange.listen((data) {
+  final AuthChangeEvent event = data.event;
+  final Session? session = data.session;
+
+  print('Auth event: $event');
+  print('Current user: ${session?.user.id ?? 'No user'}');
+
+  if (!mounted) return; // <-- important! check if widget still active
+
+  setState(() {
+    _session = session;
+  });
+
+  // Optional: Debug logs
+  debugPrint("Auth event: $event");
+});
+
   }
 
   Future<void> _loadInitialSession() async {
@@ -44,20 +57,20 @@ class _AuthGateState extends State<AuthGate> {
       );
     }
 
+    // Not logged in → show login screen
     if (_session == null) {
       return const LoginScreen();
     }
 
+    // Logged in → determine role
     return FutureBuilder<String?>(
       future: AuthService().getUserRole(_session!.user.id),
       builder: (context, roleSnapshot) {
         if (roleSnapshot.connectionState == ConnectionState.waiting) {
-          return const Scaffold(
-            body: Center(child: CircularProgressIndicator()),
-          );
+          return const Scaffold(body: Center(child: CircularProgressIndicator()));
         }
 
-        if (roleSnapshot.hasError || roleSnapshot.data == null) {
+        if (!roleSnapshot.hasData || roleSnapshot.data == null) {
           Supabase.instance.client.auth.signOut();
           return const LoginScreen();
         }
@@ -69,70 +82,60 @@ class _AuthGateState extends State<AuthGate> {
             future: AuthService().getServiceProviderEmail(_session!.user.id),
             builder: (context, emailSnapshot) {
               if (emailSnapshot.connectionState == ConnectionState.waiting) {
-                return const Scaffold(
-                  body: Center(child: CircularProgressIndicator()),
-                );
+                return const Scaffold(body: Center(child: CircularProgressIndicator()));
               }
 
-              if (emailSnapshot.hasError || emailSnapshot.data == null) {
+              if (!emailSnapshot.hasData || emailSnapshot.data == null) {
                 Supabase.instance.client.auth.signOut();
                 return const LoginScreen();
               }
 
-              final email = emailSnapshot.data!;
-              return ServiceProviderHome(serviceProviderEmail: email);
+              return ServiceProviderHome(serviceProviderEmail: emailSnapshot.data!);
             },
           );
-        } else if (role == 'pet_owner') {
-  return FutureBuilder<String?>(
-    future: AuthService().getPetOwnerIdFromAuthId(_session!.user.id),
-    builder: (context, idSnapshot) {
-      if (idSnapshot.connectionState == ConnectionState.waiting) {
-        return const Scaffold(
-          body: Center(child: CircularProgressIndicator()),
-        );
-      }
+        }
 
-      if (idSnapshot.hasError || idSnapshot.data == null) {
+        if (role == 'pet_owner') {
+          return FutureBuilder<String?>(
+            future: AuthService().getPetOwnerIdFromAuthId(_session!.user.id),
+            builder: (context, idSnapshot) {
+              if (idSnapshot.connectionState == ConnectionState.waiting) {
+                return const Scaffold(body: Center(child: CircularProgressIndicator()));
+              }
+
+              if (!idSnapshot.hasData || idSnapshot.data == null) {
+                Supabase.instance.client.auth.signOut();
+                return const LoginScreen();
+              }
+
+              final petOwnerId = idSnapshot.data!;
+
+              return FutureBuilder<String?>(
+                future: AuthService().getPetOwnerCityFromAuthId(_session!.user.id),
+                builder: (context, citySnapshot) {
+                  if (citySnapshot.connectionState == ConnectionState.waiting) {
+                    return const Scaffold(body: Center(child: CircularProgressIndicator()));
+                  }
+
+                  if (!citySnapshot.hasData || citySnapshot.data == null) {
+                    Supabase.instance.client.auth.signOut();
+                    return const LoginScreen();
+                  }
+
+                  return HomeScreen(
+                    userId: petOwnerId,
+                    userCity: citySnapshot.data!,
+                  );
+                },
+              );
+            },
+          );
+        }
+
+        // Unknown role → sign out
         Supabase.instance.client.auth.signOut();
         return const LoginScreen();
-      }
-
-      final petOwnerId = idSnapshot.data!;
-
-      return FutureBuilder<String?>(
-        future: AuthService().getPetOwnerCityFromAuthId(_session!.user.id),
-        builder: (context, citySnapshot) {
-          if (citySnapshot.connectionState == ConnectionState.waiting) {
-            return const Scaffold(
-              body: Center(child: CircularProgressIndicator()),
-            );
-          }
-
-          if (citySnapshot.hasError || citySnapshot.data == null) {
-            Supabase.instance.client.auth.signOut();
-            return const LoginScreen();
-          }
-
-          final petOwnerCity = citySnapshot.data!;
-
-          return HomeScreen(
-            userId: petOwnerId,
-            userCity: petOwnerCity,
-          ); // send correct pet_owners.id
-        },
-      );
-    },
-  );
-}
-
- else {
-          Supabase.instance.client.auth.signOut();
-          return const LoginScreen();
-        }
       },
     );
   }
 }
-
-

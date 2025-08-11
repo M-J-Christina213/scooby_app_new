@@ -7,7 +7,12 @@ import 'package:scooby_app_new/views/screens/todays_appointments.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 class ServiceProviderHome extends StatefulWidget {
-  const ServiceProviderHome({super.key});
+  final String serviceProviderEmail;
+
+  const ServiceProviderHome({
+    super.key,
+    required this.serviceProviderEmail,
+  });
 
   @override
   State<ServiceProviderHome> createState() => _ServiceProviderHomeState();
