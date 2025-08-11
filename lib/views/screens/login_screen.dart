@@ -79,7 +79,7 @@ class _LoginScreenState extends State<LoginScreen> {
             Navigator.pushReplacement(
               context,
               // Replace with your concrete implementation of ServiceProviderHomeScreen
-              MaterialPageRoute(builder: (_) => const ServiceProviderHome()), // Make sure ServiceProviderHome is a concrete class
+              MaterialPageRoute(builder: (_) =>  ServiceProviderHome(serviceProviderEmail: email)), // Make sure ServiceProviderHome is a concrete class
             );
             showFlushBar("Welcome Service Provider!", Colors.green);
           } else {
@@ -308,7 +308,7 @@ class _LoginScreenState extends State<LoginScreen> {
 }
 
 class ServiceProviderHome extends StatelessWidget {
-  const ServiceProviderHome({super.key});
+  const ServiceProviderHome({super.key, required String serviceProviderEmail});
 
   @override
   Widget build(BuildContext context) {

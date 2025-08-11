@@ -190,6 +190,7 @@ class _ConfirmBookingScreenState extends State<ConfirmBookingScreen> {
             Navigator.pop(context); // Close dialog
             Navigator.pop(context); // Back to previous screen
             Navigator.pop(context); // Back to main or previous
+            Navigator.pop(context);
           },
           child: const Text('OK'),
         ),

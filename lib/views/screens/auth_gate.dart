@@ -80,7 +80,7 @@ class _AuthGateState extends State<AuthGate> {
               }
 
               final email = emailSnapshot.data!;
-              return ConcreteServiceProviderHomeScreen(serviceProviderEmail: email);
+              return ServiceProviderHome(serviceProviderEmail: email);
             },
           );
         } else if (role == 'pet_owner') {
@@ -135,21 +135,4 @@ class _AuthGateState extends State<AuthGate> {
   }
 }
 
-class ConcreteServiceProviderHomeScreen extends StatelessWidget {
-  final String serviceProviderEmail;
 
-  const ConcreteServiceProviderHomeScreen({super.key, required this.serviceProviderEmail});
-
-  @override
-  Widget build(BuildContext context) {
-    // Replace with your actual UI for the service provider home screen
-    return Scaffold(
-      appBar: AppBar(
-        title: Text('Service Provider Home'),
-      ),
-      body: Center(
-        child: Text('Welcome, $serviceProviderEmail'),
-      ),
-    );
-  }
-}
