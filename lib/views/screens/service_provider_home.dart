@@ -33,24 +33,24 @@ class _ServiceProviderHomeState extends State<ServiceProviderHome>
     _fetchProvider();
   }
 
-  Future<void> _fetchProvider() async {
-    final email = supabase.auth.currentUser?.email;
-    if (email == null) {
-      setState(() => loadingProvider = false);
-      return;
-    }
-    final resp = await supabase
-        .from('service_providers')
-        .select()
-        .eq('email', email)
-        .maybeSingle();
-
-    if (resp != null) provider = ServiceProvider.fromMap(resp);
-
-    setState(() {
-      loadingProvider = false;
-    });
+Future<void> _fetchProvider() async {
+  final email = widget.serviceProviderEmail;
+  if (email.isEmpty) {
+    setState(() => loadingProvider = false);
+    return;
   }
+  final resp = await supabase
+      .from('service_providers')
+      .select()
+      .eq('email', email)
+      .maybeSingle();
+
+  if (resp != null) provider = ServiceProvider.fromMap(resp);
+
+  setState(() {
+    loadingProvider = false;
+  });
+}
 
   @override
   Widget build(BuildContext context) {

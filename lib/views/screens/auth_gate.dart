@@ -17,37 +17,37 @@ class _AuthGateState extends State<AuthGate> {
   bool _loading = true;
 
   @override
-  void initState() {
-    super.initState();
-    _loadInitialSession();
+void initState() {
+  super.initState();
+  _loadInitialSession();
 
-    // Listen to changes in authentication state
-   Supabase.instance.client.auth.onAuthStateChange.listen((data) {
-  final AuthChangeEvent event = data.event;
-  final Session? session = data.session;
+  // Listen to changes in authentication state
+  Supabase.instance.client.auth.onAuthStateChange.listen((data) {
+    final AuthChangeEvent event = data.event;
+    final Session? session = data.session;
 
-  print('Auth event: $event');
-  print('Current user: ${session?.user.id ?? 'No user'}');
+    print('Auth event: $event');
+    print('Current user: ${session?.user.id ?? 'No user'}');
 
-  if (!mounted) return; // <-- important! check if widget still active
+    if (!mounted) return; // check if widget still active
 
-  setState(() {
-    _session = session;
-  });
-
-  // Optional: Debug logs
-  debugPrint("Auth event: $event");
-});
-
-  }
-
-  Future<void> _loadInitialSession() async {
-    final currentSession = Supabase.instance.client.auth.currentSession;
     setState(() {
-      _session = currentSession;
-      _loading = false;
+      _session = session;
     });
-  }
+
+    // Optional: Debug logs
+    debugPrint("Auth event: $event");
+  });
+}
+
+Future<void> _loadInitialSession() async {
+  final currentSession = Supabase.instance.client.auth.currentSession;
+  setState(() {
+    _session = currentSession;
+    _loading = false;
+  });
+}
+
 
   @override
   Widget build(BuildContext context) {

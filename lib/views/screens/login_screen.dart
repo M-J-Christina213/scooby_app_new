@@ -30,59 +30,65 @@ class _LoginScreenState extends State<LoginScreen> {
     ).show(context);
   }
 
-  Future<void> login() async {
-    final email = emailController.text.trim();
-    final password = passwordController.text.trim();
+Future<void> login() async {
+  final email = emailController.text.trim();
+  final password = passwordController.text.trim();
 
-    if (email.isEmpty || password.isEmpty) {
-      showFlushBar("Please fill in all fields", Colors.red);
-      return;
-    }
+  if (email.isEmpty || password.isEmpty) {
+    showFlushBar("Please fill in all fields", Colors.red);
+    return;
+  }
 
-    setState(() => isLoading = true);
-    try {
-      final authResponse = await Supabase.instance.client.auth.signInWithPassword(
-        email: email,
-        password: password,
-      );
+  setState(() => isLoading = true);
+  try {
+    final authResponse = await Supabase.instance.client.auth.signInWithPassword(
+      email: email,
+      password: password,
+    );
 
-      final user = authResponse.user;
-      if (user != null) {
-        // Check role in pet_owners table
-        final petOwnerResponse = await Supabase.instance.client
-            .from('pet_owners')
+    final user = authResponse.user;
+    final session = authResponse.session;
+    print('Login user: $user');
+    print('Login session: $session');
+
+    if (user != null && session != null) {
+      // Check role in pet_owners table
+      final petOwnerResponse = await Supabase.instance.client
+          .from('pet_owners')
+          .select()
+          .eq('email', email)
+          .maybeSingle();
+
+      if (petOwnerResponse != null) {
+        showFlushBar("Welcome Pet Owner!", Colors.green);
+        // Navigation handled by AuthGate
+      } else {
+        // Check in service_providers
+        final providerResponse = await Supabase.instance.client
+            .from('service_providers')
             .select()
             .eq('email', email)
             .maybeSingle();
 
-        if (petOwnerResponse != null) {
-          showFlushBar("Welcome Pet Owner!", Colors.green);
+        if (providerResponse != null) {
+          showFlushBar("Welcome Service Provider!", Colors.green);
           // Navigation handled by AuthGate
         } else {
-          // Check in service_providers
-          final providerResponse = await Supabase.instance.client
-              .from('service_providers')
-              .select()
-              .eq('email', email)
-              .maybeSingle();
-
-          if (providerResponse != null) {
-            showFlushBar("Welcome Service Provider!", Colors.green);
-            // Navigation handled by AuthGate
-          } else {
-            showFlushBar("User role not recognized", Colors.orange);
-          }
+          showFlushBar("User role not recognized", Colors.orange);
         }
       }
-    } catch (e) {
-      if (!mounted) return;
-      showFlushBar("Login failed: $e", Colors.red);
-    } finally {
-      if (mounted) {
-        setState(() => isLoading = false);
-      }
+    } else {
+      showFlushBar("Login failed: Invalid user or session", Colors.red);
+    }
+  } catch (e) {
+    if (!mounted) return;
+    showFlushBar("Login failed: $e", Colors.red);
+  } finally {
+    if (mounted) {
+      setState(() => isLoading = false);
     }
   }
+}
 
   Widget buildRegisterOption(String text, String role, VoidCallback onTap) {
     final bool isSelected = selectedRole == role;
