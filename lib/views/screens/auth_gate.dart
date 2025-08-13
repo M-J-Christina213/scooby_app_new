@@ -17,37 +17,35 @@ class _AuthGateState extends State<AuthGate> {
   bool _loading = true;
 
   @override
-void initState() {
-  super.initState();
-  _loadInitialSession();
+  void initState() {
+    super.initState();
+    _loadInitialSession();
 
-  // Listen to changes in authentication state
-  Supabase.instance.client.auth.onAuthStateChange.listen((data) {
-    final AuthChangeEvent event = data.event;
-    final Session? session = data.session;
+    // Listen to changes in authentication state
+    Supabase.instance.client.auth.onAuthStateChange.listen((data) {
+      final AuthChangeEvent event = data.event;
+      final Session? session = data.session;
 
-    print('Auth event: $event');
-    print('Current user: ${session?.user.id ?? 'No user'}');
+      print('Auth event: $event');
+      print('Current user: ${session?.user.id ?? 'No user'}');
 
-    if (!mounted) return; // check if widget still active
+      if (!mounted) return;
 
-    setState(() {
-      _session = session;
+      setState(() {
+        _session = session;
+      });
+
+      debugPrint("Auth event: $event");
     });
+  }
 
-    // Optional: Debug logs
-    debugPrint("Auth event: $event");
-  });
-}
-
-Future<void> _loadInitialSession() async {
-  final currentSession = Supabase.instance.client.auth.currentSession;
-  setState(() {
-    _session = currentSession;
-    _loading = false;
-  });
-}
-
+  Future<void> _loadInitialSession() async {
+    final currentSession = Supabase.instance.client.auth.currentSession;
+    setState(() {
+      _session = currentSession;
+      _loading = false;
+    });
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -62,9 +60,11 @@ Future<void> _loadInitialSession() async {
       return const LoginScreen();
     }
 
+    final userId = _session!.user.id;
+
     // Logged in → determine role
-    return FutureBuilder<String?>(
-      future: AuthService().getUserRole(_session!.user.id),
+    return FutureBuilder<String>(
+      future: AuthService().getUserRole(userId),
       builder: (context, roleSnapshot) {
         if (roleSnapshot.connectionState == ConnectionState.waiting) {
           return const Scaffold(body: Center(child: CircularProgressIndicator()));
@@ -75,11 +75,11 @@ Future<void> _loadInitialSession() async {
           return const LoginScreen();
         }
 
-        final role = roleSnapshot.data;
+        final role = roleSnapshot.data!;
 
         if (role == 'service_provider') {
           return FutureBuilder<String?>(
-            future: AuthService().getServiceProviderEmail(_session!.user.id),
+            future: AuthService().getServiceProviderEmail(userId),
             builder: (context, emailSnapshot) {
               if (emailSnapshot.connectionState == ConnectionState.waiting) {
                 return const Scaffold(body: Center(child: CircularProgressIndicator()));
@@ -97,7 +97,7 @@ Future<void> _loadInitialSession() async {
 
         if (role == 'pet_owner') {
           return FutureBuilder<String?>(
-            future: AuthService().getPetOwnerIdFromAuthId(_session!.user.id),
+            future: AuthService().getPetOwnerIdFromAuthId(userId),
             builder: (context, idSnapshot) {
               if (idSnapshot.connectionState == ConnectionState.waiting) {
                 return const Scaffold(body: Center(child: CircularProgressIndicator()));
@@ -111,7 +111,7 @@ Future<void> _loadInitialSession() async {
               final petOwnerId = idSnapshot.data!;
 
               return FutureBuilder<String?>(
-                future: AuthService().getPetOwnerCityFromAuthId(_session!.user.id),
+                future: AuthService().getPetOwnerCityFromAuthId(userId),
                 builder: (context, citySnapshot) {
                   if (citySnapshot.connectionState == ConnectionState.waiting) {
                     return const Scaffold(body: Center(child: CircularProgressIndicator()));
