@@ -1,15 +1,10 @@
-
 // ignore_for_file: use_build_context_synchronously
 
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import 'package:scooby_app_new/models/booking_model.dart';
 import 'package:scooby_app_new/views/screens/appointment_detail_screen.dart';
-import 'package:scooby_app_new/widgets/success_dialog.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
-import 'dart:async';
-
-
 
 class PendingAppointments extends StatefulWidget {
   final String providerEmail;
@@ -54,18 +49,51 @@ class _PendingAppointmentsState extends State<PendingAppointments> {
 
   Future<void> updateBookingStatus(String bookingId, String status) async {
     await supabase.from('bookings').update({'status': status}).eq('id', bookingId);
-    fetchPending();
+    fetchPending(); // refresh the list
   }
 
-  Future<void> sendQuickMessage(String bookingId, String message) async {
-    // simple messages table insert: messages( id, booking_id, sender, body, created_at )
-    await supabase.from('messages').insert({
-      'booking_id': bookingId,
-      'sender': 'provider',
-      'body': message,
-      'created_at': DateTime.now().toUtc().toIso8601String(),
-    });
-    ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Message sent')));
+  Future<void> sendMessage(String bookingId) async {
+    final textController = TextEditingController();
+    await showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      builder: (ctx) => Padding(
+        padding: EdgeInsets.only(
+            bottom: MediaQuery.of(ctx).viewInsets.bottom, left: 16, right: 16, top: 16),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            TextField(
+              controller: textController,
+              maxLines: 3,
+              decoration: const InputDecoration(
+                  hintText: 'Type your message...', border: OutlineInputBorder()),
+            ),
+            const SizedBox(height: 8),
+            ElevatedButton.icon(
+              onPressed: () async {
+                if (textController.text.trim().isEmpty) return;
+                await supabase.from('messages').insert({
+                  'booking_id': bookingId,
+                  'sender': 'provider',
+                  'body': textController.text.trim(),
+                  'created_at': DateTime.now().toUtc().toIso8601String(),
+                });
+                textController.clear();
+                ScaffoldMessenger.of(ctx).showSnackBar(
+                  const SnackBar(content: Text('Message sent successfully')),
+                );
+                Navigator.pop(ctx);
+              },
+              icon: const Icon(Icons.send),
+              label: const Text('Send'),
+              style: ElevatedButton.styleFrom(backgroundColor: Colors.deepPurple),
+            ),
+            const SizedBox(height: 8),
+          ],
+        ),
+      ),
+    );
   }
 
   @override
@@ -77,7 +105,10 @@ class _PendingAppointmentsState extends State<PendingAppointments> {
               onRefresh: fetchPending,
               child: bookings.isEmpty
                   ? ListView(
-                      children: const [SizedBox(height: 200), Center(child: Text('No pending bookings'))],
+                      children: const [
+                        SizedBox(height: 200),
+                        Center(child: Text('No pending bookings'))
+                      ],
                     )
                   : ListView.builder(
                       padding: const EdgeInsets.all(12),
@@ -88,108 +119,79 @@ class _PendingAppointmentsState extends State<PendingAppointments> {
                           shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
                           elevation: 3,
                           margin: const EdgeInsets.symmetric(vertical: 8),
-                          child: ListTile(
-                            contentPadding: const EdgeInsets.all(12),
-                            title: Text('${b.ownerName} • ${b.petName}'),
-                            subtitle: Text('${DateFormat.yMMMd().format(b.date)} • ${b.time}\n${b.ownerEmail}'),
-                            isThreeLine: true,
-                            trailing: Row(
-                              mainAxisSize: MainAxisSize.min,
+                          child: Padding(
+                            padding: const EdgeInsets.all(16),
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
                               children: [
-                                IconButton(
-                                  icon: const Icon(Icons.check_circle, color: Colors.green),
-                                  onPressed: () => showDialog(
-                                    context: context,
-                                    builder: (_) => AlertDialog(
-                                      title: const Text('Accept booking?'),
-                                      actions: [
-                                        TextButton(onPressed: () => Navigator.pop(context), child: const Text('Cancel')),
-                                        ElevatedButton(
-                                          onPressed: () async {
-                                            Navigator.pop(context);
-                                            await updateBookingStatus(b.id, 'accepted');
-                                            // show success UI
-                                            showGeneralDialog(
-                                              context: context,
-                                              pageBuilder: (_, __, ___) => const SizedBox.shrink(),
-                                              barrierDismissible: true,
-                                              transitionBuilder: (_, anim, __, child) {
-                                                return Transform.scale(
-                                                  scale: Curves.easeOut.transform(anim.value),
-                                                  child: Opacity(opacity: anim.value, child: const SuccessDialog()),
-                                                );
-                                              },
-                                            );
-                                          },
-                                          child: const Text('Yes'),
-                                        ),
-                                      ],
-                                    ),
-                                  ),
-                                ),
-                                IconButton(
-                                  icon: const Icon(Icons.cancel, color: Colors.red),
-                                  onPressed: () => showDialog(
-                                    context: context,
-                                    builder: (_) => AlertDialog(
-                                      title: const Text('Decline booking?'),
-                                      actions: [
-                                        TextButton(onPressed: () => Navigator.pop(context), child: const Text('No')),
-                                        ElevatedButton(
-                                          style: ElevatedButton.styleFrom(backgroundColor: Colors.red),
-                                          onPressed: () async {
-                                            Navigator.pop(context);
-                                            await updateBookingStatus(b.id, 'declined');
-                                            fetchPending();
-                                          },
-                                          child: const Text('Decline'),
-                                        ),
-                                      ],
-                                    ),
-                                  ),
-                                ),
-                                IconButton(
-                                  icon: const Icon(Icons.message),
-                                  onPressed: () async {
-                                    final custom = await showModalBottomSheet<String>(
-                                      context: context,
-                                      builder: (ctx) {
-                                        final controller = TextEditingController(text: "Please don't bath the pet for 2-3 days.");
-                                        return Padding(
-                                          padding: const EdgeInsets.all(16.0),
-                                          child: Column(
-                                            mainAxisSize: MainAxisSize.min,
-                                            children: [
-                                              TextField(controller: controller, maxLines: 3),
-                                              const SizedBox(height: 12),
-                                              ElevatedButton(
-                                                onPressed: () => Navigator.pop(ctx, controller.text),
-                                                child: const Text('Send'),
-                                              )
-                                            ],
+                                // Top row: owner info + message icon
+                                Row(
+                                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                                  children: [
+                                    Expanded(
+                                      child: InkWell(
+                                        borderRadius: BorderRadius.circular(8),
+                                        onTap: () async {
+                                          final result = await Navigator.push(
+                                            context,
+                                            MaterialPageRoute(
+                                              builder: (_) => AppointmentDetailScreen(
+                                                bookingId: b.id,
+                                                providerEmail: widget.providerEmail,
+                                              ),
+                                            ),
+                                          );
+                                          if (result == true) fetchPending();
+                                        },
+                                        child: Padding(
+                                          padding: const EdgeInsets.symmetric(vertical: 4),
+                                          child: Text(
+                                            '${b.ownerName} • ${b.petName}',
+                                            style: const TextStyle(
+                                              fontSize: 18,
+                                              fontWeight: FontWeight.bold,
+                                              color: Colors.deepPurple,
+                                            ),
                                           ),
-                                        );
-                                      },
-                                    );
-
-                                    if (custom != null && custom.trim().isNotEmpty) {
-                                      await sendQuickMessage(b.id, custom);
-                                    }
-                                  },
-                                ),
-                                IconButton(
-                                  icon: const Icon(Icons.visibility),
-                                  onPressed: () => Navigator.push(
-                                    context,
-                                    MaterialPageRoute(
-                                      builder: (_) => AppointmentDetailScreen(bookingId: b.id, providerEmail: widget.providerEmail),
+                                        ),
+                                      ),
                                     ),
-                                  ),
+                                    IconButton(
+                                      onPressed: () => sendMessage(b.id),
+                                      icon: const Icon(Icons.message, color: Colors.deepPurple),
+                                    )
+                                  ],
+                                ),
+                                const SizedBox(height: 8),
+                                Text(
+                                  '${DateFormat.yMMMd().format(b.date)} • ${b.time}',
+                                  style: const TextStyle(color: Colors.black87),
+                                ),
+                                const SizedBox(height: 12),
+                                // Horizontal Accept / Decline buttons
+                                Row(
+                                  mainAxisAlignment: MainAxisAlignment.end,
+                                  children: [
+                                    ElevatedButton.icon(
+                                      onPressed: () => updateBookingStatus(b.id, 'accepted'),
+                                      icon: const Icon(Icons.check),
+                                      label: const Text('Accept'),
+                                      style: ElevatedButton.styleFrom(backgroundColor: Colors.green),
+                                    ),
+                                    const SizedBox(width: 8),
+                                    ElevatedButton.icon(
+                                      onPressed: () => updateBookingStatus(b.id, 'declined'),
+                                      icon: const Icon(Icons.close),
+                                      label: const Text('Decline'),
+                                      style: ElevatedButton.styleFrom(backgroundColor: Colors.red),
+                                    ),
+                                  ],
                                 ),
                               ],
                             ),
                           ),
                         );
+
                       },
                     ),
             ),
