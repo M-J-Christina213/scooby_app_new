@@ -5,8 +5,8 @@ import 'package:scooby_app_new/controllers/pet_service.dart';
 import 'package:scooby_app_new/models/pet.dart';
 
 class AddPetScreen extends StatefulWidget {
-  final String userId; // auth user id
-  final Pet? existingPet; // null for adding new, non-null for editing
+  final String userId;
+  final Pet? existingPet;
 
   const AddPetScreen({required this.userId, this.existingPet, super.key});
 
@@ -56,22 +56,16 @@ class _AddPetScreenState extends State<AddPetScreen> {
       return;
     }
 
-    // Use existing pet id if editing, else null
     final existingId = _isEditing ? widget.existingPet!.id : null;
 
     final success = await _formController.savePet(widget.userId, context, existingId: existingId);
     if (success) {
-      // Wait for flushbar to finish before popping to avoid debug locked error
       await _showFlushbar(_isEditing ? 'Pet updated successfully!' : 'Pet added successfully!');
       if (mounted) Navigator.of(context).pop(true);
     } else {
       await _showFlushbar(_isEditing ? 'Failed to update pet' : 'Failed to add pet',
           backgroundColor: Colors.redAccent, icon: Icons.error);
     }
-  }
-
-  void _cancelEditing() {
-    if (mounted) Navigator.of(context).pop(false);
   }
 
   Widget _buildSectionTitle(String title) => Padding(
@@ -83,6 +77,58 @@ class _AddPetScreenState extends State<AddPetScreen> {
               color: _primaryColor.withAlpha((0.9 * 255).round()),
             )),
       );
+
+  Widget _buildMedicalHistoryFields() {
+    return Column(
+      children: List.generate(_formController.medicalControllers.length, (index) {
+        final controller = _formController.medicalControllers[index];
+        return Padding(
+          padding: const EdgeInsets.only(bottom: 12),
+          child: Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Expanded(
+                child: TextFormField(
+                  controller: controller,
+                  decoration: InputDecoration(
+                    labelText: 'Medical Record ${index + 1}',
+                    hintText: 'Enter medical record',
+                    border: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                  ),
+                  maxLines: 2,
+                  textInputAction: TextInputAction.newline,
+                ),
+              ),
+              const SizedBox(width: 8),
+              Column(
+                children: [
+                  IconButton(
+                    icon: const Icon(Icons.add_circle, color: Colors.green),
+                    onPressed: () {
+                      setState(() {
+                        _formController.addMedicalRecord();
+                      });
+                    },
+                  ),
+                  if (_formController.medicalControllers.length > 1)
+                    IconButton(
+                      icon: const Icon(Icons.remove_circle, color: Colors.red),
+                      onPressed: () {
+                        setState(() {
+                          _formController.removeMedicalRecord(index);
+                        });
+                      },
+                    ),
+                ],
+              ),
+            ],
+          ),
+        );
+      }),
+    );
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -146,12 +192,8 @@ class _AddPetScreenState extends State<AddPetScreen> {
                     labelText: 'Name *',
                     hintText: 'Enter pet name',
                     border: inputBorder,
-                    focusedBorder: inputBorder.copyWith(
-                      borderSide: BorderSide(color: _primaryColor, width: 2),
-                    ),
                   ),
                   validator: (v) => (v == null || v.trim().isEmpty) ? 'Name is required' : null,
-                  textInputAction: TextInputAction.next,
                 ),
                 const SizedBox(height: 16),
                 ValueListenableBuilder<String?>(
@@ -162,13 +204,8 @@ class _AddPetScreenState extends State<AddPetScreen> {
                       decoration: InputDecoration(
                         labelText: 'Type *',
                         border: inputBorder,
-                        focusedBorder: inputBorder.copyWith(
-                          borderSide: BorderSide(color: _primaryColor, width: 2),
-                        ),
                       ),
-                      items: ['Dog', 'Cat']
-                          .map((e) => DropdownMenuItem(value: e, child: Text(e)))
-                          .toList(),
+                      items: ['Dog', 'Cat'].map((e) => DropdownMenuItem(value: e, child: Text(e))).toList(),
                       onChanged: (val) => _formController.type.value = val,
                       validator: (v) => (v == null || v.isEmpty) ? 'Please select type' : null,
                     );
@@ -179,14 +216,9 @@ class _AddPetScreenState extends State<AddPetScreen> {
                   controller: _formController.breedController,
                   decoration: InputDecoration(
                     labelText: 'Breed *',
-                    hintText: 'Enter breed',
                     border: inputBorder,
-                    focusedBorder: inputBorder.copyWith(
-                      borderSide: BorderSide(color: _primaryColor, width: 2),
-                    ),
                   ),
                   validator: (v) => (v == null || v.trim().isEmpty) ? 'Breed is required' : null,
-                  textInputAction: TextInputAction.next,
                 ),
                 const SizedBox(height: 16),
                 TextFormField(
@@ -194,11 +226,7 @@ class _AddPetScreenState extends State<AddPetScreen> {
                   keyboardType: TextInputType.number,
                   decoration: InputDecoration(
                     labelText: 'Age *',
-                    hintText: 'Enter age in years',
                     border: inputBorder,
-                    focusedBorder: inputBorder.copyWith(
-                      borderSide: BorderSide(color: _primaryColor, width: 2),
-                    ),
                   ),
                   validator: (v) {
                     if (v == null || v.trim().isEmpty) return 'Age is required';
@@ -206,7 +234,6 @@ class _AddPetScreenState extends State<AddPetScreen> {
                     if (age == null || age < 0) return 'Enter valid age';
                     return null;
                   },
-                  textInputAction: TextInputAction.next,
                 ),
                 const SizedBox(height: 16),
                 ValueListenableBuilder<String?>(
@@ -217,13 +244,8 @@ class _AddPetScreenState extends State<AddPetScreen> {
                       decoration: InputDecoration(
                         labelText: 'Gender *',
                         border: inputBorder,
-                        focusedBorder: inputBorder.copyWith(
-                          borderSide: BorderSide(color: _primaryColor, width: 2),
-                        ),
                       ),
-                      items: ['Male', 'Female']
-                          .map((e) => DropdownMenuItem(value: e, child: Text(e)))
-                          .toList(),
+                      items: ['Male', 'Female'].map((e) => DropdownMenuItem(value: e, child: Text(e))).toList(),
                       onChanged: (val) => _formController.gender.value = val,
                       validator: (v) => (v == null || v.isEmpty) ? 'Please select gender' : null,
                     );
@@ -233,109 +255,42 @@ class _AddPetScreenState extends State<AddPetScreen> {
                 _buildSectionTitle('Additional Details (Optional)'),
                 TextFormField(
                   controller: _formController.colorController,
-                  decoration: InputDecoration(
-                    labelText: 'Color',
-                    hintText: 'Enter color',
-                    border: inputBorder,
-                    focusedBorder: inputBorder.copyWith(
-                      borderSide: BorderSide(color: _primaryColor, width: 2),
-                    ),
-                  ),
-                  textInputAction: TextInputAction.next,
+                  decoration: InputDecoration(labelText: 'Color', border: inputBorder),
                 ),
                 const SizedBox(height: 16),
                 TextFormField(
                   controller: _formController.weightController,
                   keyboardType: const TextInputType.numberWithOptions(decimal: true),
-                  decoration: InputDecoration(
-                    labelText: 'Weight (kg)',
-                    hintText: 'Enter weight',
-                    border: inputBorder,
-                    focusedBorder: inputBorder.copyWith(
-                      borderSide: BorderSide(color: _primaryColor, width: 2),
-                    ),
-                  ),
-                  textInputAction: TextInputAction.next,
+                  decoration: InputDecoration(labelText: 'Weight (kg)', border: inputBorder),
                 ),
                 const SizedBox(height: 16),
                 TextFormField(
                   controller: _formController.heightController,
                   keyboardType: const TextInputType.numberWithOptions(decimal: true),
-                  decoration: InputDecoration(
-                    labelText: 'Height (cm)',
-                    hintText: 'Enter height',
-                    border: inputBorder,
-                    focusedBorder: inputBorder.copyWith(
-                      borderSide: BorderSide(color: _primaryColor, width: 2),
-                    ),
-                  ),
-                  textInputAction: TextInputAction.next,
+                  decoration: InputDecoration(labelText: 'Height (cm)', border: inputBorder),
                 ),
                 const SizedBox(height: 16),
-                TextFormField(
-                  controller: _formController.medicalController,
-                  decoration: InputDecoration(
-                    labelText: 'Medical History',
-                    hintText: 'Enter medical history',
-                    border: inputBorder,
-                    focusedBorder: inputBorder.copyWith(
-                      borderSide: BorderSide(color: _primaryColor, width: 2),
-                    ),
-                  ),
-                  maxLines: 2,
-                  textInputAction: TextInputAction.newline,
-                ),
+                _buildSectionTitle('Medical History'),
+                _buildMedicalHistoryFields(),
                 const SizedBox(height: 16),
                 TextFormField(
                   controller: _formController.foodController,
-                  decoration: InputDecoration(
-                    labelText: 'Food Preference',
-                    hintText: 'Enter food preferences',
-                    border: inputBorder,
-                    focusedBorder: inputBorder.copyWith(
-                      borderSide: BorderSide(color: _primaryColor, width: 2),
-                    ),
-                  ),
-                  maxLines: 2,
-                  textInputAction: TextInputAction.newline,
+                  decoration: InputDecoration(labelText: 'Food Preference', border: inputBorder),
                 ),
                 const SizedBox(height: 16),
                 TextFormField(
                   controller: _formController.moodController,
-                  decoration: InputDecoration(
-                    labelText: 'Mood',
-                    hintText: 'Describe mood',
-                    border: inputBorder,
-                    focusedBorder: inputBorder.copyWith(
-                      borderSide: BorderSide(color: _primaryColor, width: 2),
-                    ),
-                  ),
-                  textInputAction: TextInputAction.next,
+                  decoration: InputDecoration(labelText: 'Mood', border: inputBorder),
                 ),
                 const SizedBox(height: 16),
                 TextFormField(
                   controller: _formController.healthController,
-                  decoration: InputDecoration(
-                    labelText: 'Health Status',
-                    hintText: 'Describe health status',
-                    border: inputBorder,
-                    focusedBorder: inputBorder.copyWith(
-                      borderSide: BorderSide(color: _primaryColor, width: 2),
-                    ),
-                  ),
-                  textInputAction: TextInputAction.next,
+                  decoration: InputDecoration(labelText: 'Health Status', border: inputBorder),
                 ),
                 const SizedBox(height: 16),
                 TextFormField(
                   controller: _formController.descriptionController,
-                  decoration: InputDecoration(
-                    labelText: 'Description',
-                    hintText: 'Additional details',
-                    border: inputBorder,
-                    focusedBorder: inputBorder.copyWith(
-                      borderSide: BorderSide(color: _primaryColor, width: 2),
-                    ),
-                  ),
+                  decoration: InputDecoration(labelText: 'Description', border: inputBorder),
                   maxLines: 3,
                   textInputAction: TextInputAction.newline,
                 ),
@@ -348,8 +303,6 @@ class _AddPetScreenState extends State<AddPetScreen> {
                         style: ElevatedButton.styleFrom(
                           backgroundColor: _primaryColor,
                           shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
-                          elevation: 4,
-                          shadowColor: _primaryColor.withAlpha((0.5 * 255).round()),
                         ),
                         child: _formController.isSaving
                             ? const SizedBox(
@@ -357,29 +310,19 @@ class _AddPetScreenState extends State<AddPetScreen> {
                                 width: 26,
                                 child: CircularProgressIndicator(color: Colors.white, strokeWidth: 3),
                               )
-                            : Text(
-                                _isEditing ? 'Save Changes' : 'Add Pet',
-                                style: const TextStyle(fontSize: 20, fontWeight: FontWeight.w600),
-                              ),
+                            : Text(_isEditing ? 'Save Changes' : 'Add Pet'),
                       ),
                     ),
-                    if (_isEditing) ...[
+                    if (_isEditing)
                       const SizedBox(width: 16),
+                    if (_isEditing)
                       Expanded(
                         child: ElevatedButton(
-                          onPressed: _formController.isSaving ? null : _cancelEditing,
-                          style: ElevatedButton.styleFrom(
-                            backgroundColor: Colors.grey,
-                            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
-                            elevation: 2,
-                          ),
-                          child: const Text(
-                            'Cancel',
-                            style: TextStyle(fontSize: 20, fontWeight: FontWeight.w600),
-                          ),
+                          onPressed: _formController.isSaving ? null : () => Navigator.of(context).pop(false),
+                          style: ElevatedButton.styleFrom(backgroundColor: Colors.grey),
+                          child: const Text('Cancel'),
                         ),
                       ),
-                    ],
                   ],
                 ),
               ],

@@ -1,8 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:scooby_app_new/controllers/pet_service.dart';
 import 'package:scooby_app_new/models/pet.dart';
+import 'package:scooby_app_new/views/screens/pet_detail_screen.dart';
 import 'add_pet_screen.dart';
-import 'pet_detail_screen.dart';
 
 class MyPetsScreen extends StatefulWidget {
   final String userId;
@@ -65,14 +65,27 @@ class _MyPetsScreenState extends State<MyPetsScreen> with SingleTickerProviderSt
 
   void _goToPetDetails(Pet pet) async {
     final updated = await Navigator.push(
-      context,
-      MaterialPageRoute(
-        builder: (_) => PetDetailScreen(
-          pet: pet,
-          userId: widget.userId,
-        ),
-      ),
-    );
+  context,
+  MaterialPageRoute(
+    builder: (_) => PetDetailScreenModernIntegrated(
+      userId: pet.userId, // uuid
+      petId: pet.id, // uuid
+      imageUrl: pet.imageUrl,
+      name: pet.name,
+      type: pet.type,
+      breed: pet.breed,
+      age: pet.age,
+      gender: pet.gender,
+      color: pet.color,
+      weight: pet.weight,
+      height: pet.height,
+      foodPreference: pet.foodPreference,
+      mood: pet.mood,
+      healthStatus: pet.healthStatus,
+      description: pet.description,
+    ),
+  ),
+);
 
     if (updated == true) {
       _refreshPets();
@@ -177,7 +190,7 @@ class _MyPetsScreenState extends State<MyPetsScreen> with SingleTickerProviderSt
                                 ),
                                 const SizedBox(height: 8),
                                 Text(
-                                  '${pet.breed ?? 'Unknown Breed'} • Age: ${pet.age ?? 'N/A'}',
+                                  '${pet.breed} • Age: ${pet.age}',
                                   style: TextStyle(
                                     color: _primaryColor.withAlpha(180),
                                     fontSize: 16,
