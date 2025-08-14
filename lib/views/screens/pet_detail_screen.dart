@@ -1,12 +1,13 @@
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import 'package:scooby_app_new/controllers/medical_records_controller.dart';
+import 'package:scooby_app_new/controllers/pet_service.dart';
 import 'package:scooby_app_new/models/medical_records.dart';
+import 'package:scooby_app_new/models/pet.dart';
 import 'package:scooby_app_new/services/medical_record_service.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 class PetDetailScreenModernIntegrated extends StatefulWidget {
-  // Basic pet fields from your existing Pet model (uuid ids etc.)
   final String userId;
   final String petId;
   final String? imageUrl;
@@ -49,6 +50,25 @@ class PetDetailScreenModernIntegrated extends StatefulWidget {
 class _PetDetailScreenModernIntegratedState extends State<PetDetailScreenModernIntegrated> with SingleTickerProviderStateMixin {
   late final TabController _tabController;
   late final MedicalRecordsController _controller;
+  late String _name;
+  late String _type;
+  late String _breed;
+  late int _age;
+  late String _gender;
+  late String? _color;
+  late num? _weight;
+  late num? _height;
+  late String? _foodPreference;
+  late String? _mood;
+  late String? _healthStatus;
+  late String? _description;
+  bool _editingPet = false;
+
+  // Editing states for inline tabs
+  final Map<String, bool> _vaccEditing = {};
+  final Map<String, bool> _checkEditing = {};
+  final Map<String, bool> _rxEditing = {};
+
   final _primary = const Color(0xFF842EAC);
   final _df = DateFormat('yyyy-MM-dd');
 
@@ -61,6 +81,20 @@ class _PetDetailScreenModernIntegratedState extends State<PetDetailScreenModernI
       petId: widget.petId,
     );
     _controller.loadAll();
+
+    // Initialize pet fields
+    _name = widget.name;
+    _type = widget.type;
+    _breed = widget.breed;
+    _age = widget.age;
+    _gender = widget.gender;
+    _color = widget.color;
+    _weight = widget.weight;
+    _height = widget.height;
+    _foodPreference = widget.foodPreference;
+    _mood = widget.mood;
+    _healthStatus = widget.healthStatus;
+    _description = widget.description;
   }
 
   @override
@@ -77,6 +111,36 @@ class _PetDetailScreenModernIntegratedState extends State<PetDetailScreenModernI
         backgroundColor: _primary,
         title: const Text('Pet Profile'),
         centerTitle: true,
+        actions: [
+          IconButton(
+            icon: Icon(_editingPet ? Icons.check : Icons.edit),
+            onPressed: () async {
+              if (_editingPet) {
+                await PetService.instance.updatePet(
+                Pet(
+                  id: widget.petId,
+                  userId: widget.userId,
+                  name: _name,
+                  type: _type,
+                  breed: _breed,
+                  age: _age,
+                  gender: _gender,
+                  color: _color,
+                  weight: _weight?.toDouble(),
+                  height: _height?.toDouble(),
+                  foodPreference: _foodPreference,
+                  mood: _mood,
+                  healthStatus: _healthStatus,
+                  description: _description,
+                ),
+                widget.userId,
+              );
+
+              }
+              setState(() => _editingPet = !_editingPet);
+            },
+          ),
+        ],
       ),
       body: AnimatedBuilder(
         animation: _controller,
@@ -91,18 +155,18 @@ class _PetDetailScreenModernIntegratedState extends State<PetDetailScreenModernI
                 const SizedBox(height: 12),
                 _detailsCard(),
                 const SizedBox(height: 16),
-                _medicalRecords(),
+                _medicalRecordsInline(),
                 const SizedBox(height: 24),
               ],
             ),
           );
         },
       ),
-      floatingActionButtonLocation: FloatingActionButtonLocation.endFloat,
     );
   }
 
-  Widget _heroHeader() {
+
+   Widget _heroHeader() {
     return Stack(children: [
       AspectRatio(
         aspectRatio: 16 / 9,
@@ -201,7 +265,9 @@ class _PetDetailScreenModernIntegratedState extends State<PetDetailScreenModernI
     ]),
   );
 
-  Widget _medicalRecords() {
+
+  // === Inline Medical Records Tabs ===
+  Widget _medicalRecordsInline() {
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 16),
       child: Card(
@@ -210,271 +276,201 @@ class _PetDetailScreenModernIntegratedState extends State<PetDetailScreenModernI
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
         child: Padding(
           padding: const EdgeInsets.all(12),
-          child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-            Row(children: [Icon(Icons.health_and_safety, color: _primary), const SizedBox(width: 8), const Text('Medical Records', style: TextStyle(fontSize: 16, fontWeight: FontWeight.w800))]),
-            const SizedBox(height: 8),
-            TabBar(controller: _tabController, labelColor: _primary, indicatorColor: _primary, unselectedLabelColor: Colors.grey, tabs: const [
-              Tab(text: 'Vaccinations'), Tab(text: 'Medical Checkups'), Tab(text: 'Prescriptions'),
-            ]),
-            SizedBox(height: 440, child: TabBarView(controller: _tabController, children: [
-              _vaccinationsTab(), _checkupsTab(), _prescriptionsTab(),
-            ])),
-          ]),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(children: [Icon(Icons.health_and_safety, color: _primary), const SizedBox(width: 8), const Text('Medical Records', style: TextStyle(fontSize: 16, fontWeight: FontWeight.w800))]),
+              const SizedBox(height: 8),
+              TabBar(
+                controller: _tabController,
+                labelColor: _primary,
+                indicatorColor: _primary,
+                unselectedLabelColor: Colors.grey,
+                tabs: const [
+                  Tab(text: 'Vaccinations'),
+                  Tab(text: 'Medical Checkups'),
+                  Tab(text: 'Prescriptions'),
+                ],
+              ),
+              SizedBox(
+                height: 480,
+                child: TabBarView(
+                  controller: _tabController,
+                  children: [
+                    _vaccinationsTabInline(),
+                    _checkupsTabInline(),
+                    _prescriptionsTabInline(),
+                  ],
+                ),
+              ),
+            ],
+          ),
         ),
       ),
     );
   }
 
-  // ---------------- Tabs (CRUD) ----------------
-  Widget _vaccinationsTab() {
+  // === Inline Vaccinations ===
+  Widget _vaccinationsTabInline() {
     if (_controller.loadingVacc) return const Center(child: CircularProgressIndicator());
     final rows = _controller.vaccinations.cast<Vaccination>();
-    return Stack(children: [
-      rows.isEmpty
-          ? const Center(child: Text('No vaccinations yet'))
-          : SingleChildScrollView(
-              child: DataTable(
-                headingRowColor: WidgetStatePropertyAll(Colors.purple.shade50),
-                columns: const [
-                  DataColumn(label: Text('Name')),
-                  DataColumn(label: Text('Description')),
-                  DataColumn(label: Text('Date Given')),
-                  DataColumn(label: Text('Next Due')),
-                  DataColumn(label: Text('Actions')),
-                ],
-                rows: rows
-                    .map((v) => DataRow(cells: [
-                          DataCell(Text(v.vaccinationName)),
-                          DataCell(Text((v.description ?? '').trim().isEmpty ? '—' : v.description!)),
-                          DataCell(Text(_df.format(v.dateGiven))),
-                          DataCell(Text(v.nextDueDate != null ? _df.format(v.nextDueDate!) : '—')),
-                          DataCell(Row(children: [
-                            IconButton(icon: const Icon(Icons.edit), onPressed: () => _openVaccForm(existing: v)),
-                            IconButton(icon: const Icon(Icons.delete), onPressed: () async { await _controller.deleteVaccination(v.id); }),
-                          ])),
-                        ]))
-                    .toList(),
-              ),
+
+    return SingleChildScrollView(
+      child: Column(
+        children: rows.map((v) {
+          final nameCtrl = TextEditingController(text: v.vaccinationName);
+          final descCtrl = TextEditingController(text: v.description ?? '');
+          DateTime? dateGiven = v.dateGiven;
+          DateTime? nextDue = v.nextDueDate;
+          bool editing = _vaccEditing[v.id] ?? false;
+
+          return Card(
+            margin: const EdgeInsets.symmetric(vertical: 6),
+            child: ListTile(
+              title: editing
+                  ? TextField(controller: nameCtrl, decoration: const InputDecoration(labelText: 'Name'))
+                  : Text(v.vaccinationName),
+              subtitle: editing
+                  ? Column(children: [
+                      TextField(controller: descCtrl, decoration: const InputDecoration(labelText: 'Description')),
+                      const SizedBox(height: 8),
+                      Row(children: [
+                        Expanded(child: _datePickerField('Date Given', dateGiven, (d) => setState(() => dateGiven = d))),
+                        const SizedBox(width: 12),
+                        Expanded(child: _datePickerField('Next Due', nextDue, (d) => setState(() => nextDue = d))),
+                      ])
+                    ])
+                  : Text('${_df.format(v.dateGiven)} - Next: ${v.nextDueDate != null ? _df.format(v.nextDueDate!) : '—'}'),
+              trailing: Row(mainAxisSize: MainAxisSize.min, children: [
+                if (!editing) IconButton(icon: const Icon(Icons.edit), onPressed: () => setState(() => _vaccEditing[v.id] = true)),
+                if (editing) IconButton(icon: const Icon(Icons.check), onPressed: () async {
+                  await _controller.addOrUpdateVaccination(
+                    existing: v,
+                    name: nameCtrl.text.trim(),
+                    desc: descCtrl.text.trim().isEmpty ? null : descCtrl.text.trim(),
+                    dateGiven: dateGiven!,
+                    nextDue: nextDue,
+                  );
+                  setState(() => _vaccEditing[v.id] = false);
+                }),
+                if (editing) IconButton(icon: const Icon(Icons.close), onPressed: () => setState(() => _vaccEditing[v.id] = false)),
+                IconButton(icon: const Icon(Icons.delete), onPressed: () async => await _controller.deleteVaccination(v.id)),
+              ]),
             ),
-      Positioned(
-        bottom: 12, right: 12,
-        child: FloatingActionButton.extended(backgroundColor: _primary, onPressed: () => _openVaccForm(), icon: const Icon(Icons.add), label: const Text('Add Vaccination')),
+          );
+        }).toList(),
       ),
-    ]);
-  }
-
-  Future<void> _openVaccForm({Vaccination? existing}) async {
-    final nameCtrl = TextEditingController(text: existing?.vaccinationName ?? '');
-    final descCtrl = TextEditingController(text: existing?.description ?? '');
-    DateTime? dateGiven = existing?.dateGiven ?? DateTime.now();
-    DateTime? nextDue = existing?.nextDueDate;
-
-    await _bottomSheet(
-      title: existing == null ? 'Add Vaccination' : 'Edit Vaccination',
-      children: [
-        TextField(controller: nameCtrl, decoration: const InputDecoration(labelText: 'Name *', border: OutlineInputBorder())),
-        const SizedBox(height: 12),
-        TextField(controller: descCtrl, maxLines: 2, decoration: const InputDecoration(labelText: 'Description', border: OutlineInputBorder())),
-        const SizedBox(height: 12),
-        Row(children: [
-          Expanded(child: _DatePickerTile(label: 'Date given *', date: dateGiven, onPick: (d) => dateGiven = d)),
-          const SizedBox(width: 12),
-          Expanded(child: _DatePickerTile(label: 'Next due', date: nextDue, onPick: (d) => nextDue = d)),
-        ]),
-        const SizedBox(height: 16),
-        _saveBtn(onPressed: () async {
-          if (nameCtrl.text.trim().isEmpty || dateGiven == null) return;
-          await _controller.addOrUpdateVaccination(existing: existing, name: nameCtrl.text.trim(), desc: descCtrl.text.trim().isEmpty ? null : descCtrl.text.trim(), dateGiven: dateGiven!, nextDue: nextDue);
-          if (!mounted) return; 
-          Navigator.pop(context);
-        }),
-      ],
     );
   }
 
-  Widget _checkupsTab() {
+  // === Inline Checkups ===
+  Widget _checkupsTabInline() {
     if (_controller.loadingCheck) return const Center(child: CircularProgressIndicator());
     final rows = _controller.checkups.cast<MedicalCheckup>();
-    return Stack(children: [
-      rows.isEmpty
-          ? const Center(child: Text('No checkups yet'))
-          : SingleChildScrollView(
-              child: DataTable(
-                headingRowColor: WidgetStatePropertyAll(Colors.purple.shade50),
-                columns: const [
-                  DataColumn(label: Text('Reason')),
-                  DataColumn(label: Text('Description')),
-                  DataColumn(label: Text('Date')),
-                  DataColumn(label: Text('Actions')),
-                ],
-                rows: rows
-                    .map((c) => DataRow(cells: [
-                          DataCell(Text(c.reason)),
-                          DataCell(Text((c.description ?? '').trim().isEmpty ? '—' : c.description!)),
-                          DataCell(Text(_df.format(c.date))),
-                          DataCell(Row(children: [
-                            IconButton(icon: const Icon(Icons.edit), onPressed: () => _openCheckupForm(existing: c)),
-                            IconButton(icon: const Icon(Icons.delete), onPressed: () async { await _controller.deleteCheckup(c.id); }),
-                          ])),
-                        ]))
-                    .toList(),
-              ),
+
+    return SingleChildScrollView(
+      child: Column(
+        children: rows.map((c) {
+          final reasonCtrl = TextEditingController(text: c.reason);
+          final descCtrl = TextEditingController(text: c.description ?? '');
+          DateTime date = c.date;
+          bool editing = _checkEditing[c.id] ?? false;
+
+          return Card(
+            margin: const EdgeInsets.symmetric(vertical: 6),
+            child: ListTile(
+              title: editing ? TextField(controller: reasonCtrl, decoration: const InputDecoration(labelText: 'Reason')) : Text(c.reason),
+              subtitle: editing ? Column(children: [
+                TextField(controller: descCtrl, decoration: const InputDecoration(labelText: 'Description')),
+                const SizedBox(height: 8),
+                _datePickerField('Date', date, (d) => setState(() => date = d))
+              ]) : Text(_df.format(c.date)),
+              trailing: Row(mainAxisSize: MainAxisSize.min, children: [
+                if (!editing) IconButton(icon: const Icon(Icons.edit), onPressed: () => setState(() => _checkEditing[c.id] = true)),
+                if (editing) IconButton(icon: const Icon(Icons.check), onPressed: () async {
+                  await _controller.addOrUpdateCheckup(
+                    existing: c,
+                    reason: reasonCtrl.text.trim(),
+                    desc: descCtrl.text.trim().isEmpty ? null : descCtrl.text.trim(),
+                    date: date,
+                  );
+                  setState(() => _checkEditing[c.id] = false);
+                }),
+                if (editing) IconButton(icon: const Icon(Icons.close), onPressed: () => setState(() => _checkEditing[c.id] = false)),
+                IconButton(icon: const Icon(Icons.delete), onPressed: () async => await _controller.deleteCheckup(c.id)),
+              ]),
             ),
-      Positioned(
-        bottom: 12, right: 12,
-        child: FloatingActionButton.extended(backgroundColor: _primary, onPressed: () => _openCheckupForm(), icon: const Icon(Icons.add), label: const Text('Add Checkup')),
+          );
+        }).toList(),
       ),
-    ]);
-  }
-
-  Future<void> _openCheckupForm({MedicalCheckup? existing}) async {
-    final reasonCtrl = TextEditingController(text: existing?.reason ?? '');
-    final descCtrl = TextEditingController(text: existing?.description ?? '');
-    DateTime? date = existing?.date ?? DateTime.now();
-
-    await _bottomSheet(
-      title: existing == null ? 'Add Checkup' : 'Edit Checkup',
-      children: [
-        TextField(controller: reasonCtrl, decoration: const InputDecoration(labelText: 'Reason *', border: OutlineInputBorder())),
-        const SizedBox(height: 12),
-        TextField(controller: descCtrl, maxLines: 2, decoration: const InputDecoration(labelText: 'Description', border: OutlineInputBorder())),
-        const SizedBox(height: 12),
-        _DatePickerTile(label: 'Date *', date: date, onPick: (d) => date = d),
-        const SizedBox(height: 16),
-        _saveBtn(onPressed: () async {
-          if (reasonCtrl.text.trim().isEmpty || date == null) return;
-          await _controller.addOrUpdateCheckup(existing: existing, reason: reasonCtrl.text.trim(), desc: descCtrl.text.trim().isEmpty ? null : descCtrl.text.trim(), date: date!);
-          if (!mounted) return; 
-          Navigator.pop(context);
-        }),
-      ],
     );
   }
 
-  Widget _prescriptionsTab() {
+  // === Inline Prescriptions ===
+  Widget _prescriptionsTabInline() {
     if (_controller.loadingRx) return const Center(child: CircularProgressIndicator());
     final rows = _controller.prescriptions.cast<Prescription>();
-    return Stack(children: [
-      rows.isEmpty
-          ? const Center(child: Text('No prescriptions yet'))
-          : SingleChildScrollView(
-              child: DataTable(
-                headingRowColor: WidgetStatePropertyAll(Colors.purple.shade50),
-                columns: const [
-                  DataColumn(label: Text('Medicine')),
-                  DataColumn(label: Text('Description')),
-                  DataColumn(label: Text('Start')),
-                  DataColumn(label: Text('End')),
-                  DataColumn(label: Text('Actions')),
-                ],
-                rows: rows
-                    .map((p) => DataRow(cells: [
-                          DataCell(Text(p.medicineName)),
-                          DataCell(Text((p.description ?? '').trim().isEmpty ? '—' : p.description!)),
-                          DataCell(Text(_df.format(p.startDate))),
-                          DataCell(Text(p.endDate != null ? _df.format(p.endDate!) : '—')),
-                          DataCell(Row(children: [
-                            IconButton(icon: const Icon(Icons.edit), onPressed: () => _openRxForm(existing: p)),
-                            IconButton(icon: const Icon(Icons.delete), onPressed: () async { await _controller.deletePrescription(p.id); }),
-                          ])),
-                        ]))
-                    .toList(),
-              ),
+
+    return SingleChildScrollView(
+      child: Column(
+        children: rows.map((p) {
+          final medCtrl = TextEditingController(text: p.medicineName);
+          final descCtrl = TextEditingController(text: p.description ?? '');
+          DateTime start = p.startDate;
+          DateTime? end = p.endDate;
+          bool editing = _rxEditing[p.id] ?? false;
+
+          return Card(
+            margin: const EdgeInsets.symmetric(vertical: 6),
+            child: ListTile(
+              title: editing ? TextField(controller: medCtrl, decoration: const InputDecoration(labelText: 'Medicine')) : Text(p.medicineName),
+              subtitle: editing ? Column(children: [
+                TextField(controller: descCtrl, decoration: const InputDecoration(labelText: 'Description')),
+                const SizedBox(height: 8),
+                Row(children: [
+                  Expanded(child: _datePickerField('Start', start, (d) => setState(() => start = d))),
+                  const SizedBox(width: 12),
+                  Expanded(child: _datePickerField('End', end, (d) => setState(() => end = d))),
+                ])
+              ]) : Text('${_df.format(p.startDate)} - End: ${p.endDate != null ? _df.format(p.endDate!) : '—'}'),
+              trailing: Row(mainAxisSize: MainAxisSize.min, children: [
+                if (!editing) IconButton(icon: const Icon(Icons.edit), onPressed: () => setState(() => _rxEditing[p.id] = true)),
+                if (editing) IconButton(icon: const Icon(Icons.check), onPressed: () async {
+                  await _controller.addOrUpdatePrescription(
+                    existing: p,
+                    med: medCtrl.text.trim(),
+                    desc: descCtrl.text.trim().isEmpty ? null : descCtrl.text.trim(),
+                    start: start,
+                    end: end,
+                  );
+                  setState(() => _rxEditing[p.id] = false);
+                }),
+                if (editing) IconButton(icon: const Icon(Icons.close), onPressed: () => setState(() => _rxEditing[p.id] = false)),
+                IconButton(icon: const Icon(Icons.delete), onPressed: () async => await _controller.deletePrescription(p.id)),
+              ]),
             ),
-      Positioned(
-        bottom: 12, right: 12,
-        child: FloatingActionButton.extended(backgroundColor: _primary, onPressed: () => _openRxForm(), icon: const Icon(Icons.add), label: const Text('Add Prescription')),
-      ),
-    ]);
-  }
-
-  Future<void> _openRxForm({Prescription? existing}) async {
-    final medCtrl = TextEditingController(text: existing?.medicineName ?? '');
-    final descCtrl = TextEditingController(text: existing?.description ?? '');
-    DateTime? start = existing?.startDate ?? DateTime.now();
-    DateTime? end = existing?.endDate;
-
-    await _bottomSheet(
-      title: existing == null ? 'Add Prescription' : 'Edit Prescription',
-      children: [
-        TextField(controller: medCtrl, decoration: const InputDecoration(labelText: 'Medicine name *', border: OutlineInputBorder())),
-        const SizedBox(height: 12),
-        TextField(controller: descCtrl, maxLines: 2, decoration: const InputDecoration(labelText: 'Description', border: OutlineInputBorder())),
-        const SizedBox(height: 12),
-        Row(children: [
-          Expanded(child: _DatePickerTile(label: 'Start *', date: start, onPick: (d) => start = d)),
-          const SizedBox(width: 12),
-          Expanded(child: _DatePickerTile(label: 'End', date: end, onPick: (d) => end = d)),
-        ]),
-        const SizedBox(height: 16),
-        _saveBtn(onPressed: () async {
-          if (medCtrl.text.trim().isEmpty || start == null) return;
-          await _controller.addOrUpdatePrescription(existing: existing, med: medCtrl.text.trim(), desc: descCtrl.text.trim().isEmpty ? null : descCtrl.text.trim(), start: start!, end: end);
-          if (!mounted) return;
-          Navigator.pop(context);
-        }),
-      ],
-    );
-  }
-
-  Future<void> _bottomSheet({required String title, required List<Widget> children}) async {
-    await showModalBottomSheet(
-      context: context,
-      isScrollControlled: true,
-      shape: const RoundedRectangleBorder(borderRadius: BorderRadius.vertical(top: Radius.circular(20))),
-      builder: (ctx) => Padding(
-        padding: EdgeInsets.only(
-          bottom: MediaQuery.of(ctx).viewInsets.bottom + 16,
-          left: 16,
-          right: 16,
-          top: 16,
-        ),
-        child: Column(mainAxisSize: MainAxisSize.min, crossAxisAlignment: CrossAxisAlignment.start, children: [
-          Text(title, style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w800)),
-          const SizedBox(height: 12),
-          ...children,
-        ]),
+          );
+        }).toList(),
       ),
     );
   }
 
-  Widget _saveBtn({required VoidCallback onPressed}) => SizedBox(
-    width: double.infinity,
-    child: ElevatedButton(
-      onPressed: onPressed,
-      style: ElevatedButton.styleFrom(backgroundColor: _primary, foregroundColor: Colors.white),
-      child: const Text('Save'),
-    ),
-  );
-}
-
-class _DatePickerTile extends StatelessWidget {
-  final String label;
-  final DateTime? date;
-  final ValueChanged<DateTime?> onPick;
-  const _DatePickerTile({required this.label, required this.date, required this.onPick});
-  @override
-  Widget build(BuildContext context) {
-    final df = DateFormat('yyyy-MM-dd');
+  Widget _datePickerField(String label, DateTime? date, Function(DateTime) onPick) {
     return InkWell(
       onTap: () async {
-        final now = DateTime.now();
         final picked = await showDatePicker(
-          context: context,
-          initialDate: date ?? now,
-          firstDate: DateTime(2000),
-          lastDate: DateTime(now.year + 10),
-          builder: (context, child) => Theme(
-            data: Theme.of(context).copyWith(colorScheme: ColorScheme.fromSeed(seedColor: const Color(0xFF842EAC))),
-            child: child!,
-          ),
-        );
-        onPick(picked);
+            context: context,
+            initialDate: date ?? DateTime.now(),
+            firstDate: DateTime(2000),
+            lastDate: DateTime(DateTime.now().year + 10));
+        if (picked != null) onPick(picked);
       },
       child: InputDecorator(
-        decoration: InputDecoration(labelText: label, border: const OutlineInputBorder()),
-        child: Text(date != null ? df.format(date!) : '—'),
+        decoration: InputDecoration(labelText: label),
+        child: Text(date != null ? _df.format(date) : '—'),
       ),
     );
   }
+
+  
 }

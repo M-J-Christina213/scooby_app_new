@@ -3,15 +3,17 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 import '../models/pet.dart';
 
 class PetService {
+  static final PetService instance = PetService();
   final SupabaseClient supabase = Supabase.instance.client;
 
+  // Fetch pets for a given user
   Future<List<Pet>> fetchPetsForUser(String userId) async {
     try {
       final ownerData = await supabase
           .from('pet_owners')
           .select('id')
           .eq('user_id', userId)
-          .single();
+          .maybeSingle();
 
       final String? petOwnerId = ownerData != null ? ownerData['id'] as String? : null;
 
@@ -33,6 +35,7 @@ class PetService {
     }
   }
 
+  // Upload pet image
   Future<String?> uploadPetImage(String userId, String filePath, String fileName) async {
     try {
       await supabase.storage
@@ -47,13 +50,14 @@ class PetService {
     }
   }
 
+  // Add a new pet
   Future<void> addPet(Pet pet, String authUserId) async {
     try {
       final ownerData = await supabase
           .from('pet_owners')
           .select('id')
           .eq('user_id', authUserId)
-          .single();
+          .maybeSingle();
 
       final String? petOwnerId = ownerData != null ? ownerData['id'] as String? : null;
 
@@ -70,13 +74,14 @@ class PetService {
     }
   }
 
+  // Update pet details
   Future<void> updatePet(Pet pet, String authUserId) async {
     try {
       final ownerData = await supabase
           .from('pet_owners')
           .select('id')
           .eq('user_id', authUserId)
-          .single();
+          .maybeSingle();
 
       final String? petOwnerId = ownerData != null ? ownerData['id'] as String? : null;
 
