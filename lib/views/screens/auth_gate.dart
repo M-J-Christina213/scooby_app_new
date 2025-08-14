@@ -23,19 +23,13 @@ class _AuthGateState extends State<AuthGate> {
 
     // Listen to changes in authentication state
     Supabase.instance.client.auth.onAuthStateChange.listen((data) {
-      final AuthChangeEvent event = data.event;
       final Session? session = data.session;
-
-      print('Auth event: $event');
-      print('Current user: ${session?.user.id ?? 'No user'}');
 
       if (!mounted) return;
 
       setState(() {
         _session = session;
       });
-
-      debugPrint("Auth event: $event");
     });
   }
 
