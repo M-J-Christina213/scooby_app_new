@@ -51,6 +51,7 @@ class _TodayAppointmentsState extends State<TodayAppointments> {
 
   @override
   Widget build(BuildContext context) {
+    
     return SafeArea(
       child: Column(
         children: [
