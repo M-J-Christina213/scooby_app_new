@@ -29,25 +29,32 @@ class _AppointmentDetailScreenState extends State<AppointmentDetailScreen> {
   }
 
   Future<void> fetchBooking() async {
-    setState(() => loading = true);
-    try {
-      final resp = await supabase
-          .from('bookings')
-          .select('id, owner_name, owner_phone, date, time, pets(*)')
-          .eq('id', widget.bookingId)
-          .maybeSingle();
+  setState(() => loading = true);
+  try {
+    final resp = await supabase
+        .from('bookings')
+        .select('id, owner_name, owner_email, owner_phone, date, time, pets(*)')
+        .eq('id', widget.bookingId)
+        .maybeSingle();
 
-      if (resp != null) {
-        booking = Map<String, dynamic>.from(resp);
-        if (booking!['pets'] != null && (booking!['pets'] as List).isNotEmpty) {
-          pet = Map<String, dynamic>.from(booking!['pets'][0]);
+    if (resp != null) {
+      booking = Map<String, dynamic>.from(resp);
+
+      // Fix for pets
+      if (booking!['pets'] != null) {
+        if (booking!['pets'] is List && (booking!['pets'] as List).isNotEmpty) {
+          pet = Map<String, dynamic>.from((booking!['pets'] as List)[0]);
+        } else if (booking!['pets'] is Map<String, dynamic>) {
+          pet = Map<String, dynamic>.from(booking!['pets']);
         }
       }
-    } catch (e) {
-      debugPrint('Error fetching booking: $e');
     }
-    setState(() => loading = false);
+  } catch (e) {
+    debugPrint('Error fetching booking: $e');
   }
+  setState(() => loading = false);
+}
+
 
   Future<void> updateBookingStatus(String status) async {
     await supabase.from('bookings').update({'status': status}).eq('id', widget.bookingId);
@@ -89,9 +96,19 @@ class _AppointmentDetailScreenState extends State<AppointmentDetailScreen> {
                               Text(
                                 booking!['owner_name'] ?? '',
                                 style: const TextStyle(
-                                    fontSize: 20, fontWeight: FontWeight.bold, color: Colors.deepPurple),
+                                    fontSize: 20,
+                                    fontWeight: FontWeight.bold,
+                                    color: Colors.deepPurple),
                               ),
                               const SizedBox(height: 8),
+                              Row(
+                                children: [
+                                  const Icon(Icons.email, color: Colors.deepPurple),
+                                  const SizedBox(width: 8),
+                                  Text(booking!['owner_email'] ?? ''),
+                                ],
+                              ),
+                              const SizedBox(height: 4),
                               Row(
                                 children: [
                                   const Icon(Icons.phone, color: Colors.deepPurple),
@@ -131,19 +148,46 @@ class _AppointmentDetailScreenState extends State<AppointmentDetailScreen> {
                           elevation: 3,
                           child: Padding(
                             padding: const EdgeInsets.all(16),
-                            child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
+                            child: Row(
                               children: [
-                                Text(
-                                  pet!['name'] ?? '',
-                                  style: const TextStyle(
-                                      fontSize: 18, fontWeight: FontWeight.bold, color: Colors.deepPurple),
+                                // Pet profile image
+                                if (pet!['image_url'] != null && pet!['image_url'] != '')
+                                  ClipRRect(
+                                    borderRadius: BorderRadius.circular(50),
+                                    child: Image.network(
+                                      pet!['image_url'],
+                                      width: 100,
+                                      height: 100,
+                                      fit: BoxFit.cover,
+                                    ),
+                                  )
+                                else
+                                  CircleAvatar(
+                                    radius: 50,
+                                    backgroundColor: Colors.grey[300],
+                                    child: const Icon(Icons.pets, size: 50, color: Colors.white),
+                                  ),
+                                const SizedBox(width: 16),
+                                // Pet details
+                                Expanded(
+                                  child: Column(
+                                    crossAxisAlignment: CrossAxisAlignment.start,
+                                    children: [
+                                      Text(
+                                        pet!['name'] ?? '',
+                                        style: const TextStyle(
+                                            fontSize: 18,
+                                            fontWeight: FontWeight.bold,
+                                            color: Colors.deepPurple),
+                                      ),
+                                      const SizedBox(height: 4),
+                                      Text('Type: ${pet!['type'] ?? '-'}'),
+                                      Text('Breed: ${pet!['breed'] ?? '-'}'),
+                                      Text('Age: ${pet!['age'] ?? '-'}'),
+                                      Text('Gender: ${pet!['gender'] ?? '-'}'),
+                                    ],
+                                  ),
                                 ),
-                                const SizedBox(height: 8),
-                                Text('Type: ${pet!['type'] ?? '-'}'),
-                                Text('Breed: ${pet!['breed'] ?? '-'}'),
-                                Text('Age: ${pet!['age'] ?? '-'}'),
-                                Text('Gender: ${pet!['gender'] ?? '-'}'),
                               ],
                             ),
                           ),
