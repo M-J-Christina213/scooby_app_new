@@ -118,9 +118,9 @@ class _PetDetailScreenModernIntegratedState extends State<PetDetailScreenModernI
         child: Container(
           padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
           decoration: BoxDecoration(
-            color: Colors.white.withAlpha(0.92 as int),
+            color: Colors.white.withAlpha((0.92 * 255).toInt()),
             borderRadius: BorderRadius.circular(16),
-            boxShadow: [BoxShadow(color: Colors.black.withAlpha(0.08 as int), blurRadius: 12, offset: const Offset(0, 6))],
+            boxShadow: [BoxShadow(color: Colors.black.withAlpha((0.08 * 255).toInt()), blurRadius: 12, offset: const Offset(0, 6))],
           ),
           child: Row(children: [
             CircleAvatar(
@@ -158,9 +158,9 @@ class _PetDetailScreenModernIntegratedState extends State<PetDetailScreenModernI
           padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
           decoration: BoxDecoration(
             color: Colors.white,
-            border: Border.all(color: _primary.withAlpha(0.12 as int)),
+            border: Border.all(color: _primary.withAlpha((0.12 * 255).toInt())),
             borderRadius: BorderRadius.circular(20),
-            boxShadow: [BoxShadow(color: Colors.black.withAlpha(0.04 as int), blurRadius: 8, offset: const Offset(0, 4))],
+            boxShadow: [BoxShadow(color: Colors.black.withAlpha((0.04*255).toInt()), blurRadius: 8, offset: const Offset(0, 4))],
           ),
           child: Row(children: [Icon(it.$1, size: 18, color: _primary), const SizedBox(width: 6), Text(it.$2, style: const TextStyle(fontWeight: FontWeight.w600))]),
         )).toList(),
