@@ -85,7 +85,7 @@ class _ServiceProviderHomeState extends State<ServiceProviderHome>
       ),
       home: Scaffold(
         appBar: AppBar(
-          backgroundColor: Colors.deepPurple,
+          backgroundColor: const Color(0xFF842EAC),
           title: const Text('Welcome to Scooby', style: TextStyle(color: Colors.white)),
           actions: [
             IconButton(

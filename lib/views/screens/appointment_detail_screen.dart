@@ -1,13 +1,18 @@
 import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
-import 'package:image_picker/image_picker.dart';
 import 'package:scooby_app_new/controllers/medical_records_controller.dart';
 import 'package:scooby_app_new/controllers/pet_service.dart';
 import 'package:scooby_app_new/models/pet.dart';
 import 'package:scooby_app_new/services/medical_record_service.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
+/// Appointment Detail Screen
+/// - Modern purple theme, rounded cards, smooth alpha transitions
+/// - Clear flow: Owner Info -> Pet Profile -> Medical Records
+/// - Pet Profile: readonly by default, edit with pen → save with check
+/// - Medical Records: 3 tabs with full CRUD. Add (+) works and persists
+/// - Fix: listens to MedicalRecordsController changes to rebuild UI after CRUD
 class AppointmentDetailScreen extends StatefulWidget {
   final String bookingId;
   final String providerEmail;
@@ -18,7 +23,6 @@ class AppointmentDetailScreen extends StatefulWidget {
     required this.bookingId,
     required this.providerEmail,
     required this.userId,
-  
   });
 
   @override
@@ -28,12 +32,13 @@ class AppointmentDetailScreen extends StatefulWidget {
 class _AppointmentDetailScreenState extends State<AppointmentDetailScreen>
     with SingleTickerProviderStateMixin {
   final supabase = Supabase.instance.client;
+
   Map<String, dynamic>? booking;
   Map<String, dynamic>? pet;
   bool loading = true;
 
   late final TabController _tabController;
-  late final MedicalRecordsController _controller;
+  MedicalRecordsController? _controller; // late after fetch
 
   late TextEditingController _weightController;
   late TextEditingController _heightController;
@@ -42,20 +47,49 @@ class _AppointmentDetailScreenState extends State<AppointmentDetailScreen>
   late TextEditingController _healthController;
   late TextEditingController _descController;
 
-  final _primary = Colors.deepPurple;
   final _df = DateFormat('yyyy-MM-dd');
   File? _imageFile;
   String? _uploadedImageUrl;
 
+  // Edit modes
+  bool _petEditMode = false; // controls editability of profile fields
   final Map<String, bool> _vaccEditing = {};
   final Map<String, bool> _checkEditing = {};
   final Map<String, bool> _rxEditing = {};
+
+  // Theme
+  static const Color _primary = Color(0xFF6C4CCE); // rich purple
+  static const Color _primaryDark = Color(0xFF4B2DBE);
+  static const Color _primaryLight = Color(0xFFEDE7FF);
+  static const Color _cardSurface = Colors.white;
 
   @override
   void initState() {
     super.initState();
     _tabController = TabController(length: 3, vsync: this);
     fetchBooking();
+  }
+
+  @override
+  void dispose() {
+    _tabController.dispose();
+    _controller?.removeListener(_onControllerChanged);
+    if (mounted) {
+      // dispose text controllers if initialized
+      try {
+        _weightController.dispose();
+        _heightController.dispose();
+        _foodController.dispose();
+        _moodController.dispose();
+        _healthController.dispose();
+        _descController.dispose();
+      } catch (_) {}
+    }
+    super.dispose();
+  }
+
+  void _onControllerChanged() {
+    if (mounted) setState(() {}); // rebuild when lists update
   }
 
   Future<void> fetchBooking() async {
@@ -77,283 +111,549 @@ class _AppointmentDetailScreenState extends State<AppointmentDetailScreen>
             pet = Map<String, dynamic>.from(booking!['pets']);
           }
 
-          _weightController = TextEditingController(text: pet!['weight'] ?? '');
-          _heightController = TextEditingController(text: pet!['height'] ?? '');
+          // Text controllers
+          _weightController = TextEditingController(
+              text: pet!['weight']?.toString() ?? '');
+          _heightController = TextEditingController(
+              text: pet!['height']?.toString() ?? '');
           _foodController = TextEditingController(text: pet!['food_preference'] ?? '');
           _moodController = TextEditingController(text: pet!['mood'] ?? '');
           _healthController = TextEditingController(text: pet!['health_status'] ?? '');
           _descController = TextEditingController(text: pet!['description'] ?? '');
 
+          // Medical controller
           _controller = MedicalRecordsController(
             service: SupabaseMedicalRecordService(supabase),
             petId: pet!['id'],
           );
-          _controller.loadAll();
+          _controller!.addListener(_onControllerChanged);
+          await _controller!.loadAll();
         }
       }
     } catch (e) {
       debugPrint('Error fetching booking: $e');
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Failed to load appointment: $e')),
+        );
+      }
+    } finally {
+      if (mounted) setState(() => loading = false);
     }
-    setState(() => loading = false);
   }
 
-  Future<void> _pickImage() async {
-    final picked = await ImagePicker().pickImage(source: ImageSource.gallery);
-    if (picked != null) {
-      setState(() => _imageFile = File(picked.path));
-    }
-  }
-
+  // ========================= Pet Profile =========================
   Future<void> _updatePetDetails() async {
-    if (_imageFile != null) {
-      final fileName =
-          'pet_${pet!['id']}_${DateTime.now().millisecondsSinceEpoch}.png';
-      final url = await PetService.instance
-          .uploadPetImage(widget.userId, _imageFile!.path, fileName);
-      if (url != null) _uploadedImageUrl = url;
-      _imageFile = null;
-    }
+    if (pet == null) return;
+    try {
+      // Upload image first if changed
+      if (_imageFile != null) {
+        final fileName = 'pet_${pet!['id']}_${DateTime.now().millisecondsSinceEpoch}.png';
+        final url = await PetService.instance
+            .uploadPetImage(widget.userId, _imageFile!.path, fileName);
+        if (url != null) _uploadedImageUrl = url;
+        _imageFile = null;
+      }
 
-    await PetService.instance.updatePet(
-      Pet(
-        id: pet!['id'],
-        userId: widget.userId,
-        name: pet!['name'],
-        type: pet!['type'],
-        breed: pet!['breed'],
-        age: pet!['age'],
-        gender: pet!['gender'],
-        color: pet!['color'],
-        weight: _weightController.text.trim().isEmpty ? null : double.tryParse(_weightController.text.trim()),
-        height: _heightController.text.trim().isEmpty ? null : double.tryParse(_heightController.text.trim()),
-        foodPreference: _foodController.text.trim().isEmpty ? null : _foodController.text.trim(),
-        mood: _moodController.text.trim().isEmpty ? null : _moodController.text.trim(),
-        healthStatus: _healthController.text.trim().isEmpty ? null : _healthController.text.trim(),
-        description: _descController.text.trim().isEmpty ? null : _descController.text.trim(),
-        imageUrl: _uploadedImageUrl ?? pet!['image_url'],
-      ),
-      widget.userId,
-    );
+      await PetService.instance.updatePet(
+        Pet(
+          id: pet!['id'],
+          userId: widget.userId,
+          name: pet!['name'],
+          type: pet!['type'],
+          breed: pet!['breed'],
+          age: pet!['age'],
+          gender: pet!['gender'],
+          color: pet!['color'],
+          weight: _weightController.text.trim().isEmpty
+              ? null
+              : double.tryParse(_weightController.text.trim()),
+          height: _heightController.text.trim().isEmpty
+              ? null
+              : double.tryParse(_heightController.text.trim()),
+          foodPreference: _foodController.text.trim().isEmpty
+              ? null
+              : _foodController.text.trim(),
+          mood: _moodController.text.trim().isEmpty
+              ? null
+              : _moodController.text.trim(),
+          healthStatus: _healthController.text.trim().isEmpty
+              ? null
+              : _healthController.text.trim(),
+          description: _descController.text.trim().isEmpty
+              ? null
+              : _descController.text.trim(),
+          imageUrl: _uploadedImageUrl ?? pet!['image_url'],
+        ),
+        widget.userId,
+      );
+
+      // Refresh local pet map
+      pet = Map<String, dynamic>.from(pet!);
+      pet!['image_url'] = _uploadedImageUrl ?? pet!['image_url'];
+
+      if (mounted) {
+        setState(() => _petEditMode = false);
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Pet details saved')),
+        );
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Failed to save pet details: $e')),
+        );
+      }
+    }
   }
 
+  // ========================= Build =========================
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: Colors.grey[100],
+      backgroundColor: const Color(0xFFF5F5FB),
       appBar: AppBar(
         title: const Text('Appointment Details'),
         backgroundColor: _primary,
-        elevation: 2,
+        elevation: 6,
+        shadowColor: _primary..withValues(alpha: 0.5),
       ),
       body: loading
           ? const Center(child: CircularProgressIndicator())
           : booking == null || pet == null
               ? const Center(child: Text('Booking or Pet not found'))
-              : SingleChildScrollView(
-                  padding: const EdgeInsets.all(16),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.stretch,
-                    children: [
-                      _ownerInfoCard(),
-                      const SizedBox(height: 16),
-                      _petInfoCard(),
-                      const SizedBox(height: 24),
-                      _medicalRecordsInline(),
-                    ],
+              : AnimatedSwitcher(
+                  duration: const Duration(milliseconds: 250),
+                  child: SingleChildScrollView(
+                    key: ValueKey('loaded-${booking!['id']}'),
+                    padding: const EdgeInsets.all(16),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.stretch,
+                      children: [
+                        _sectionTitle('Pet Owner Info', Icons.person_outline),
+                        const SizedBox(height: 8),
+                        _ownerInfoCard(),
+                        const SizedBox(height: 20),
+                        _sectionTitle('Pet Profile', Icons.pets_outlined),
+                        const SizedBox(height: 8),
+                        _petInfoCard(),
+                        const SizedBox(height: 24),
+                        _sectionTitle('Medical Records', Icons.health_and_safety_outlined),
+                        const SizedBox(height: 8),
+                        _medicalRecordsCard(),
+                        const SizedBox(height: 88), // space for FAB
+                      ],
+                    ),
                   ),
                 ),
-      floatingActionButton: 
-           FloatingActionButton(
-              backgroundColor: _primary,
-              onPressed: _addMedicalRecord,
-              child: const Icon(Icons.add, color: Colors.white),
+      floatingActionButton: (_controller != null)
+          ? AnimatedBuilder(
+              animation: _tabController,
+              builder: (_, __) => _fabForTab(_tabController.index),
             )
-           
+          : null,
     );
   }
 
-  Widget _ownerInfoCard() {
-    return Card(
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-      elevation: 4,
-      child: Padding(
-        padding: const EdgeInsets.all(16),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text(booking!['owner_name'] ?? '',
-                style: TextStyle(
-                    fontSize: 20, fontWeight: FontWeight.bold, color: _primary)),
-            const SizedBox(height: 8),
-            _infoRow(Icons.email, booking!['owner_email']),
-            _infoRow(Icons.phone, booking!['owner_phone']),
-            _infoRow(Icons.calendar_today,
-                booking!['date'] != null ? DateFormat.yMMMd().format(DateTime.parse(booking!['date'])) : ''),
-            _infoRow(Icons.access_time, booking!['time']),
-          ],
+  // ========================= UI Pieces =========================
+  Widget _sectionTitle(String title, IconData icon) {
+    return Row(
+      children: [
+        Container(
+          decoration: BoxDecoration(
+            gradient: const LinearGradient(colors: [_primary, _primaryDark]),
+            borderRadius: BorderRadius.circular(10),
+          ),
+          padding: const EdgeInsets.all(8),
+          child: const Icon(Icons.star, color: Colors.white, size: 18),
         ),
+        const SizedBox(width: 10),
+        Text(
+          title,
+          style: const TextStyle(
+            fontSize: 18,
+            fontWeight: FontWeight.w800,
+          ),
+        ),
+      ],
+    );
+  }
+
+  BoxDecoration get _cardDecoration => BoxDecoration(
+        color: _cardSurface,
+        borderRadius: BorderRadius.circular(18),
+        boxShadow: [
+          BoxShadow(
+            color: _primary..withValues(alpha: 0.08),
+            blurRadius: 16,
+            offset: const Offset(0, 8),
+          ),
+        ],
+      );
+
+  Widget _ownerInfoCard() {
+    return AnimatedContainer(
+      duration: const Duration(milliseconds: 300),
+      curve: Curves.easeOut,
+      decoration: _cardDecoration,
+      padding: const EdgeInsets.all(16),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              _avatarBadge(Icons.person_outline),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      booking!['owner_name'] ?? '-',
+                      style: const TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
+                    ),
+                    const SizedBox(height: 4),
+                    _chip('Date', booking!['date'] != null
+                        ? DateFormat.yMMMd().format(DateTime.parse(booking!['date']))
+                        : '—'),
+                    const SizedBox(height: 6),
+                  ],
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 12),
+          _infoRow(Icons.email_outlined, booking!['owner_email']),
+          _infoRow(Icons.phone_outlined, booking!['owner_phone']),
+          _infoRow(Icons.access_time, booking!['time']),
+        ],
+      ),
+    );
+  }
+
+  Widget _avatarBadge(IconData icon) {
+    return Container(
+      width: 44,
+      height: 44,
+      decoration: BoxDecoration(
+        gradient: const LinearGradient(colors: [_primary, _primaryDark]),
+        borderRadius: BorderRadius.circular(12),
+      ),
+      child: Icon(icon, color: Colors.white),
+    );
+  }
+
+  Widget _chip(String label, String value) {
+    return Container(
+      decoration: BoxDecoration(
+        color: _primaryLight,
+        borderRadius: BorderRadius.circular(12),
+      ),
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Text(label, style: const TextStyle(fontWeight: FontWeight.w700)),
+          const SizedBox(width: 6),
+          Text(value),
+        ],
       ),
     );
   }
 
   Widget _infoRow(IconData icon, String? text) {
     return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 2),
+      padding: const EdgeInsets.symmetric(vertical: 4),
       child: Row(
         children: [
           Icon(icon, color: _primary, size: 20),
           const SizedBox(width: 8),
-          Text(text ?? '-', style: const TextStyle(fontSize: 15)),
+          Expanded(child: Text(text ?? '-', style: const TextStyle(fontSize: 15))),
         ],
       ),
     );
   }
 
   Widget _petInfoCard() {
-    return Card(
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-      elevation: 4,
-      child: Padding(
-        padding: const EdgeInsets.all(16),
-        child: Column(
-          children: [
-            Row(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Stack(
+    final imgProvider = _imageFile != null
+        ? FileImage(_imageFile!) as ImageProvider
+        : (pet!['image_url'] != null ? NetworkImage(pet!['image_url']) : null);
+
+    return AnimatedContainer(
+      duration: const Duration(milliseconds: 300),
+      curve: Curves.easeOut,
+      decoration: _cardDecoration,
+      padding: const EdgeInsets.all(16),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Hero(
+                tag: 'pet-${pet!['id']}',
+                child: Stack(
                   children: [
                     CircleAvatar(
-                      radius: 45,
-                      backgroundColor: Colors.grey[200],
-                      backgroundImage: _imageFile != null
-                          ? FileImage(_imageFile!)
-                          : (pet!['image_url'] != null
-                              ? NetworkImage(pet!['image_url'])
-                              : null) as ImageProvider<Object>?,
-                      child: pet!['image_url'] == null && _imageFile == null
-                          ? Icon(Icons.pets, color: _primary, size: 40)
+                      radius: 46,
+                      backgroundColor: _primaryLight,
+                      backgroundImage: imgProvider,
+                      child: imgProvider == null
+                          ? const Icon(Icons.pets, color: _primary, size: 36)
                           : null,
                     ),
-                  
-                      Positioned(
-                        bottom: -2,
-                        right: -2,
-                        child: GestureDetector(
-                          onTap: _pickImage,
-                          child: CircleAvatar(
-                            radius: 16,
-                            backgroundColor: _primary,
-                            child: const Icon(Icons.camera_alt,
-                                size: 16, color: Colors.white),
+                    Positioned(
+                      bottom: -2,
+                      right: -2,
+                      child: GestureDetector(
+                        
+                        child: Container(
+                          decoration: BoxDecoration(
+                            gradient: const LinearGradient(colors: [_primary, _primaryDark]),
+                            shape: BoxShape.circle,
                           ),
+                          padding: const EdgeInsets.all(8),
+                          child: const Icon(Icons.camera_alt, size: 16, color: Colors.white),
                         ),
                       ),
+                    ),
                   ],
                 ),
-                const SizedBox(width: 16),
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(pet!['name'] ?? '',
-                          style: TextStyle(
-                              fontSize: 18,
-                              fontWeight: FontWeight.bold,
-                              color: _primary)),
-                      const SizedBox(height: 4),
-                      Text('Type: ${pet!['type'] ?? '-'}'),
-                      Text('Breed: ${pet!['breed'] ?? '-'}'),
-                      Text('Age: ${pet!['age'] ?? '-'}'),
-                      Text('Gender: ${pet!['gender'] ?? '-'}'),
-                      Text('Color: ${pet!['color'] ?? '-'}'),
-                    ],
-                  ),
-                )
-              ],
-            ),
-            const Divider(height: 24),
-         
-              _editableRow('Weight', _weightController),
-              _editableRow('Height', _heightController),
-              _editableRow('Food Preference', _foodController),
-              _editableRow('Mood', _moodController),
-              _editableRow('Health Status', _healthController),
-              _editableRow('Description', _descController),
-              const SizedBox(height: 8),
-              ElevatedButton(
-                onPressed: _updatePetDetails,
-                style: ElevatedButton.styleFrom(
-                    backgroundColor: _primary,
-                    shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(12))),
-                child: const Text('Save Pet Details'),
+              ),
+              const SizedBox(width: 16),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      pet!['name'] ?? '-',
+                      style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w800),
+                    ),
+                    const SizedBox(height: 6),
+                    Wrap(
+                      spacing: 10,
+                      runSpacing: 6,
+                      children: [
+                        _mini(label: 'Type', value: pet!['type']),
+                        _mini(label: 'Breed', value: pet!['breed']),
+                        _mini(label: 'Age', value: pet!['age']?.toString()),
+                        _mini(label: 'Gender', value: pet!['gender']),
+                        _mini(label: 'Color', value: pet!['color']),
+                      ],
+                    ),
+                  ],
+                ),
+              ),
+              // Edit toggle
+              _editIconButton(
+                active: _petEditMode,
+                onEdit: () => setState(() => _petEditMode = true),
+                onSave: _updatePetDetails,
+                onCancel: () => setState(() => _petEditMode = false),
               ),
             ],
-          
-        ),
+          ),
+          const SizedBox(height: 14),
+          const Divider(height: 24),
+          AnimatedCrossFade(
+            duration: const Duration(milliseconds: 220),
+            crossFadeState: _petEditMode ? CrossFadeState.showSecond : CrossFadeState.showFirst,
+            firstChild: _petReadonlyFields(),
+            secondChild: _petEditableFields(),
+          ),
+        ],
       ),
     );
   }
 
-  Widget _editableRow(String label, TextEditingController controller) {
+  Widget _mini({required String label, String? value}) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+      decoration: BoxDecoration(
+        color: _primaryLight,
+        borderRadius: BorderRadius.circular(10),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Text('$label: ', style: const TextStyle(fontWeight: FontWeight.w700)),
+          Text(value?.toString() ?? '—'),
+        ],
+      ),
+    );
+  }
+
+  Widget _editIconButton({
+    required bool active,
+    required VoidCallback onEdit,
+    required VoidCallback onSave,
+    required VoidCallback onCancel,
+  }) {
+    return Row(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        if (!active)
+          IconButton(
+            tooltip: 'Edit',
+            icon: const Icon(Icons.edit, color: _primary),
+            onPressed: onEdit,
+          ),
+        if (active) ...[
+          IconButton(
+            tooltip: 'Save',
+            icon: const Icon(Icons.check_circle, color: Colors.green),
+            onPressed: onSave,
+          ),
+          IconButton(
+            tooltip: 'Cancel',
+            icon: const Icon(Icons.cancel, color: Colors.redAccent),
+            onPressed: onCancel,
+          ),
+        ]
+      ],
+    );
+  }
+
+  // Read-only layout for pet editable fields
+  Widget _petReadonlyFields() {
+    final tiles = <Widget>[
+      _kv('Weight', _weightController.text.isEmpty ? '—' : _weightController.text),
+      _kv('Height', _heightController.text.isEmpty ? '—' : _heightController.text),
+      _kv('Food Preference', _foodController.text.isEmpty ? '—' : _foodController.text),
+      _kv('Mood', _moodController.text.isEmpty ? '—' : _moodController.text),
+      _kv('Health Status', _healthController.text.isEmpty ? '—' : _healthController.text),
+      _kv('Description', _descController.text.isEmpty ? '—' : _descController.text),
+    ];
+
+    return Column(children: tiles.map((w) => Padding(padding: const EdgeInsets.symmetric(vertical: 6), child: w)).toList());
+  }
+
+  Widget _kv(String label, String value) {
+    return Container(
+      decoration: BoxDecoration(
+        color: const Color(0xFFF7F4FF),
+        borderRadius: BorderRadius.circular(12),
+      ),
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
+      child: Row(
+        children: [
+          SizedBox(width: 140, child: Text(label, style: const TextStyle(fontWeight: FontWeight.w700))),
+          const SizedBox(width: 8),
+          Expanded(child: Text(value)),
+        ],
+      ),
+    );
+  }
+
+  // Editable layout for pet fields
+  Widget _petEditableFields() {
+    return Column(
+      children: [
+        _editableRow('Weight (kg)', _weightController, keyboard: TextInputType.numberWithOptions(decimal: true)),
+        _editableRow('Height (cm)', _heightController, keyboard: TextInputType.numberWithOptions(decimal: true)),
+        _editableRow('Food Preference', _foodController),
+        _editableRow('Mood', _moodController),
+        _editableRow('Health Status', _healthController),
+        _editableRow('Description', _descController, maxLines: 3),
+        const SizedBox(height: 6),
+      ],
+    );
+  }
+
+  Widget _editableRow(String label, TextEditingController controller, {TextInputType? keyboard, int maxLines = 1}) {
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: 6),
       child: TextField(
         controller: controller,
+        keyboardType: keyboard,
+        maxLines: maxLines,
         decoration: InputDecoration(
           labelText: label,
+          filled: true,
+          fillColor: const Color(0xFFF7F4FF),
           border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+          enabledBorder: OutlineInputBorder(
+            borderRadius: BorderRadius.circular(12),
+            borderSide: const BorderSide(color: _primaryLight),
+          ),
+          focusedBorder: OutlineInputBorder(
+            borderRadius: BorderRadius.circular(12),
+            borderSide: const BorderSide(color: _primaryDark, width: 1.5),
+          ),
         ),
       ),
     );
   }
 
-  // Your medical records inline widget remains same
-  Widget _medicalRecordsInline() {
-    return Card(
-      elevation: 4,
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-      child: Padding(
-        padding: const EdgeInsets.all(12),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Row(children: [
-              Icon(Icons.health_and_safety, color: _primary),
-              const SizedBox(width: 8),
-              const Text('Medical Records',
-                  style: TextStyle(fontSize: 16, fontWeight: FontWeight.w800)),
-            ]),
-            const SizedBox(height: 8),
-            TabBar(
+  // ========================= Medical Records =========================
+  Widget _medicalRecordsCard() {
+    final controller = _controller!;
+
+    return Container(
+      decoration: _cardDecoration,
+      padding: const EdgeInsets.all(12),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          _tabHeader(),
+          const SizedBox(height: 12),
+          SizedBox(
+            height: 480,
+            child: TabBarView(
               controller: _tabController,
-              labelColor: _primary,
-              indicatorColor: _primary,
-              unselectedLabelColor: Colors.grey,
-              tabs: const [
-                Tab(text: 'Vaccinations'),
-                Tab(text: 'Checkups'),
-                Tab(text: 'Prescriptions'),
+              children: [
+                _vaccinationsTabInline(controller),
+                _checkupsTabInline(controller),
+                _prescriptionsTabInline(controller),
               ],
             ),
-            SizedBox(
-              height: 450,
-              child: TabBarView(
-                controller: _tabController,
-                children: [
-                  _vaccinationsTabInline(),
-                  _checkupsTabInline(),
-                  _prescriptionsTabInline(),
-                ],
-              ),
-            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _tabHeader() {
+    return Container(
+      decoration: BoxDecoration(
+        color: _primaryLight,
+        borderRadius: BorderRadius.circular(14),
+      ),
+      padding: const EdgeInsets.all(6),
+      child: TabBar(
+        controller: _tabController,
+        labelColor: Colors.white,
+        unselectedLabelColor: _primaryDark,
+        indicator: BoxDecoration(
+          borderRadius: BorderRadius.circular(10),
+          gradient: const LinearGradient(colors: [_primary, _primaryDark]),
+          boxShadow: [
+            BoxShadow(color: _primary..withValues(alpha: 0.3), blurRadius: 8, offset: Offset(0, 4)),
           ],
         ),
+        tabs: const [
+          Tab(text: 'Vaccinations'),
+          Tab(text: 'Checkups'),
+          Tab(text: 'Prescriptions'),
+        ],
+      ),
+    );
+  }
+
+  Widget _fabForTab(int index) {
+    final labels = ['Add Vaccination', 'Add Checkup', 'Add Prescription'];
+    return Tooltip(
+      message: labels[index],
+      child: FloatingActionButton(
+        backgroundColor: _primary,
+        onPressed: _addMedicalRecord,
+        child: const Icon(Icons.add, color: Colors.white),
       ),
     );
   }
 
   void _addMedicalRecord() async {
+    if (_controller == null) return;
     final index = _tabController.index;
 
     final nameCtrl = TextEditingController();
@@ -417,35 +717,40 @@ class _AppointmentDetailScreenState extends State<AppointmentDetailScreen>
             ElevatedButton(
               style: ElevatedButton.styleFrom(backgroundColor: _primary),
               onPressed: () async {
-                if (index == 0) {
-                  await _controller.addOrUpdateVaccination(
-                    existing: null,
-                    name: nameCtrl.text.trim(),
-                    desc: descCtrl.text.trim().isEmpty ? null : descCtrl.text.trim(),
-                    dateGiven: date1 ?? DateTime.now(),
-                    nextDue: date2,
-                  );
-                } else if (index == 1) {
-                  await _controller.addOrUpdateCheckup(
-                    existing: null,
-                    reason: nameCtrl.text.trim(),
-                    desc: descCtrl.text.trim().isEmpty ? null : descCtrl.text.trim(),
-                    date: date1 ?? DateTime.now(),
-                  );
-                } else if (index == 2) {
-                  await _controller.addOrUpdatePrescription(
-                    existing: null,
-                    med: nameCtrl.text.trim(),
-                    desc: descCtrl.text.trim().isEmpty ? null : descCtrl.text.trim(),
-                    start: date1 ?? DateTime.now(),
-                    end: date2,
-                  );
+                try {
+                  if (index == 0) {
+                    await _controller!.addOrUpdateVaccination(
+                      existing: null,
+                      name: nameCtrl.text.trim(),
+                      desc: descCtrl.text.trim().isEmpty ? null : descCtrl.text.trim(),
+                      dateGiven: date1 ?? DateTime.now(),
+                      nextDue: date2,
+                    );
+                  } else if (index == 1) {
+                    await _controller!.addOrUpdateCheckup(
+                      existing: null,
+                      reason: nameCtrl.text.trim(),
+                      desc: descCtrl.text.trim().isEmpty ? null : descCtrl.text.trim(),
+                      date: date1 ?? DateTime.now(),
+                    );
+                  } else if (index == 2) {
+                    await _controller!.addOrUpdatePrescription(
+                      existing: null,
+                      med: nameCtrl.text.trim(),
+                      desc: descCtrl.text.trim().isEmpty ? null : descCtrl.text.trim(),
+                      start: date1 ?? DateTime.now(),
+                      end: date2,
+                    );
+                  }
+
+                  if (mounted) Navigator.pop(context);
+                } catch (e) {
+                  if (mounted) {
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      SnackBar(content: Text('Failed to save: $e')),
+                    );
+                  }
                 }
-
-                await _controller.loadAll();
-
-                if (!mounted) return;
-                Navigator.pop(context);
               },
               child: const Text('Save', style: TextStyle(color: Colors.white)),
             ),
@@ -455,257 +760,287 @@ class _AppointmentDetailScreenState extends State<AppointmentDetailScreen>
     );
   }
 
-  // === Tab Widgets ===
-  Widget _vaccinationsTabInline() => _controller.vaccinations.isEmpty
-      ? const Center(child: Text('No vaccinations found'))
-      : SingleChildScrollView(
-          child: Column(
-            children: _controller.vaccinations.map((v) {
-              final nameCtrl = TextEditingController(text: v.vaccinationName);
-              final descCtrl = TextEditingController(text: v.description ?? '');
-              DateTime? dateGiven = v.dateGiven;
-              DateTime? nextDue = v.nextDueDate;
-              bool editing = _vaccEditing[v.id] ?? false;
+  // === Tabs ===
+  Widget _vaccinationsTabInline(MedicalRecordsController controller) {
+    if (controller.loadingVacc) {
+      return const Center(child: CircularProgressIndicator());
+    }
+    if (controller.vaccinations.isEmpty) {
+      return const Center(child: Text('No vaccinations found'));
+    }
 
-              return Card(
-                margin: const EdgeInsets.symmetric(vertical: 6),
-                child: ListTile(
-                  title: editing
-                      ? TextField(
-                          controller: nameCtrl,
-                          decoration: const InputDecoration(labelText: 'Name'))
-                      : Text(v.vaccinationName),
-                  subtitle: editing
-                      ? Column(
-                          children: [
-                            TextField(
-                                controller: descCtrl,
-                                decoration: const InputDecoration(
-                                    labelText: 'Description')),
-                            const SizedBox(height: 8),
-                            Row(
-                              children: [
-                                Expanded(
-                                    child: _datePickerField(
-                                        'Date Given', dateGiven, (d) {
-                                  setState(() => dateGiven = d);
-                                })),
-                                const SizedBox(width: 12),
-                                Expanded(
-                                    child: _datePickerField(
-                                        'Next Due', nextDue, (d) {
-                                  setState(() => nextDue = d);
-                                })),
-                              ],
-                            )
-                          ],
-                        )
-                      : Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Text(
-                                '${_df.format(v.dateGiven)} - Next: ${v.nextDueDate != null ? _df.format(v.nextDueDate!) : '—'}'),
-                            if (v.description != null && v.description!.isNotEmpty)
-                              Text(v.description!,
-                                  style: TextStyle(
-                                      fontSize: 12,
-                                      color: Colors.grey.shade600)),
-                          ],
-                        ),
-                  trailing: Row(mainAxisSize: MainAxisSize.min, children: [
-                    if (!editing)
-                      IconButton(
-                          icon: const Icon(Icons.edit),
-                          onPressed: () =>
-                              setState(() => _vaccEditing[v.id] = true)),
-                    if (editing)
-                      IconButton(
-                          icon: const Icon(Icons.check),
-                          onPressed: () async {
-                            await _controller.addOrUpdateVaccination(
-                              existing: v,
-                              name: nameCtrl.text.trim(),
-                              desc: descCtrl.text.trim().isEmpty
-                                  ? null
-                                  : descCtrl.text.trim(),
-                              dateGiven: dateGiven!,
-                              nextDue: nextDue,
-                            );
-                            setState(() => _vaccEditing[v.id] = false);
-                          }),
-                    if (editing)
-                      IconButton(
-                          icon: const Icon(Icons.close),
-                          onPressed: () =>
-                              setState(() => _vaccEditing[v.id] = false)),
-                    IconButton(
-                        icon: const Icon(Icons.delete),
-                        onPressed: () async =>
-                            await _controller.deleteVaccination(v.id)),
-                  ]),
+    return SingleChildScrollView(
+      child: Column(
+        children: controller.vaccinations.map((v) {
+          final nameCtrl = TextEditingController(text: v.vaccinationName);
+          final descCtrl = TextEditingController(text: v.description ?? '');
+          DateTime? dateGiven = v.dateGiven;
+          DateTime? nextDue = v.nextDueDate;
+          bool editing = _vaccEditing[v.id] ?? false;
+
+          return Container(
+            margin: const EdgeInsets.symmetric(vertical: 6),
+            decoration: BoxDecoration(
+              color: Colors.white,
+              borderRadius: BorderRadius.circular(14),
+              border: Border.all(color: _primaryLight),
+            ),
+            child: ListTile(
+              title: editing
+                  ? TextField(
+                      controller: nameCtrl,
+                      decoration: const InputDecoration(labelText: 'Name'))
+                  : Text(v.vaccinationName, style: const TextStyle(fontWeight: FontWeight.w700)),
+              subtitle: AnimatedCrossFade(
+                duration: const Duration(milliseconds: 180),
+                crossFadeState: editing ? CrossFadeState.showSecond : CrossFadeState.showFirst,
+                firstChild: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text('${_df.format(v.dateGiven)}  ·  Next: ${v.nextDueDate != null ? _df.format(v.nextDueDate!) : '—'}'),
+                    if ((v.description ?? '').isNotEmpty)
+                      Padding(
+                        padding: const EdgeInsets.only(top: 4),
+                        child: Text(v.description!, style: TextStyle(fontSize: 12, color: Colors.grey.shade700)),
+                      ),
+                  ],
                 ),
-              );
-            }).toList(),
-          ),
-        );
-
-  Widget _checkupsTabInline() => _controller.checkups.isEmpty
-      ? const Center(child: Text('No checkups found'))
-      : SingleChildScrollView(
-          child: Column(
-            children: _controller.checkups.map((c) {
-              final reasonCtrl = TextEditingController(text: c.reason);
-              final descCtrl = TextEditingController(text: c.description ?? '');
-              DateTime date = c.date;
-              bool editing = _checkEditing[c.id] ?? false;
-
-              return Card(
-                margin: const EdgeInsets.symmetric(vertical: 6),
-                child: ListTile(
-                  title: editing
-                      ? TextField(
-                          controller: reasonCtrl,
-                          decoration: const InputDecoration(labelText: 'Reason'))
-                      : Text(c.reason),
-                  subtitle: editing
-                      ? Column(
-                          children: [
-                            TextField(
-                                controller: descCtrl,
-                                decoration: const InputDecoration(
-                                    labelText: 'Description')),
-                            const SizedBox(height: 8),
-                            _datePickerField('Date', date, (d) => setState(() => date = d)),
-                          ],
-                        )
-                      : Text(_df.format(c.date)),
-                  trailing: Row(mainAxisSize: MainAxisSize.min, children: [
-                    if (!editing)
-                      IconButton(
-                          icon: const Icon(Icons.edit),
-                          onPressed: () =>
-                              setState(() => _checkEditing[c.id] = true)),
-                    if (editing)
-                      IconButton(
-                          icon: const Icon(Icons.check),
-                          onPressed: () async {
-                            await _controller.addOrUpdateCheckup(
-                              existing: c,
-                              reason: reasonCtrl.text.trim(),
-                              desc: descCtrl.text.trim().isEmpty
-                                  ? null
-                                  : descCtrl.text.trim(),
-                              date: date,
-                            );
-                            setState(() => _checkEditing[c.id] = false);
-                          }),
-                    if (editing)
-                      IconButton(
-                          icon: const Icon(Icons.close),
-                          onPressed: () =>
-                              setState(() => _checkEditing[c.id] = false)),
-                    IconButton(
-                        icon: const Icon(Icons.delete),
-                        onPressed: () async =>
-                            await _controller.deleteCheckup(c.id)),
-                  ]),
+                secondChild: Column(
+                  children: [
+                    TextField(
+                      controller: descCtrl,
+                      decoration: const InputDecoration(labelText: 'Description'),
+                    ),
+                    const SizedBox(height: 8),
+                    Row(
+                      children: [
+                        Expanded(child: _datePickerField('Date Given', dateGiven, (d) => setState(() => dateGiven = d))),
+                        const SizedBox(width: 12),
+                        Expanded(child: _datePickerField('Next Due', nextDue, (d) => setState(() => nextDue = d))),
+                      ],
+                    )
+                  ],
                 ),
-              );
-            }).toList(),
-          ),
-        );
+              ),
+              trailing: _rowActions(
+                editing: editing,
+                onEdit: () => setState(() => _vaccEditing[v.id] = true),
+                onSave: () async {
+                  await controller.addOrUpdateVaccination(
+                    existing: v,
+                    name: nameCtrl.text.trim(),
+                    desc: descCtrl.text.trim().isEmpty ? null : descCtrl.text.trim(),
+                    dateGiven: dateGiven!,
+                    nextDue: nextDue,
+                  );
+                  setState(() => _vaccEditing[v.id] = false);
+                },
+                onCancel: () => setState(() => _vaccEditing[v.id] = false),
+                onDelete: () async => controller.deleteVaccination(v.id),
+              ),
+            ),
+          );
+        }).toList(),
+      ),
+    );
+  }
 
-  Widget _prescriptionsTabInline() => _controller.prescriptions.isEmpty
-      ? const Center(child: Text('No prescriptions found'))
-      : SingleChildScrollView(
-          child: Column(
-            children: _controller.prescriptions.map((p) {
-              final medCtrl = TextEditingController(text: p.medicineName);
-              final descCtrl = TextEditingController(text: p.description ?? '');
-              DateTime start = p.startDate;
-              DateTime? end = p.endDate;
-              bool editing = _rxEditing[p.id] ?? false;
+  Widget _checkupsTabInline(MedicalRecordsController controller) {
+    if (controller.loadingCheck) {
+      return const Center(child: CircularProgressIndicator());
+    }
+    if (controller.checkups.isEmpty) {
+      return const Center(child: Text('No checkups found'));
+    }
 
-              return Card(
-                margin: const EdgeInsets.symmetric(vertical: 6),
-                child: ListTile(
-                  title: editing
-                      ? TextField(
-                          controller: medCtrl,
-                          decoration: const InputDecoration(labelText: 'Medicine'))
-                      : Text(p.medicineName),
-                  subtitle: editing
-                      ? Column(
-                          children: [
-                            TextField(
-                                controller: descCtrl,
-                                decoration: const InputDecoration(
-                                    labelText: 'Description')),
-                            const SizedBox(height: 8),
-                            Row(
-                              children: [
-                                Expanded(
-                                    child: _datePickerField('Start', start,
-                                        (d) => setState(() => start = d))),
-                                const SizedBox(width: 12),
-                                Expanded(
-                                    child: _datePickerField('End', end,
-                                        (d) => setState(() => end = d))),
-                              ],
-                            )
-                          ],
-                        )
-                      : Text(
-                          '${_df.format(p.startDate)} - End: ${p.endDate != null ? _df.format(p.endDate!) : '—'}'),
-                  trailing: Row(mainAxisSize: MainAxisSize.min, children: [
-                    if (!editing)
-                      IconButton(
-                          icon: const Icon(Icons.edit),
-                          onPressed: () =>
-                              setState(() => _rxEditing[p.id] = true)),
-                    if (editing)
-                      IconButton(
-                          icon: const Icon(Icons.check),
-                          onPressed: () async {
-                            await _controller.addOrUpdatePrescription(
-                              existing: p,
-                              med: medCtrl.text.trim(),
-                              desc: descCtrl.text.trim().isEmpty
-                                  ? null
-                                  : descCtrl.text.trim(),
-                              start: start,
-                              end: end,
-                            );
-                            setState(() => _rxEditing[p.id] = false);
-                          }),
-                    if (editing)
-                      IconButton(
-                          icon: const Icon(Icons.close),
-                          onPressed: () =>
-                              setState(() => _rxEditing[p.id] = false)),
-                    IconButton(
-                        icon: const Icon(Icons.delete),
-                        onPressed: () async =>
-                            await _controller.deletePrescription(p.id)),
-                  ]),
+    return SingleChildScrollView(
+      child: Column(
+        children: controller.checkups.map((c) {
+          final reasonCtrl = TextEditingController(text: c.reason);
+          final descCtrl = TextEditingController(text: c.description ?? '');
+          DateTime date = c.date;
+          bool editing = _checkEditing[c.id] ?? false;
+
+          return Container(
+            margin: const EdgeInsets.symmetric(vertical: 6),
+            decoration: BoxDecoration(
+              color: Colors.white,
+              borderRadius: BorderRadius.circular(14),
+              border: Border.all(color: _primaryLight),
+            ),
+            child: ListTile(
+              title: editing
+                  ? TextField(
+                      controller: reasonCtrl,
+                      decoration: const InputDecoration(labelText: 'Reason'))
+                  : Text(c.reason, style: const TextStyle(fontWeight: FontWeight.w700)),
+              subtitle: AnimatedCrossFade(
+                duration: const Duration(milliseconds: 180),
+                crossFadeState: editing ? CrossFadeState.showSecond : CrossFadeState.showFirst,
+                firstChild: Text(_df.format(c.date)),
+                secondChild: Column(
+                  children: [
+                    TextField(
+                      controller: descCtrl,
+                      decoration: const InputDecoration(labelText: 'Description'),
+                    ),
+                    const SizedBox(height: 8),
+                    _datePickerField('Date', date, (d) => setState(() => date = d)),
+                  ],
                 ),
-              );
-            }).toList(),
-          ),
-        );
+              ),
+              trailing: _rowActions(
+                editing: editing,
+                onEdit: () => setState(() => _checkEditing[c.id] = true),
+                onSave: () async {
+                  await controller.addOrUpdateCheckup(
+                    existing: c,
+                    reason: reasonCtrl.text.trim(),
+                    desc: descCtrl.text.trim().isEmpty ? null : descCtrl.text.trim(),
+                    date: date,
+                  );
+                  setState(() => _checkEditing[c.id] = false);
+                },
+                onCancel: () => setState(() => _checkEditing[c.id] = false),
+                onDelete: () async => controller.deleteCheckup(c.id),
+              ),
+            ),
+          );
+        }).toList(),
+      ),
+    );
+  }
+
+  Widget _prescriptionsTabInline(MedicalRecordsController controller) {
+    if (controller.loadingRx) {
+      return const Center(child: CircularProgressIndicator());
+    }
+    if (controller.prescriptions.isEmpty) {
+      return const Center(child: Text('No prescriptions found'));
+    }
+
+    return SingleChildScrollView(
+      child: Column(
+        children: controller.prescriptions.map((p) {
+          final medCtrl = TextEditingController(text: p.medicineName);
+          final descCtrl = TextEditingController(text: p.description ?? '');
+          DateTime start = p.startDate;
+          DateTime? end = p.endDate;
+          bool editing = _rxEditing[p.id] ?? false;
+
+          return Container(
+            margin: const EdgeInsets.symmetric(vertical: 6),
+            decoration: BoxDecoration(
+              color: Colors.white,
+              borderRadius: BorderRadius.circular(14),
+              border: Border.all(color: _primaryLight),
+            ),
+            child: ListTile(
+              title: editing
+                  ? TextField(
+                      controller: medCtrl,
+                      decoration: const InputDecoration(labelText: 'Medicine'))
+                  : Text(p.medicineName, style: const TextStyle(fontWeight: FontWeight.w700)),
+              subtitle: AnimatedCrossFade(
+                duration: const Duration(milliseconds: 180),
+                crossFadeState: editing ? CrossFadeState.showSecond : CrossFadeState.showFirst,
+                firstChild: Text('${_df.format(p.startDate)}  ·  End: ${p.endDate != null ? _df.format(p.endDate!) : '—'}'),
+                secondChild: Column(
+                  children: [
+                    TextField(
+                      controller: descCtrl,
+                      decoration: const InputDecoration(labelText: 'Description'),
+                    ),
+                    const SizedBox(height: 8),
+                    Row(
+                      children: [
+                        Expanded(child: _datePickerField('Start', start, (d) => setState(() => start = d))),
+                        const SizedBox(width: 12),
+                        Expanded(child: _datePickerField('End', end, (d) => setState(() => end = d))),
+                      ],
+                    )
+                  ],
+                ),
+              ),
+              trailing: _rowActions(
+                editing: editing,
+                onEdit: () => setState(() => _rxEditing[p.id] = true),
+                onSave: () async {
+                  await controller.addOrUpdatePrescription(
+                    existing: p,
+                    med: medCtrl.text.trim(),
+                    desc: descCtrl.text.trim().isEmpty ? null : descCtrl.text.trim(),
+                    start: start,
+                    end: end,
+                  );
+                  setState(() => _rxEditing[p.id] = false);
+                },
+                onCancel: () => setState(() => _rxEditing[p.id] = false),
+                onDelete: () async => controller.deletePrescription(p.id),
+              ),
+            ),
+          );
+        }).toList(),
+      ),
+    );
+  }
+
+  Widget _rowActions({
+    required bool editing,
+    required VoidCallback onEdit,
+    required VoidCallback onSave,
+    required VoidCallback onCancel,
+    required Future<void> Function() onDelete,
+  }) {
+    return Row(mainAxisSize: MainAxisSize.min, children: [
+      if (!editing)
+        IconButton(icon: const Icon(Icons.edit, color: _primary), onPressed: onEdit),
+      if (editing) ...[
+        IconButton(icon: const Icon(Icons.check_circle, color: Colors.green), onPressed: onSave),
+        IconButton(icon: const Icon(Icons.cancel, color: Colors.redAccent), onPressed: onCancel),
+      ],
+      IconButton(
+        icon: const Icon(Icons.delete_outline, color: Colors.black54),
+        onPressed: () async {
+          await onDelete();
+          if (mounted) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              const SnackBar(content: Text('Deleted')),
+            );
+          }
+        },
+      ),
+    ]);
+  }
 
   Widget _datePickerField(String label, DateTime? date, Function(DateTime) onPick) {
     return InkWell(
       onTap: () async {
         final picked = await showDatePicker(
-            context: context,
-            initialDate: date ?? DateTime.now(),
-            firstDate: DateTime(2000),
-            lastDate: DateTime(DateTime.now().year + 10));
+          context: context,
+          initialDate: date ?? DateTime.now(),
+          firstDate: DateTime(2000),
+          lastDate: DateTime(DateTime.now().year + 10),
+          builder: (context, child) {
+            return Theme(
+              data: Theme.of(context).copyWith(
+                colorScheme: const ColorScheme.light(
+                  primary: _primary,
+                ),
+              ),
+              child: child!,
+            );
+          },
+        );
         if (picked != null) onPick(picked);
       },
       child: InputDecorator(
-        decoration: InputDecoration(labelText: label, border: const OutlineInputBorder()),
+        decoration: InputDecoration(
+          labelText: label,
+          border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+          filled: true,
+          fillColor: const Color(0xFFF7F4FF),
+        ),
         child: Text(date != null ? _df.format(date) : '—'),
       ),
     );
