@@ -75,22 +75,20 @@ class PetService {
   }
 
   // Update pet details
-  Future<void> updatePet(Pet pet, String authUserId) async {
+  Future<void> updatePet(Pet pet, String petOwnerId) async {
     try {
+      // Fetch the actual auth user_id for this pet owner
       final ownerData = await supabase
           .from('pet_owners')
-          .select('id')
-          .eq('user_id', authUserId)
+          .select('user_id')
+          .eq('id', petOwnerId) 
           .maybeSingle();
 
-      final String? petOwnerId = ownerData != null ? ownerData['id'] as String? : null;
-
-      if (petOwnerId == null) {
-        throw Exception('Pet owner not found for user ID: $authUserId');
-      }
+      final String? authUserId = ownerData?['user_id'] as String?;
+      if (authUserId == null) throw Exception("User ID not found");
 
       final petJson = pet.toJson(forInsert: true);
-      petJson['user_id'] = petOwnerId;
+      petJson['user_id'] = petOwnerId; 
 
       await supabase
           .from('pets')
@@ -101,4 +99,5 @@ class PetService {
       rethrow;
     }
   }
+
 }

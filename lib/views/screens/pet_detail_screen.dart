@@ -114,55 +114,72 @@ Widget build(BuildContext context) {
   return Scaffold(
     backgroundColor: const Color(0xFFF8F5FB),
     appBar: AppBar(
-      backgroundColor: _primary,
-      title: const Text('Pet Profile'),
-      centerTitle: true,
-      actions: [
-        IconButton(
-          icon: Icon(_editingPet ? Icons.check : Icons.edit),
-          onPressed: () async {
-            if (_editingPet) {
-              String? uploadedImageUrl = widget.imageUrl;
+    backgroundColor: _primary,
+    title: const Text('Pet Profile'),
+    centerTitle: true,
+    actions: [
+      IconButton(
+        icon: Icon(_editingPet ? Icons.check : Icons.edit),
+        onPressed: () async {
+          if (_editingPet) {
+            String? uploadedImageUrl = widget.imageUrl;
 
-              // Upload new image if changed
-              if (_imageFile != null) {
-                final fileName = 'pet_${widget.petId}_${DateTime.now().millisecondsSinceEpoch}.png';
-                final url = await PetService.instance.uploadPetImage(widget.userId, _imageFile!.path, fileName);
-                if (url != null) uploadedImageUrl = url;
-              }
-
-              // Use values from controllers
-              await PetService.instance.updatePet(
-                Pet(
-                  id: widget.petId,
-                  userId: widget.userId,
-                  name: _nameController.text.trim(),
-                  type: _typeController.text.trim(),
-                  breed: _breedController.text.trim(),
-                  age: int.tryParse(_ageController.text.trim()) ?? 0,
-                  gender: _genderController.text.trim(),
-                  color: _colorController.text.trim().isEmpty ? null : _colorController.text.trim(),
-                  weight: _weightController.text.trim().isEmpty ? null : double.tryParse(_weightController.text.trim()),
-                  height: _heightController.text.trim().isEmpty ? null : double.tryParse(_heightController.text.trim()),
-                  foodPreference: _foodController.text.trim().isEmpty ? null : _foodController.text.trim(),
-                  mood: _moodController.text.trim().isEmpty ? null : _moodController.text.trim(),
-                  healthStatus: _healthController.text.trim().isEmpty ? null : _healthController.text.trim(),
-                  description: _descController.text.trim().isEmpty ? null : _descController.text.trim(),
-                  imageUrl: uploadedImageUrl,
-                ),
-                widget.userId,
+            // Upload new image if changed
+            if (_imageFile != null) {
+              final fileName =
+                  'pet_${widget.petId}_${DateTime.now().millisecondsSinceEpoch}.png';
+              final url = await PetService.instance.uploadPetImage(
+                widget.userId, 
+                _imageFile!.path,
+                fileName,
               );
-
-              // reset local imageFile after save
-              _imageFile = null;
+              if (url != null) uploadedImageUrl = url;
             }
-            setState(() => _editingPet = !_editingPet);
-          },
-        ),
 
+            // Update pet details
+            await PetService.instance.updatePet(
+              Pet(
+                id: widget.petId,
+                userId: widget.userId, 
+                name: _nameController.text.trim(),
+                type: _typeController.text.trim(),
+                breed: _breedController.text.trim(),
+                age: int.tryParse(_ageController.text.trim()) ?? 0,
+                gender: _genderController.text.trim(),
+                color: _colorController.text.trim().isEmpty
+                    ? null
+                    : _colorController.text.trim(),
+                weight: _weightController.text.trim().isEmpty
+                    ? null
+                    : double.tryParse(_weightController.text.trim()),
+                height: _heightController.text.trim().isEmpty
+                    ? null
+                    : double.tryParse(_heightController.text.trim()),
+                foodPreference: _foodController.text.trim().isEmpty
+                    ? null
+                    : _foodController.text.trim(),
+                mood: _moodController.text.trim().isEmpty
+                    ? null
+                    : _moodController.text.trim(),
+                healthStatus: _healthController.text.trim().isEmpty
+                    ? null
+                    : _healthController.text.trim(),
+                description: _descController.text.trim().isEmpty
+                    ? null
+                    : _descController.text.trim(),
+                imageUrl: uploadedImageUrl,
+              ),
+              widget.userId, 
+            );
 
-      ],
-    ),
+            _imageFile = null; // reset local image after save
+          }
+          setState(() => _editingPet = !_editingPet);
+        },
+      ),
+    ],
+  ),
+
     body: AnimatedBuilder(
       animation: _controller,
       builder: (context, _) {
@@ -394,7 +411,7 @@ Widget build(BuildContext context) {
 }
 
 
-  Widget _highlightChips() {
+Widget _highlightChips() {
   final items = <(IconData, TextEditingController)>[
     (Icons.cake, _ageController),
     (Icons.male, _genderController),
@@ -406,31 +423,29 @@ Widget build(BuildContext context) {
   return SingleChildScrollView(
     scrollDirection: Axis.horizontal,
     padding: const EdgeInsets.symmetric(horizontal: 12),
-
-child: Row(
-  children: items.map((it) => GestureDetector(
-    onTap: _editingPet
-        ? () async {
-            final result = await showDialog<String>(
-              context: context,
-              builder: (ctx) => AlertDialog(
-                title: Text('Edit ${_getLabelFromIcon(it.$1)}'),
-                content: TextField(
-                  controller: it.$2,
-                  keyboardType: (it.$1 == Icons.cake || it.$1 == Icons.monitor_weight || it.$1 == Icons.height)
-                      ? TextInputType.number
-                      : TextInputType.text,
-                ),
-                actions: [
-                  TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('Cancel')),
-                  ElevatedButton(onPressed: () => Navigator.pop(ctx, it.$2.text.trim()), child: const Text('Save')),
-                ],
-              ),
-            );
-            if (result != null) setState(() {});
-          }
-        : null,
-
+    child: Row(
+      children: items.map((it) => GestureDetector(
+        onTap: _editingPet
+            ? () async {
+                final result = await showDialog<String>(
+                  context: context,
+                  builder: (ctx) => AlertDialog(
+                    title: Text('Edit ${_getLabelFromIcon(it.$1)}'),
+                    content: TextField(
+                      controller: it.$2,
+                      keyboardType: (it.$1 == Icons.cake || it.$1 == Icons.monitor_weight || it.$1 == Icons.height)
+                          ? TextInputType.number
+                          : TextInputType.text,
+                    ),
+                    actions: [
+                      TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('Cancel')),
+                      ElevatedButton(onPressed: () => Navigator.pop(ctx, it.$2.text.trim()), child: const Text('Save')),
+                    ],
+                  ),
+                );
+                if (result != null) setState(() {}); // this updates the chip display
+              }
+            : null,
         child: Container(
           margin: const EdgeInsets.only(right: 8),
           padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
@@ -440,12 +455,20 @@ child: Row(
             borderRadius: BorderRadius.circular(20),
             boxShadow: [BoxShadow(color: Colors.black.withAlpha((0.04*255).toInt()), blurRadius: 8, offset: const Offset(0, 4))],
           ),
-          child: Row(children: [Icon(it.$1, size: 18, color: _primary), const SizedBox(width: 6)]),
+          child: Row(
+            children: [
+              Icon(it.$1, size: 18, color: _primary),
+              const SizedBox(width: 6),
+              // Show the current value
+              Text(it.$2.text.isEmpty ? '—' : it.$2.text),
+            ],
+          ),
         ),
       )).toList(),
     ),
   );
 }
+
 
 String _getLabelFromIcon(IconData icon) {
   switch(icon) {
@@ -467,24 +490,32 @@ Widget _detailsCard() {
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
       child: Padding(
         padding: const EdgeInsets.all(16),
-        child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-          Row(children: [Icon(Icons.info_outline, color: _primary), const SizedBox(width: 8), Text('Details', style: TextStyle(fontSize: 16, fontWeight: FontWeight.w800, color: Colors.grey.shade900))]),
-          const SizedBox(height: 12),
-          
-         _editableRow('Name', _nameController),
-        _editableRow('Type', _typeController),
-        _editableRow('Breed', _breedController),
-        _editableRow('Age', _ageController, inputType: TextInputType.number),
-        _editableRow('Gender', _genderController),
-        _editableRow('Color', _colorController),
-        _editableRow('Weight', _weightController, inputType: TextInputType.number),
-        _editableRow('Height', _heightController, inputType: TextInputType.number),
-        _editableRow('Food Preference', _foodController),
-        _editableRow('Mood', _moodController),
-        _editableRow('Health Status', _healthController),
-        _editableRow('Description', _descController),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                Icon(Icons.info_outline, color: _primary),
+                const SizedBox(width: 8),
+                Text(
+                  'Details',
+                  style: TextStyle(
+                    fontSize: 16,
+                    fontWeight: FontWeight.w800,
+                    color: Colors.grey.shade900,
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 12),
 
-        ]),
+            // Keep only the non-highlighted fields
+            _editableRow('Food Preference', _foodController),
+            _editableRow('Mood', _moodController),
+            _editableRow('Health Status', _healthController),
+            _editableRow('Description', _descController),
+          ],
+        ),
       ),
     ),
   );
@@ -501,13 +532,21 @@ Widget _editableRow(String label, TextEditingController controller, {TextInputTy
           )
         : Row(
             children: [
-              SizedBox(width: 140, child: Text(label, style: TextStyle(fontWeight: FontWeight.w700, color: Colors.grey.shade800))),
-              Expanded(child: Text(controller.text.isEmpty ? '—' : controller.text, style: const TextStyle(color: Colors.black87))),
+              SizedBox(
+                  width: 140,
+                  child: Text(
+                    label,
+                    style: TextStyle(fontWeight: FontWeight.w700, color: Colors.grey.shade800),
+                  )),
+              Expanded(
+                  child: Text(
+                controller.text.isEmpty ? '—' : controller.text,
+                style: const TextStyle(color: Colors.black87),
+              )),
             ],
           ),
   );
 }
-
 
 
 
