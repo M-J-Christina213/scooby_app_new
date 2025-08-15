@@ -8,7 +8,10 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 
 class PendingAppointments extends StatefulWidget {
   final String providerEmail;
-  const PendingAppointments({super.key, required this.providerEmail});
+  final String userId; 
+
+
+  const PendingAppointments({super.key, required this.providerEmail, required this.userId});
 
   @override
   State<PendingAppointments> createState() => _PendingAppointmentsState();
@@ -16,6 +19,7 @@ class PendingAppointments extends StatefulWidget {
 
 class _PendingAppointmentsState extends State<PendingAppointments> {
   final supabase = Supabase.instance.client;
+
   List<Booking> bookings = [];
   bool loading = true;
 
@@ -138,6 +142,8 @@ class _PendingAppointmentsState extends State<PendingAppointments> {
                                               builder: (_) => AppointmentDetailScreen(
                                                 bookingId: b.id,
                                                 providerEmail: widget.providerEmail,
+                                                userId: widget.userId,   
+                                               
                                               ),
                                             ),
                                           );

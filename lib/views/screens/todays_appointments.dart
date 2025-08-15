@@ -7,8 +7,9 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 
 class TodayAppointments extends StatefulWidget {
   final String providerEmail;
-  final String role;
-  const TodayAppointments({super.key, required this.providerEmail, this.role = 'groomer'});
+  final String userId;
+  const TodayAppointments({super.key, required this.providerEmail, required this.userId, 
+    });
 
   @override
   State<TodayAppointments> createState() => _TodayAppointmentsState();
@@ -89,7 +90,8 @@ class _TodayAppointmentsState extends State<TodayAppointments> {
                             onView: () => Navigator.push(
                               context,
                               MaterialPageRoute(
-                                builder: (_) => AppointmentDetailScreen(bookingId: b.id, providerEmail: widget.providerEmail),
+                                builder: (_) => AppointmentDetailScreen(bookingId: b.id, providerEmail: widget.providerEmail, userId: widget.userId,  
+                                 ),
                               ),
                             ),
                           );

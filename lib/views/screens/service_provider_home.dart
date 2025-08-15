@@ -67,13 +67,12 @@ class _ServiceProviderHomeState extends State<ServiceProviderHome>
       );
     }
 
-    final role = provider?.role ?? 'groomer';
     final providerEmail = provider?.email ?? '';
 
     final pageList = [
-      TodayAppointments(providerEmail: providerEmail, role: role),
-      PendingAppointments(providerEmail: providerEmail),
-      CompletedAppointments(providerEmail: providerEmail),
+      TodayAppointments(providerEmail: providerEmail, userId: provider?.id ?? ''),
+      PendingAppointments(providerEmail: providerEmail, userId: provider?.id ?? '',),
+      CompletedAppointments(providerEmail: providerEmail, userId: provider?.id ?? ''),
     ];
 
     return MaterialApp(
