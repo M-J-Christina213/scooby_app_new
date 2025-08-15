@@ -55,18 +55,18 @@ class PetDetailScreenModernIntegrated extends StatefulWidget {
 class _PetDetailScreenModernIntegratedState extends State<PetDetailScreenModernIntegrated> with SingleTickerProviderStateMixin {
   late final TabController _tabController;
   late final MedicalRecordsController _controller;
-  late String _name;
-  late String _type;
-  late String _breed;
-  late int _age;
-  late String _gender;
-  late String? _color;
-  late num? _weight;
-  late num? _height;
-  late String? _foodPreference;
-  late String? _mood;
-  late String? _healthStatus;
-  late String? _description;
+ late TextEditingController _nameController;
+  late TextEditingController _typeController;
+  late TextEditingController _breedController;
+  late TextEditingController _ageController;
+  late TextEditingController _genderController;
+  late TextEditingController _colorController;
+  late TextEditingController _weightController;
+  late TextEditingController _heightController;
+  late TextEditingController _foodController;
+  late TextEditingController _moodController;
+  late TextEditingController _healthController;
+  late TextEditingController _descController;
   bool _editingPet = false;
 
   // Editing states for inline tabs
@@ -88,19 +88,20 @@ class _PetDetailScreenModernIntegratedState extends State<PetDetailScreenModernI
     );
     _controller.loadAll();
 
-    // Initialize pet fields
-    _name = widget.name;
-    _type = widget.type;
-    _breed = widget.breed;
-    _age = widget.age;
-    _gender = widget.gender;
-    _color = widget.color;
-    _weight = widget.weight;
-    _height = widget.height;
-    _foodPreference = widget.foodPreference;
-    _mood = widget.mood;
-    _healthStatus = widget.healthStatus;
-    _description = widget.description;
+    // Initialize pet fields using widget properties
+    _nameController = TextEditingController(text: widget.name);
+    _typeController = TextEditingController(text: widget.type);
+    _breedController = TextEditingController(text: widget.breed);
+    _ageController = TextEditingController(text: widget.age.toString());
+    _genderController = TextEditingController(text: widget.gender);
+    _colorController = TextEditingController(text: widget.color ?? '');
+    _weightController = TextEditingController(text: widget.weight?.toString() ?? '');
+    _heightController = TextEditingController(text: widget.height?.toString() ?? '');
+    _foodController = TextEditingController(text: widget.foodPreference ?? '');
+    _moodController = TextEditingController(text: widget.mood ?? '');
+    _healthController = TextEditingController(text: widget.healthStatus ?? '');
+    _descController = TextEditingController(text: widget.description ?? '');
+
   }
 
   @override
@@ -118,45 +119,47 @@ Widget build(BuildContext context) {
       centerTitle: true,
       actions: [
         IconButton(
-        icon: Icon(_editingPet ? Icons.check : Icons.edit),
-        onPressed: () async {
-          if (_editingPet) {
-            String? uploadedImageUrl = widget.imageUrl;
+          icon: Icon(_editingPet ? Icons.check : Icons.edit),
+          onPressed: () async {
+            if (_editingPet) {
+              String? uploadedImageUrl = widget.imageUrl;
 
-            // Upload new image if changed
-            if (_imageFile != null) {
-              final fileName = 'pet_${widget.petId}_${DateTime.now().millisecondsSinceEpoch}.png';
-              final url = await PetService.instance.uploadPetImage(widget.userId, _imageFile!.path, fileName);
-              if (url != null) uploadedImageUrl = url;
+              // Upload new image if changed
+              if (_imageFile != null) {
+                final fileName = 'pet_${widget.petId}_${DateTime.now().millisecondsSinceEpoch}.png';
+                final url = await PetService.instance.uploadPetImage(widget.userId, _imageFile!.path, fileName);
+                if (url != null) uploadedImageUrl = url;
+              }
+
+              // Use values from controllers
+              await PetService.instance.updatePet(
+                Pet(
+                  id: widget.petId,
+                  userId: widget.userId,
+                  name: _nameController.text.trim(),
+                  type: _typeController.text.trim(),
+                  breed: _breedController.text.trim(),
+                  age: int.tryParse(_ageController.text.trim()) ?? 0,
+                  gender: _genderController.text.trim(),
+                  color: _colorController.text.trim().isEmpty ? null : _colorController.text.trim(),
+                  weight: _weightController.text.trim().isEmpty ? null : double.tryParse(_weightController.text.trim()),
+                  height: _heightController.text.trim().isEmpty ? null : double.tryParse(_heightController.text.trim()),
+                  foodPreference: _foodController.text.trim().isEmpty ? null : _foodController.text.trim(),
+                  mood: _moodController.text.trim().isEmpty ? null : _moodController.text.trim(),
+                  healthStatus: _healthController.text.trim().isEmpty ? null : _healthController.text.trim(),
+                  description: _descController.text.trim().isEmpty ? null : _descController.text.trim(),
+                  imageUrl: uploadedImageUrl,
+                ),
+                widget.userId,
+              );
+
+              // reset local imageFile after save
+              _imageFile = null;
             }
+            setState(() => _editingPet = !_editingPet);
+          },
+        ),
 
-            await PetService.instance.updatePet(
-              Pet(
-                id: widget.petId,
-                userId: widget.userId,
-                name: _name,
-                type: _type,
-                breed: _breed,
-                age: _age,
-                gender: _gender,
-                color: _color,
-                weight: _weight?.toDouble(),
-                height: _height?.toDouble(),
-                foodPreference: _foodPreference,
-                mood: _mood,
-                healthStatus: _healthStatus,
-                description: _description,
-                imageUrl: uploadedImageUrl, // pass updated image URL
-              ),
-              widget.userId,
-            );
-
-            // reset local imageFile after save
-            _imageFile = null;
-          }
-          setState(() => _editingPet = !_editingPet);
-        },
-      ),
 
       ],
     ),
@@ -365,13 +368,12 @@ Widget build(BuildContext context) {
               Expanded(
                 child: _editingPet
                     ? TextField(
-                        controller: TextEditingController(text: _name),
+                        controller: _nameController,
                         decoration: const InputDecoration(
                           border: InputBorder.none,
                           hintText: 'Pet Name',
                         ),
                         style: const TextStyle(fontSize: 20, fontWeight: FontWeight.w800),
-                        onChanged: (val) => _name = val,
                       )
                     : Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
@@ -393,19 +395,43 @@ Widget build(BuildContext context) {
 
 
   Widget _highlightChips() {
-    final items = <(IconData, String)>[
-      (Icons.cake, '${widget.age} yrs'),
-      (Icons.male, widget.gender),
-      (Icons.color_lens, widget.color ?? '—'),
-      (Icons.monitor_weight, widget.weight != null ? '${widget.weight} kg' : '—'),
-      (Icons.height, widget.height != null ? '${widget.height} cm' : '—'),
-    ];
+  final items = <(IconData, TextEditingController)>[
+    (Icons.cake, _ageController),
+    (Icons.male, _genderController),
+    (Icons.color_lens, _colorController),
+    (Icons.monitor_weight, _weightController),
+    (Icons.height, _heightController),
+  ];
 
-    return SingleChildScrollView(
-      scrollDirection: Axis.horizontal,
-      padding: const EdgeInsets.symmetric(horizontal: 12),
-      child: Row(
-        children: items.map((it) => Container(
+  return SingleChildScrollView(
+    scrollDirection: Axis.horizontal,
+    padding: const EdgeInsets.symmetric(horizontal: 12),
+
+child: Row(
+  children: items.map((it) => GestureDetector(
+    onTap: _editingPet
+        ? () async {
+            final result = await showDialog<String>(
+              context: context,
+              builder: (ctx) => AlertDialog(
+                title: Text('Edit ${_getLabelFromIcon(it.$1)}'),
+                content: TextField(
+                  controller: it.$2,
+                  keyboardType: (it.$1 == Icons.cake || it.$1 == Icons.monitor_weight || it.$1 == Icons.height)
+                      ? TextInputType.number
+                      : TextInputType.text,
+                ),
+                actions: [
+                  TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('Cancel')),
+                  ElevatedButton(onPressed: () => Navigator.pop(ctx, it.$2.text.trim()), child: const Text('Save')),
+                ],
+              ),
+            );
+            if (result != null) setState(() {});
+          }
+        : null,
+
+        child: Container(
           margin: const EdgeInsets.only(right: 8),
           padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
           decoration: BoxDecoration(
@@ -414,11 +440,24 @@ Widget build(BuildContext context) {
             borderRadius: BorderRadius.circular(20),
             boxShadow: [BoxShadow(color: Colors.black.withAlpha((0.04*255).toInt()), blurRadius: 8, offset: const Offset(0, 4))],
           ),
-          child: Row(children: [Icon(it.$1, size: 18, color: _primary), const SizedBox(width: 6), Text(it.$2, style: const TextStyle(fontWeight: FontWeight.w600))]),
-        )).toList(),
-      ),
-    );
+          child: Row(children: [Icon(it.$1, size: 18, color: _primary), const SizedBox(width: 6)]),
+        ),
+      )).toList(),
+    ),
+  );
+}
+
+String _getLabelFromIcon(IconData icon) {
+  switch(icon) {
+    case Icons.cake: return 'Age';
+    case Icons.male: return 'Gender';
+    case Icons.color_lens: return 'Color';
+    case Icons.monitor_weight: return 'Weight';
+    case Icons.height: return 'Height';
+    default: return '';
   }
+}
+
 Widget _detailsCard() {
   return Padding(
     padding: const EdgeInsets.symmetric(horizontal: 16),
@@ -432,42 +471,44 @@ Widget _detailsCard() {
           Row(children: [Icon(Icons.info_outline, color: _primary), const SizedBox(width: 8), Text('Details', style: TextStyle(fontSize: 16, fontWeight: FontWeight.w800, color: Colors.grey.shade900))]),
           const SizedBox(height: 12),
           
-          _editableRow('Name', _name, (val) => _name = val),
-          _editableRow('Type', _type, (val) => _type = val),
-          _editableRow('Breed', _breed, (val) => _breed = val),
-          _editableRow('Age', '$_age', (val) => _age = int.tryParse(val) ?? _age, inputType: TextInputType.number),
-          _editableRow('Gender', _gender, (val) => _gender = val),
-          _editableRow('Color', _color ?? '', (val) => _color = val),
-          _editableRow('Weight', _weight?.toString() ?? '', (val) => _weight = num.tryParse(val), inputType: TextInputType.number),
-          _editableRow('Height', _height?.toString() ?? '', (val) => _height = num.tryParse(val), inputType: TextInputType.number),
-          _editableRow('Food Preference', _foodPreference ?? '', (val) => _foodPreference = val),
-          _editableRow('Mood', _mood ?? '', (val) => _mood = val),
-          _editableRow('Health Status', _healthStatus ?? '', (val) => _healthStatus = val),
-          _editableRow('Description', _description ?? '', (val) => _description = val),
+         _editableRow('Name', _nameController),
+        _editableRow('Type', _typeController),
+        _editableRow('Breed', _breedController),
+        _editableRow('Age', _ageController, inputType: TextInputType.number),
+        _editableRow('Gender', _genderController),
+        _editableRow('Color', _colorController),
+        _editableRow('Weight', _weightController, inputType: TextInputType.number),
+        _editableRow('Height', _heightController, inputType: TextInputType.number),
+        _editableRow('Food Preference', _foodController),
+        _editableRow('Mood', _moodController),
+        _editableRow('Health Status', _healthController),
+        _editableRow('Description', _descController),
+
         ]),
       ),
     ),
   );
 }
 
-Widget _editableRow(String label, String value, Function(String) onChanged, {TextInputType inputType = TextInputType.text}) {
+Widget _editableRow(String label, TextEditingController controller, {TextInputType inputType = TextInputType.text}) {
   return Padding(
     padding: const EdgeInsets.symmetric(vertical: 6),
     child: _editingPet
-      ? TextField(
-          controller: TextEditingController(text: value),
-          keyboardType: inputType,
-          decoration: InputDecoration(labelText: label),
-          onChanged: onChanged,
-        )
-      : Row(
-          children: [
-            SizedBox(width: 140, child: Text(label, style: TextStyle(fontWeight: FontWeight.w700, color: Colors.grey.shade800))),
-            Expanded(child: Text(value.isEmpty ? '—' : value, style: const TextStyle(color: Colors.black87))),
-          ],
-        ),
+        ? TextField(
+            controller: controller,
+            keyboardType: inputType,
+            decoration: InputDecoration(labelText: label),
+          )
+        : Row(
+            children: [
+              SizedBox(width: 140, child: Text(label, style: TextStyle(fontWeight: FontWeight.w700, color: Colors.grey.shade800))),
+              Expanded(child: Text(controller.text.isEmpty ? '—' : controller.text, style: const TextStyle(color: Colors.black87))),
+            ],
+          ),
   );
 }
+
+
 
 
   // === Inline Medical Records Tabs ===
@@ -544,7 +585,15 @@ Widget _editableRow(String label, String value, Function(String) onChanged, {Tex
                         Expanded(child: _datePickerField('Next Due', nextDue, (d) => setState(() => nextDue = d))),
                       ])
                     ])
-                  : Text('${_df.format(v.dateGiven)} - Next: ${v.nextDueDate != null ? _df.format(v.nextDueDate!) : '—'}'),
+                  : Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text('${_df.format(v.dateGiven)} - Next: ${v.nextDueDate != null ? _df.format(v.nextDueDate!) : '—'}'),
+                        if(v.description != null && v.description!.isNotEmpty)
+                          Text(v.description!, style: TextStyle(fontSize: 12, color: Colors.grey.shade600)),
+                      ],
+                    ),
+
               trailing: Row(mainAxisSize: MainAxisSize.min, children: [
                 if (!editing) IconButton(icon: const Icon(Icons.edit), onPressed: () => setState(() => _vaccEditing[v.id] = true)),
                 if (editing) IconButton(icon: const Icon(Icons.check), onPressed: () async {
@@ -568,96 +617,128 @@ Widget _editableRow(String label, String value, Function(String) onChanged, {Tex
   }
 
   // === Inline Checkups ===
-  Widget _checkupsTabInline() {
-    if (_controller.loadingCheck) return const Center(child: CircularProgressIndicator());
-    final rows = _controller.checkups.cast<MedicalCheckup>();
+Widget _checkupsTabInline() {
+  if (_controller.loadingCheck) return const Center(child: CircularProgressIndicator());
+  final rows = _controller.checkups.cast<MedicalCheckup>();
 
-    return SingleChildScrollView(
-      child: Column(
-        children: rows.map((c) {
-          final reasonCtrl = TextEditingController(text: c.reason);
-          final descCtrl = TextEditingController(text: c.description ?? '');
-          DateTime date = c.date;
-          bool editing = _checkEditing[c.id] ?? false;
+  return SingleChildScrollView(
+    child: Column(
+      children: rows.map((c) {
+        final reasonCtrl = TextEditingController(text: c.reason);
+        final descCtrl = TextEditingController(text: c.description ?? '');
+        DateTime date = c.date;
+        bool editing = _checkEditing[c.id] ?? false;
 
-          return Card(
-            margin: const EdgeInsets.symmetric(vertical: 6),
-            child: ListTile(
-              title: editing ? TextField(controller: reasonCtrl, decoration: const InputDecoration(labelText: 'Reason')) : Text(c.reason),
-              subtitle: editing ? Column(children: [
-                TextField(controller: descCtrl, decoration: const InputDecoration(labelText: 'Description')),
-                const SizedBox(height: 8),
-                _datePickerField('Date', date, (d) => setState(() => date = d))
-              ]) : Text(_df.format(c.date)),
-              trailing: Row(mainAxisSize: MainAxisSize.min, children: [
-                if (!editing) IconButton(icon: const Icon(Icons.edit), onPressed: () => setState(() => _checkEditing[c.id] = true)),
-                if (editing) IconButton(icon: const Icon(Icons.check), onPressed: () async {
-                  await _controller.addOrUpdateCheckup(
-                    existing: c,
-                    reason: reasonCtrl.text.trim(),
-                    desc: descCtrl.text.trim().isEmpty ? null : descCtrl.text.trim(),
-                    date: date,
-                  );
-                  setState(() => _checkEditing[c.id] = false);
-                }),
-                if (editing) IconButton(icon: const Icon(Icons.close), onPressed: () => setState(() => _checkEditing[c.id] = false)),
+        return Card(
+          margin: const EdgeInsets.symmetric(vertical: 6),
+          child: ListTile(
+            title: editing
+                ? TextField(controller: reasonCtrl, decoration: const InputDecoration(labelText: 'Reason'))
+                : Text(c.reason),
+            subtitle: editing
+                ? Column(
+                    children: [
+                      TextField(controller: descCtrl, decoration: const InputDecoration(labelText: 'Description')),
+                      const SizedBox(height: 8),
+                      _datePickerField('Date', date, (d) => setState(() => date = d)),
+                    ],
+                  )
+                : Text(_df.format(c.date)),
+            trailing: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                if (!editing)
+                  IconButton(icon: const Icon(Icons.edit), onPressed: () => setState(() => _checkEditing[c.id] = true)),
+                if (editing)
+                  IconButton(
+                    icon: const Icon(Icons.check),
+                    onPressed: () async {
+                      await _controller.addOrUpdateCheckup(
+                        existing: c,
+                        reason: reasonCtrl.text.trim(),
+                        desc: descCtrl.text.trim().isEmpty ? null : descCtrl.text.trim(),
+                        date: date,
+                      );
+                      setState(() => _checkEditing[c.id] = false);
+                    },
+                  ),
+                if (editing)
+                  IconButton(icon: const Icon(Icons.close), onPressed: () => setState(() => _checkEditing[c.id] = false)),
                 IconButton(icon: const Icon(Icons.delete), onPressed: () async => await _controller.deleteCheckup(c.id)),
-              ]),
+              ],
             ),
-          );
-        }).toList(),
-      ),
-    );
-  }
+          ),
+        );
+      }).toList(),
+    ),
+  );
+}
 
-  // === Inline Prescriptions ===
-  Widget _prescriptionsTabInline() {
-    if (_controller.loadingRx) return const Center(child: CircularProgressIndicator());
-    final rows = _controller.prescriptions.cast<Prescription>();
+// === Inline Prescriptions ===
+Widget _prescriptionsTabInline() {
+  if (_controller.loadingRx) return const Center(child: CircularProgressIndicator());
+  final rows = _controller.prescriptions.cast<Prescription>();
 
-    return SingleChildScrollView(
-      child: Column(
-        children: rows.map((p) {
-          final medCtrl = TextEditingController(text: p.medicineName);
-          final descCtrl = TextEditingController(text: p.description ?? '');
-          DateTime start = p.startDate;
-          DateTime? end = p.endDate;
-          bool editing = _rxEditing[p.id] ?? false;
+  return SingleChildScrollView(
+    child: Column(
+      children: rows.map((p) {
+        final medCtrl = TextEditingController(text: p.medicineName);
+        final descCtrl = TextEditingController(text: p.description ?? '');
+        DateTime start = p.startDate;
+        DateTime? end = p.endDate;
+        bool editing = _rxEditing[p.id] ?? false;
 
-          return Card(
-            margin: const EdgeInsets.symmetric(vertical: 6),
-            child: ListTile(
-              title: editing ? TextField(controller: medCtrl, decoration: const InputDecoration(labelText: 'Medicine')) : Text(p.medicineName),
-              subtitle: editing ? Column(children: [
-                TextField(controller: descCtrl, decoration: const InputDecoration(labelText: 'Description')),
-                const SizedBox(height: 8),
-                Row(children: [
-                  Expanded(child: _datePickerField('Start', start, (d) => setState(() => start = d))),
-                  const SizedBox(width: 12),
-                  Expanded(child: _datePickerField('End', end, (d) => setState(() => end = d))),
-                ])
-              ]) : Text('${_df.format(p.startDate)} - End: ${p.endDate != null ? _df.format(p.endDate!) : '—'}'),
-              trailing: Row(mainAxisSize: MainAxisSize.min, children: [
+        return Card(
+          margin: const EdgeInsets.symmetric(vertical: 6),
+          child: ListTile(
+            title: editing
+                ? TextField(controller: medCtrl, decoration: const InputDecoration(labelText: 'Medicine'))
+                : Text(p.medicineName),
+            subtitle: editing
+                ? Column(
+                    children: [
+                      TextField(controller: descCtrl, decoration: const InputDecoration(labelText: 'Description')),
+                      const SizedBox(height: 8),
+                      Row(
+                        children: [
+                          Expanded(child: _datePickerField('Start', start, (d) => setState(() => start = d))),
+                          const SizedBox(width: 12),
+                          Expanded(child: _datePickerField('End', end, (d) => setState(() => end = d))),
+                        ],
+                      ),
+                    ],
+                  )
+                : Text('${_df.format(p.startDate)} - End: ${p.endDate != null ? _df.format(p.endDate!) : '—'}'),
+            trailing: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
                 if (!editing) IconButton(icon: const Icon(Icons.edit), onPressed: () => setState(() => _rxEditing[p.id] = true)),
-                if (editing) IconButton(icon: const Icon(Icons.check), onPressed: () async {
-                  await _controller.addOrUpdatePrescription(
-                    existing: p,
-                    med: medCtrl.text.trim(),
-                    desc: descCtrl.text.trim().isEmpty ? null : descCtrl.text.trim(),
-                    start: start,
-                    end: end,
-                  );
-                  setState(() => _rxEditing[p.id] = false);
-                }),
-                if (editing) IconButton(icon: const Icon(Icons.close), onPressed: () => setState(() => _rxEditing[p.id] = false)),
+                if (editing)
+                  IconButton(
+                    icon: const Icon(Icons.check),
+                    onPressed: () async {
+                      await _controller.addOrUpdatePrescription(
+                        existing: p,
+                        med: medCtrl.text.trim(),
+                        desc: descCtrl.text.trim().isEmpty ? null : descCtrl.text.trim(),
+                        start: start,
+                        end: end,
+                      );
+                      setState(() => _rxEditing[p.id] = false);
+                    },
+                  ),
+                if (editing)
+                  IconButton(icon: const Icon(Icons.close), onPressed: () => setState(() => _rxEditing[p.id] = false)),
                 IconButton(icon: const Icon(Icons.delete), onPressed: () async => await _controller.deletePrescription(p.id)),
-              ]),
+              ],
             ),
-          );
-        }).toList(),
-      ),
-    );
-  }
+          ),
+        );
+      }).toList(),
+    ),
+  );
+}
+
 
   Widget _datePickerField(String label, DateTime? date, Function(DateTime) onPick) {
     return InkWell(
