@@ -1,4 +1,9 @@
+// ignore_for_file: use_build_context_synchronously
+
+import 'dart:io';
+
 import 'package:flutter/material.dart';
+import 'package:image_picker/image_picker.dart';
 import 'package:intl/intl.dart';
 import 'package:scooby_app_new/controllers/medical_records_controller.dart';
 import 'package:scooby_app_new/controllers/pet_service.dart';
@@ -71,6 +76,7 @@ class _PetDetailScreenModernIntegratedState extends State<PetDetailScreenModernI
 
   final _primary = const Color(0xFF842EAC);
   final _df = DateFormat('yyyy-MM-dd');
+  File? _imageFile;
 
   @override
   void initState() {
@@ -102,107 +108,289 @@ class _PetDetailScreenModernIntegratedState extends State<PetDetailScreenModernI
     _tabController.dispose();
     super.dispose();
   }
+@override
+Widget build(BuildContext context) {
+  return Scaffold(
+    backgroundColor: const Color(0xFFF8F5FB),
+    appBar: AppBar(
+      backgroundColor: _primary,
+      title: const Text('Pet Profile'),
+      centerTitle: true,
+      actions: [
+        IconButton(
+        icon: Icon(_editingPet ? Icons.check : Icons.edit),
+        onPressed: () async {
+          if (_editingPet) {
+            String? uploadedImageUrl = widget.imageUrl;
 
-  @override
-  Widget build(BuildContext context) {
-    return Scaffold(
-      backgroundColor: const Color(0xFFF8F5FB),
-      appBar: AppBar(
-        backgroundColor: _primary,
-        title: const Text('Pet Profile'),
-        centerTitle: true,
-        actions: [
-          IconButton(
-            icon: Icon(_editingPet ? Icons.check : Icons.edit),
-            onPressed: () async {
-              if (_editingPet) {
-                await PetService.instance.updatePet(
-                Pet(
-                  id: widget.petId,
-                  userId: widget.userId,
-                  name: _name,
-                  type: _type,
-                  breed: _breed,
-                  age: _age,
-                  gender: _gender,
-                  color: _color,
-                  weight: _weight?.toDouble(),
-                  height: _height?.toDouble(),
-                  foodPreference: _foodPreference,
-                  mood: _mood,
-                  healthStatus: _healthStatus,
-                  description: _description,
-                ),
-                widget.userId,
-              );
+            // Upload new image if changed
+            if (_imageFile != null) {
+              final fileName = 'pet_${widget.petId}_${DateTime.now().millisecondsSinceEpoch}.png';
+              final url = await PetService.instance.uploadPetImage(widget.userId, _imageFile!.path, fileName);
+              if (url != null) uploadedImageUrl = url;
+            }
 
-              }
-              setState(() => _editingPet = !_editingPet);
-            },
-          ),
-        ],
-      ),
-      body: AnimatedBuilder(
-        animation: _controller,
-        builder: (context, _) {
-          return SingleChildScrollView(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.stretch,
-              children: [
-                _heroHeader(),
-                const SizedBox(height: 12),
-                _highlightChips(),
-                const SizedBox(height: 12),
-                _detailsCard(),
-                const SizedBox(height: 16),
-                _medicalRecordsInline(),
-                const SizedBox(height: 24),
-              ],
-            ),
-          );
+            await PetService.instance.updatePet(
+              Pet(
+                id: widget.petId,
+                userId: widget.userId,
+                name: _name,
+                type: _type,
+                breed: _breed,
+                age: _age,
+                gender: _gender,
+                color: _color,
+                weight: _weight?.toDouble(),
+                height: _height?.toDouble(),
+                foodPreference: _foodPreference,
+                mood: _mood,
+                healthStatus: _healthStatus,
+                description: _description,
+                imageUrl: uploadedImageUrl, // pass updated image URL
+              ),
+              widget.userId,
+            );
+
+            // reset local imageFile after save
+            _imageFile = null;
+          }
+          setState(() => _editingPet = !_editingPet);
         },
       ),
-    );
-  }
+
+      ],
+    ),
+    body: AnimatedBuilder(
+      animation: _controller,
+      builder: (context, _) {
+        return SingleChildScrollView(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              _heroHeader(),
+              const SizedBox(height: 12),
+              _highlightChips(),
+              const SizedBox(height: 12),
+              _detailsCard(),
+              const SizedBox(height: 16),
+              _medicalRecordsInline(),
+              const SizedBox(height: 24),
+            ],
+          ),
+        );
+      },
+    ),
+
+    // 🔹 Floating Add Button
+    floatingActionButton: FloatingActionButton(
+    backgroundColor: _primary,
+    child: const Icon(Icons.add, color: Colors.white),
+    onPressed: () async {
+      final index = _tabController.index;
+
+      // Variables for form fields
+      final nameCtrl = TextEditingController();
+      final descCtrl = TextEditingController();
+      DateTime? date1;
+      DateTime? date2;
+
+      await showDialog(
+        context: context,
+        builder: (dialogContext) {
+          return AlertDialog(
+            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+            title: Text(
+              index == 0
+                  ? 'Add Vaccination'
+                  : index == 1
+                      ? 'Add Medical Checkup'
+                      : 'Add Prescription',
+              style: const TextStyle(fontWeight: FontWeight.bold),
+            ),
+            content: SingleChildScrollView(
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  TextField(
+                    controller: nameCtrl,
+                    decoration: InputDecoration(
+                      labelText: index == 0
+                          ? 'Vaccine Name'
+                          : index == 1
+                              ? 'Reason'
+                              : 'Medicine Name',
+                    ),
+                  ),
+                  TextField(
+                    controller: descCtrl,
+                    decoration: const InputDecoration(labelText: 'Description'),
+                  ),
+                  const SizedBox(height: 12),
+                  if (index == 0) ...[
+                    _datePickerField('Date Given', date1, (d) => date1 = d),
+                    const SizedBox(height: 8),
+                    _datePickerField('Next Due', date2, (d) => date2 = d),
+                  ],
+                  if (index == 1) ...[
+                    _datePickerField('Date', date1, (d) => date1 = d),
+                  ],
+                  if (index == 2) ...[
+                    _datePickerField('Start Date', date1, (d) => date1 = d),
+                    const SizedBox(height: 8),
+                    _datePickerField('End Date', date2, (d) => date2 = d),
+                  ],
+                ],
+              ),
+            ),
+            actions: [
+              TextButton(
+                onPressed: () {
+                  Navigator.pop(dialogContext);
+                },
+                child: const Text('Cancel'),
+              ),
+              ElevatedButton(
+                style: ElevatedButton.styleFrom(backgroundColor: _primary),
+                onPressed: () async {
+                  if (index == 0) {
+                    await _controller.addOrUpdateVaccination(
+                      existing: null,
+                      name: nameCtrl.text.trim(),
+                      desc: descCtrl.text.trim().isEmpty ? null : descCtrl.text.trim(),
+                      dateGiven: date1 ?? DateTime.now(),
+                      nextDue: date2,
+                    );
+                  } else if (index == 1) {
+                    await _controller.addOrUpdateCheckup(
+                      existing: null,
+                      reason: nameCtrl.text.trim(),
+                      desc: descCtrl.text.trim().isEmpty ? null : descCtrl.text.trim(),
+                      date: date1 ?? DateTime.now(),
+                    );
+                  } else if (index == 2) {
+                    await _controller.addOrUpdatePrescription(
+                      existing: null,
+                      med: nameCtrl.text.trim(),
+                      desc: descCtrl.text.trim().isEmpty ? null : descCtrl.text.trim(),
+                      start: date1 ?? DateTime.now(),
+                      end: date2,
+                    );
+                  }
+
+                  await _controller.loadAll();
+
+                
+                  if (!mounted) return;
+                  Navigator.pop(context);
+                },
+                child: const Text('Save', style: TextStyle(color: Colors.white)),
+              ),
+            ],
+          );
+        },
+      );
+    },
+  )
+
+
+  );
+}
+
 
 
    Widget _heroHeader() {
-    return Stack(children: [
+  return Stack(
+    children: [
       AspectRatio(
         aspectRatio: 16 / 9,
         child: Container(
           decoration: BoxDecoration(
             color: Colors.grey.shade200,
-            image: widget.imageUrl != null ? DecorationImage(image: NetworkImage(widget.imageUrl!), fit: BoxFit.cover) : null,
+            image: _editingPet && _imageFile != null
+                ? DecorationImage(image: FileImage(_imageFile!), fit: BoxFit.cover)
+                : widget.imageUrl != null
+                    ? DecorationImage(image: NetworkImage(widget.imageUrl!), fit: BoxFit.cover)
+                    : null,
           ),
         ),
       ),
       Positioned(
-        bottom: 12, left: 16, right: 16,
+        bottom: 12,
+        left: 16,
+        right: 16,
         child: Container(
           padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
           decoration: BoxDecoration(
             color: Colors.white.withAlpha((0.92 * 255).toInt()),
             borderRadius: BorderRadius.circular(16),
-            boxShadow: [BoxShadow(color: Colors.black.withAlpha((0.08 * 255).toInt()), blurRadius: 12, offset: const Offset(0, 6))],
+            boxShadow: [
+              BoxShadow(
+                  color: Colors.black.withAlpha((0.08 * 255).toInt()),
+                  blurRadius: 12,
+                  offset: const Offset(0, 6))
+            ],
           ),
-          child: Row(children: [
-            CircleAvatar(
-              radius: 28,
-              backgroundColor: Colors.white,
-              backgroundImage: widget.imageUrl != null ? NetworkImage(widget.imageUrl!) : null,
-              child: widget.imageUrl == null ? Icon(Icons.pets, color: _primary, size: 28) : null,
-            ),
-            const SizedBox(width: 12),
-            Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-              Text(widget.name, style: const TextStyle(fontSize: 20, fontWeight: FontWeight.w800)),
-              Text('${widget.type} • ${widget.breed}', style: TextStyle(color: Colors.grey.shade700)),
-            ])),
-          ]),
+          child: Row(
+            children: [
+              Stack(
+                children: [
+                  CircleAvatar(
+                    radius: 28,
+                    backgroundColor: Colors.white,
+                    backgroundImage: _editingPet && _imageFile != null
+                        ? FileImage(_imageFile!)
+                        : widget.imageUrl != null
+                            ? NetworkImage(widget.imageUrl!)
+                            : null,
+                    child: widget.imageUrl == null && _imageFile == null
+                        ? Icon(Icons.pets, color: _primary, size: 28)
+                        : null,
+                  ),
+                  if (_editingPet)
+                    Positioned(
+                      bottom: -2,
+                      right: -2,
+                      child: GestureDetector(
+                        onTap: _pickImage,
+                        child: CircleAvatar(
+                          radius: 12,
+                          backgroundColor: _primary,
+                          child: const Icon(Icons.camera_alt, size: 14, color: Colors.white),
+                        ),
+                      ),
+                    ),
+                ],
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: _editingPet
+                    ? TextField(
+                        controller: TextEditingController(text: _name),
+                        decoration: const InputDecoration(
+                          border: InputBorder.none,
+                          hintText: 'Pet Name',
+                        ),
+                        style: const TextStyle(fontSize: 20, fontWeight: FontWeight.w800),
+                        onChanged: (val) => _name = val,
+                      )
+                    : Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(widget.name,
+                              style: const TextStyle(fontSize: 20, fontWeight: FontWeight.w800)),
+                          Text('${widget.type} • ${widget.breed}',
+                              style: TextStyle(color: Colors.grey.shade700)),
+                        ],
+                      ),
+              ),
+            ],
+          ),
         ),
       ),
-    ]);
-  }
+    ],
+  );
+}
+
 
   Widget _highlightChips() {
     final items = <(IconData, String)>[
@@ -231,39 +419,55 @@ class _PetDetailScreenModernIntegratedState extends State<PetDetailScreenModernI
       ),
     );
   }
-
-  Widget _detailsCard() {
-    final rows = <(String, String)>[
-      ('Food Preference', widget.foodPreference ?? '—'),
-      ('Mood', widget.mood ?? '—'),
-      ('Health Status', widget.healthStatus ?? '—'),
-      ('Description', widget.description ?? '—'),
-    ];
-    return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 16),
-      child: Card(
-        elevation: 0,
-        color: Colors.white,
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-        child: Padding(
-          padding: const EdgeInsets.all(16),
-          child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-            Row(children: [Icon(Icons.info_outline, color: _primary), const SizedBox(width: 8), Text('Details', style: TextStyle(fontSize: 16, fontWeight: FontWeight.w800, color: Colors.grey.shade900))]),
-            const SizedBox(height: 12),
-            ...rows.map((r) => _kvRow(r.$1, r.$2)),
-          ]),
-        ),
+Widget _detailsCard() {
+  return Padding(
+    padding: const EdgeInsets.symmetric(horizontal: 16),
+    child: Card(
+      elevation: 0,
+      color: Colors.white,
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+      child: Padding(
+        padding: const EdgeInsets.all(16),
+        child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+          Row(children: [Icon(Icons.info_outline, color: _primary), const SizedBox(width: 8), Text('Details', style: TextStyle(fontSize: 16, fontWeight: FontWeight.w800, color: Colors.grey.shade900))]),
+          const SizedBox(height: 12),
+          
+          _editableRow('Name', _name, (val) => _name = val),
+          _editableRow('Type', _type, (val) => _type = val),
+          _editableRow('Breed', _breed, (val) => _breed = val),
+          _editableRow('Age', '$_age', (val) => _age = int.tryParse(val) ?? _age, inputType: TextInputType.number),
+          _editableRow('Gender', _gender, (val) => _gender = val),
+          _editableRow('Color', _color ?? '', (val) => _color = val),
+          _editableRow('Weight', _weight?.toString() ?? '', (val) => _weight = num.tryParse(val), inputType: TextInputType.number),
+          _editableRow('Height', _height?.toString() ?? '', (val) => _height = num.tryParse(val), inputType: TextInputType.number),
+          _editableRow('Food Preference', _foodPreference ?? '', (val) => _foodPreference = val),
+          _editableRow('Mood', _mood ?? '', (val) => _mood = val),
+          _editableRow('Health Status', _healthStatus ?? '', (val) => _healthStatus = val),
+          _editableRow('Description', _description ?? '', (val) => _description = val),
+        ]),
       ),
-    );
-  }
-
-  Widget _kvRow(String k, String v) => Padding(
-    padding: const EdgeInsets.symmetric(vertical: 8),
-    child: Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
-      SizedBox(width: 140, child: Text(k, style: TextStyle(fontWeight: FontWeight.w700, color: Colors.grey.shade800))),
-      Expanded(child: Text(v, style: const TextStyle(color: Colors.black87))),
-    ]),
+    ),
   );
+}
+
+Widget _editableRow(String label, String value, Function(String) onChanged, {TextInputType inputType = TextInputType.text}) {
+  return Padding(
+    padding: const EdgeInsets.symmetric(vertical: 6),
+    child: _editingPet
+      ? TextField(
+          controller: TextEditingController(text: value),
+          keyboardType: inputType,
+          decoration: InputDecoration(labelText: label),
+          onChanged: onChanged,
+        )
+      : Row(
+          children: [
+            SizedBox(width: 140, child: Text(label, style: TextStyle(fontWeight: FontWeight.w700, color: Colors.grey.shade800))),
+            Expanded(child: Text(value.isEmpty ? '—' : value, style: const TextStyle(color: Colors.black87))),
+          ],
+        ),
+  );
+}
 
 
   // === Inline Medical Records Tabs ===
@@ -471,6 +675,13 @@ class _PetDetailScreenModernIntegratedState extends State<PetDetailScreenModernI
       ),
     );
   }
+
+  Future<void> _pickImage() async {
+  final picked = await ImagePicker().pickImage(source: ImageSource.gallery);
+  if (picked != null) {
+    setState(() => _imageFile = File(picked.path));
+  }
+}
 
   
 }
