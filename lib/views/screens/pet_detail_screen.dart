@@ -77,6 +77,8 @@ class _PetDetailScreenModernIntegratedState extends State<PetDetailScreenModernI
   final _primary = const Color(0xFF842EAC);
   final _df = DateFormat('yyyy-MM-dd');
   File? _imageFile;
+  String? _uploadedImageUrl;
+
 
   @override
   void initState() {
@@ -122,8 +124,6 @@ Widget build(BuildContext context) {
         icon: Icon(_editingPet ? Icons.check : Icons.edit),
         onPressed: () async {
           if (_editingPet) {
-            String? uploadedImageUrl = widget.imageUrl;
-
             // Upload new image if changed
             if (_imageFile != null) {
               final fileName =
@@ -133,7 +133,8 @@ Widget build(BuildContext context) {
                 _imageFile!.path,
                 fileName,
               );
-              if (url != null) uploadedImageUrl = url;
+              if (url != null) _uploadedImageUrl = url; // <--- store in state
+              _imageFile = null; // reset picked file
             }
 
             // Update pet details
@@ -146,31 +147,18 @@ Widget build(BuildContext context) {
                 breed: _breedController.text.trim(),
                 age: int.tryParse(_ageController.text.trim()) ?? 0,
                 gender: _genderController.text.trim(),
-                color: _colorController.text.trim().isEmpty
-                    ? null
-                    : _colorController.text.trim(),
-                weight: _weightController.text.trim().isEmpty
-                    ? null
-                    : double.tryParse(_weightController.text.trim()),
-                height: _heightController.text.trim().isEmpty
-                    ? null
-                    : double.tryParse(_heightController.text.trim()),
-                foodPreference: _foodController.text.trim().isEmpty
-                    ? null
-                    : _foodController.text.trim(),
-                mood: _moodController.text.trim().isEmpty
-                    ? null
-                    : _moodController.text.trim(),
-                healthStatus: _healthController.text.trim().isEmpty
-                    ? null
-                    : _healthController.text.trim(),
-                description: _descController.text.trim().isEmpty
-                    ? null
-                    : _descController.text.trim(),
-                imageUrl: uploadedImageUrl,
+                color: _colorController.text.trim().isEmpty ? null : _colorController.text.trim(),
+                weight: _weightController.text.trim().isEmpty ? null : double.tryParse(_weightController.text.trim()),
+                height: _heightController.text.trim().isEmpty ? null : double.tryParse(_heightController.text.trim()),
+                foodPreference: _foodController.text.trim().isEmpty ? null : _foodController.text.trim(),
+                mood: _moodController.text.trim().isEmpty ? null : _moodController.text.trim(),
+                healthStatus: _healthController.text.trim().isEmpty ? null : _healthController.text.trim(),
+                description: _descController.text.trim().isEmpty ? null : _descController.text.trim(),
+                imageUrl: _uploadedImageUrl ?? widget.imageUrl, // <--- use state or fallback
               ),
               widget.userId, 
             );
+
 
             _imageFile = null; // reset local image after save
           }
@@ -318,7 +306,7 @@ Widget build(BuildContext context) {
 
 
 
-   Widget _heroHeader() {
+  Widget _heroHeader() {
   return Stack(
     children: [
       AspectRatio(
@@ -328,8 +316,10 @@ Widget build(BuildContext context) {
             color: Colors.grey.shade200,
             image: _editingPet && _imageFile != null
                 ? DecorationImage(image: FileImage(_imageFile!), fit: BoxFit.cover)
-                : widget.imageUrl != null
-                    ? DecorationImage(image: NetworkImage(widget.imageUrl!), fit: BoxFit.cover)
+                : (_uploadedImageUrl ?? widget.imageUrl) != null
+                    ? DecorationImage(
+                        image: NetworkImage(_uploadedImageUrl ?? widget.imageUrl!),
+                        fit: BoxFit.cover)
                     : null,
           ),
         ),
@@ -359,10 +349,10 @@ Widget build(BuildContext context) {
                     backgroundColor: Colors.white,
                     backgroundImage: _editingPet && _imageFile != null
                         ? FileImage(_imageFile!)
-                        : widget.imageUrl != null
-                            ? NetworkImage(widget.imageUrl!)
+                        : (_uploadedImageUrl ?? widget.imageUrl) != null
+                            ? NetworkImage(_uploadedImageUrl ?? widget.imageUrl!)
                             : null,
-                    child: widget.imageUrl == null && _imageFile == null
+                    child: (_uploadedImageUrl ?? widget.imageUrl) == null && _imageFile == null
                         ? Icon(Icons.pets, color: _primary, size: 28)
                         : null,
                   ),
@@ -409,6 +399,7 @@ Widget build(BuildContext context) {
     ],
   );
 }
+
 
 
 Widget _highlightChips() {
