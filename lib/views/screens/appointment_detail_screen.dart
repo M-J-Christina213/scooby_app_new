@@ -264,7 +264,7 @@ class _AppointmentDetailScreenState extends State<AppointmentDetailScreen>
             borderRadius: BorderRadius.circular(10),
           ),
           padding: const EdgeInsets.all(8),
-          child: const Icon(Icons.medical_services, color: Colors.white, size: 18), 
+          child: const Icon(Icons.star, color: Colors.white, size: 18), 
         ),
         const SizedBox(width: 10),
         Text(
@@ -820,7 +820,7 @@ Widget _vaccinationsTab(MedicalRecordsController controller) {
                 ),
                 trailing: _rowActions(
                   editing: editing,
-                  onEdit: () => _vaccEditing[v.id] = true,
+                  onEdit: () => setState(() => _vaccEditing[v.id] = true),
                   onSave: () async {
                     await controller.addOrUpdateVaccination(
                       existing: v,
@@ -884,7 +884,7 @@ Widget _checkupsTab(MedicalRecordsController controller) {
                 ),
                 trailing: _rowActions(
                   editing: editing,
-                  onEdit: () => _checkEditing[c.id] = true,
+                  onEdit: () => setState(() => _checkEditing[c.id] = true),
                   onSave: () async {
                     await controller.addOrUpdateCheckup(
                       existing: c,
@@ -954,7 +954,7 @@ Widget _prescriptionsTab(MedicalRecordsController controller) {
                 ),
                 trailing: _rowActions(
                   editing: editing,
-                  onEdit: () => _rxEditing[p.id] = true,
+                  onEdit: () => setState(() =>_rxEditing[p.id] = true),
                   onSave: () async {
                     await controller.addOrUpdatePrescription(
                       existing: p,

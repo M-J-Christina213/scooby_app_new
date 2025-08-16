@@ -8,14 +8,18 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 
 class ConfirmBookingScreen extends StatefulWidget {
   final String serviceProviderEmail;
-  final DateTime preselectedDate;
-  final TimeOfDay preselectedTime;
+  final DateTime? preselectedDate;      // nullable for Pet Sitters
+  final TimeOfDay? preselectedTime;     // nullable for Pet Sitters
+  final DateTime? rangeStartDate;       // for Pet Sitters
+  final DateTime? rangeEndDate;         // for Pet Sitters
 
   const ConfirmBookingScreen({
     super.key,
     required this.serviceProviderEmail,
-    required this.preselectedDate,
-    required this.preselectedTime,
+    this.preselectedDate,
+    this.preselectedTime,
+    this.rangeStartDate,
+    this.rangeEndDate,
   });
 
   @override
@@ -25,14 +29,18 @@ class ConfirmBookingScreen extends StatefulWidget {
 class _ConfirmBookingScreenState extends State<ConfirmBookingScreen> {
   final supabase = Supabase.instance.client;
 
-  late DateTime _selectedDate;
-  late TimeOfDay _selectedTime;
+  late DateTime? _selectedDate;
+  late TimeOfDay? _selectedTime;
+  late DateTime? _rangeStartDate;
+  late DateTime? _rangeEndDate;
 
   @override
   void initState() {
     super.initState();
     _selectedDate = widget.preselectedDate;
     _selectedTime = widget.preselectedTime;
+    _rangeStartDate = widget.rangeStartDate;
+    _rangeEndDate = widget.rangeEndDate;
   }
 
   Future<Map<String, String?>> getPetOwnerInfo(String userId) async {
@@ -52,9 +60,8 @@ class _ConfirmBookingScreenState extends State<ConfirmBookingScreen> {
   Future<void> _confirmBooking() async {
     final user = supabase.auth.currentUser;
     if (user == null) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('User not logged in')),
-      );
+      ScaffoldMessenger.of(context)
+          .showSnackBar(const SnackBar(content: Text('User not logged in')));
       return;
     }
 
@@ -66,7 +73,8 @@ class _ConfirmBookingScreenState extends State<ConfirmBookingScreen> {
         context: context,
         builder: (_) => AlertDialog(
           title: const Text('No Pets Found'),
-          content: const Text('Please add a pet in your profile before booking.'),
+          content: const Text(
+              'Please add a pet in your profile before booking.'),
           actions: [
             TextButton(
               onPressed: () => Navigator.pop(context),
@@ -99,17 +107,15 @@ class _ConfirmBookingScreenState extends State<ConfirmBookingScreen> {
       ),
     );
 
-    if (selectedPetId == null) {
-      return; // user canceled pet selection
-    }
+    if (selectedPetId == null) return; // user canceled pet selection
 
-    // Get extra owner info (name, phone)
+    // Get extra owner info
     final extraInfo = await getPetOwnerInfo(user.id);
     final petOwnerName = extraInfo['name'] ?? 'No Name';
     final petOwnerPhone = extraInfo['phone'] ?? 'No Phone';
     final petOwnerEmail = user.email ?? 'No Email';
 
-    // Fetch the correct pet_owners.id for the logged-in user
+    // Fetch pet_owners.id
     final petOwnerRow = await supabase
         .from('pet_owners')
         .select('id')
@@ -123,93 +129,97 @@ class _ConfirmBookingScreenState extends State<ConfirmBookingScreen> {
       return;
     }
 
+    // Prepare booking data
     final bookingData = {
-      'pet_id': selectedPetId,
-      'service_provider_email': widget.serviceProviderEmail,
-      'owner_id': petOwnerRow['id'], // Correct FK value
-      'owner_name': petOwnerName,
-      'owner_phone': petOwnerPhone,
-      'owner_email': petOwnerEmail,
-      'date': _selectedDate.toIso8601String(),
-      'time': _selectedTime.format(context),
-      'status': 'pending',
-      'created_at': DateTime.now().toUtc().toIso8601String(),
-    };
+  'pet_id': selectedPetId,
+  'service_provider_email': widget.serviceProviderEmail,
+  'owner_id': petOwnerRow['id'],
+  'owner_name': petOwnerName,
+  'owner_phone': petOwnerPhone,
+  'owner_email': petOwnerEmail,
+  'date': _selectedDate != null
+      ? _selectedDate!.toIso8601String()
+      : _rangeStartDate?.toIso8601String(),
+  'time': _selectedTime?.format(context) ?? '00:00',  // <-- fallback for Pet Sitters
+  'status': 'pending',
+  'created_at': DateTime.now().toUtc().toIso8601String(),
+};
+
 
     try {
       await supabase.from('bookings').insert(bookingData);
 
       showDialog(
-  context: context,
-  builder: (_) => AlertDialog(
-    contentPadding: const EdgeInsets.all(20),
-    shape: RoundedRectangleBorder(
-      borderRadius: BorderRadius.circular(16),
-    ),
-    content: Column(
-      mainAxisSize: MainAxisSize.min,
-      children: [
-        // Green circle with white tick
-        Container(
-          decoration: BoxDecoration(
-            color: Colors.green,
-            shape: BoxShape.circle,
+        context: context,
+        builder: (_) => AlertDialog(
+          contentPadding: const EdgeInsets.all(20),
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(16),
           ),
-          padding: const EdgeInsets.all(16),
-          child: const Icon(
-            Icons.check,
-            color: Colors.white,
-            size: 48,
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Container(
+                decoration: const BoxDecoration(
+                  color: Colors.green,
+                  shape: BoxShape.circle,
+                ),
+                padding: const EdgeInsets.all(16),
+                child: const Icon(Icons.check, color: Colors.white, size: 48),
+              ),
+              const SizedBox(height: 16),
+              const Text(
+                'Booking Request Sent!',
+                style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
+                textAlign: TextAlign.center,
+              ),
+              const SizedBox(height: 8),
+              const Text(
+                'Thank you for your booking request.\n'
+                'Please wait for approval from the service provider.\n'
+                'Check "My Bookings" to see the status of your appointment.',
+                textAlign: TextAlign.center,
+              ),
+              const SizedBox(height: 16),
+              ElevatedButton(
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: Colors.green,
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                ),
+                onPressed: () {
+                  Navigator.pop(context); // Close dialog
+                  Navigator.pop(context); // Back to previous
+                  Navigator.pop(context); // Back to main
+                },
+                child: const Text('OK'),
+              ),
+            ],
           ),
         ),
-        const SizedBox(height: 16),
-        const Text(
-          'Booking Request Sent!',
-          style: TextStyle(
-            fontSize: 20,
-            fontWeight: FontWeight.bold,
-          ),
-          textAlign: TextAlign.center,
-        ),
-        const SizedBox(height: 8),
-        const Text(
-          'Thank you for your booking request.\n'
-          'Please wait for approval from the service provider.\n'
-          'Check "My Bookings" to see the status of your appointment.',
-          textAlign: TextAlign.center,
-        ),
-        const SizedBox(height: 16),
-        ElevatedButton(
-          style: ElevatedButton.styleFrom(
-            backgroundColor: Colors.green,
-            shape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(8),
-            ),
-          ),
-          onPressed: () {
-            Navigator.pop(context); // Close dialog
-            Navigator.pop(context); // Back to previous screen
-            Navigator.pop(context); // Back to main or previous
-            Navigator.pop(context);
-          },
-          child: const Text('OK'),
-        ),
-      ],
-    ),
-  ),
-);
-
-    } catch (e) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Error saving booking: $e')),
       );
+    } catch (e) {
+      ScaffoldMessenger.of(context)
+          .showSnackBar(SnackBar(content: Text('Error saving booking: $e')));
     }
   }
 
   @override
   Widget build(BuildContext context) {
-    final dateText = DateFormat('EEE, MMM d, yyyy').format(_selectedDate);
-    final timeText = _selectedTime.format(context);
+    String dateText;
+    String timeText = '';
+
+    if (_rangeStartDate != null && _rangeEndDate != null) {
+      dateText =
+          '${DateFormat.yMMMMd().format(_rangeStartDate!)} - ${DateFormat.yMMMMd().format(_rangeEndDate!)}';
+    } else if (_selectedDate != null && _selectedTime != null) {
+      dateText =
+          DateFormat('EEE, MMM d, yyyy').format(_selectedDate!);
+      timeText = _selectedTime!.format(context);
+    } else {
+      dateText = 'No date selected';
+    }
 
     return Scaffold(
       appBar: AppBar(title: const Text('Confirm Booking')),
@@ -219,12 +229,15 @@ class _ConfirmBookingScreenState extends State<ConfirmBookingScreen> {
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
             Text('Date: $dateText', style: const TextStyle(fontSize: 18)),
-            const SizedBox(height: 12),
-            Text('Time: $timeText', style: const TextStyle(fontSize: 18)),
+            if (timeText.isNotEmpty) ...[
+              const SizedBox(height: 12),
+              Text('Time: $timeText', style: const TextStyle(fontSize: 18)),
+            ],
             const SizedBox(height: 36),
             ElevatedButton(
               onPressed: _confirmBooking,
-              style: ElevatedButton.styleFrom(padding: const EdgeInsets.symmetric(vertical: 16)),
+              style: ElevatedButton.styleFrom(
+                  padding: const EdgeInsets.symmetric(vertical: 16)),
               child: const Text('Confirm Booking'),
             ),
           ],

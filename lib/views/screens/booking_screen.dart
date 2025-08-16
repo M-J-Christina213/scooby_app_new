@@ -299,14 +299,28 @@ class _BookingScreenState extends State<BookingScreen> {
     ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(msg)));
   }
 
-  void _onConfirmBookingPressed() {
-    // Validate inputs first
-    if (widget.serviceProvider.role == 'Pet Sitter') {
-      if (_rangeStartDate == null || _rangeEndDate == null) {
-        _showError('Please select a booking period.');
+    void _onConfirmBookingPressed() {
+      if (widget.serviceProvider.role == 'Pet Sitter') {
+        if (_rangeStartDate == null || _rangeEndDate == null) {
+          _showError('Please select a booking period.');
+          return;
+        }
+
+        // Navigate with date range for Pet Sitter
+        Navigator.push(
+          context,
+          MaterialPageRoute(
+            builder: (context) => ConfirmBookingScreen(
+              serviceProviderEmail: widget.serviceProvider.email,
+              rangeStartDate: _rangeStartDate!,
+              rangeEndDate: _rangeEndDate!,
+            ),
+          ),
+        );
         return;
       }
-    } else {
+
+      // For Vet or Groomer
       if (_selectedDate == null) {
         _showError('Please select a date.');
         return;
@@ -315,23 +329,22 @@ class _BookingScreenState extends State<BookingScreen> {
         _showError('Please select a time.');
         return;
       }
-    }
 
-    if (widget.serviceProvider.role == 'Pet Groomer' && _selectedServices.isEmpty) {
-      _showError('Please select at least one grooming service.');
-      return;
-    }
+      if (widget.serviceProvider.role == 'Pet Groomer' && _selectedServices.isEmpty) {
+        _showError('Please select at least one grooming service.');
+        return;
+      }
 
-    // Navigate to ConfirmBookingScreen and pass date/time info
-    Navigator.push(
-      context,
-      MaterialPageRoute(
-        builder: (context) => ConfirmBookingScreen(
-          serviceProviderEmail: widget.serviceProvider.email,
-          preselectedDate: _selectedDate!,
-          preselectedTime: _selectedTime!,
+      Navigator.push(
+        context,
+        MaterialPageRoute(
+          builder: (context) => ConfirmBookingScreen(
+            serviceProviderEmail: widget.serviceProvider.email,
+            preselectedDate: _selectedDate!,
+            preselectedTime: _selectedTime!,
+          ),
         ),
-      ),
-    );
-  }
+      );
+    }
+
 }
