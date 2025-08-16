@@ -1,3 +1,5 @@
+// ignore_for_file: use_build_context_synchronously
+
 import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
@@ -593,9 +595,9 @@ class _AppointmentDetailScreenState extends State<AppointmentDetailScreen>
             child: TabBarView(
               controller: _tabController,
               children: [
-                _vaccinationsTabInline(controller),
-                _checkupsTabInline(controller),
-                _prescriptionsTabInline(controller),
+                _vaccinationsTab(controller),
+                _checkupsTab(controller),
+                _prescriptionsTab(controller),
               ],
             ),
           ),
@@ -643,340 +645,337 @@ class _AppointmentDetailScreenState extends State<AppointmentDetailScreen>
     );
   }
 
-  void _addMedicalRecord() async {
-    if (_controller == null) return;
-    final index = _tabController.index;
+void _addMedicalRecord() async {
+  if (_controller == null) return;
+  final index = _tabController.index;
 
-    final nameCtrl = TextEditingController();
-    final descCtrl = TextEditingController();
-    DateTime? date1;
-    DateTime? date2;
+  final nameCtrl = TextEditingController();
+  final descCtrl = TextEditingController();
+  DateTime? date1;
+  DateTime? date2;
 
-    await showDialog(
-      context: context,
-      builder: (dialogContext) {
-        return AlertDialog(
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-          title: Text(
-            index == 0
-                ? 'Add Vaccination'
-                : index == 1
-                    ? 'Add Medical Checkup'
-                    : 'Add Prescription',
-            style: const TextStyle(fontWeight: FontWeight.bold),
-          ),
-          content: SingleChildScrollView(
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                TextField(
-                  controller: nameCtrl,
-                  decoration: InputDecoration(
-                    labelText: index == 0
-                        ? 'Vaccine Name'
-                        : index == 1
-                            ? 'Reason'
-                            : 'Medicine Name',
-                  ),
-                ),
-                TextField(
-                  controller: descCtrl,
-                  decoration: const InputDecoration(labelText: 'Description'),
-                ),
-                const SizedBox(height: 12),
-                if (index == 0) ...[
-                  _datePickerField('Date Given', date1, (d) => date1 = d),
-                  const SizedBox(height: 8),
-                  _datePickerField('Next Due', date2, (d) => date2 = d),
-                ],
-                if (index == 1) ...[
-                  _datePickerField('Date', date1, (d) => date1 = d),
-                ],
-                if (index == 2) ...[
-                  _datePickerField('Start Date', date1, (d) => date1 = d),
-                  const SizedBox(height: 8),
-                  _datePickerField('End Date', date2, (d) => date2 = d),
-                ],
-              ],
-            ),
-          ),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.pop(dialogContext),
-              child: const Text('Cancel'),
-            ),
-              ElevatedButton(
-                    style: ElevatedButton.styleFrom(backgroundColor: _primary),
-                    onPressed: () async {
-                      try {
-                        if (index == 0) {
-                          await _controller!.addOrUpdateVaccination(
-                            existing: null,
-                            name: nameCtrl.text.trim(),
-                            desc: descCtrl.text.trim().isEmpty ? null : descCtrl.text.trim(),
-                            dateGiven: date1 ?? DateTime.now(),
-                            nextDue: date2,
-                          );
-                        } else if (index == 1) {
-                          await _controller!.addOrUpdateCheckup(
-                            existing: null,
-                            reason: nameCtrl.text.trim(),
-                            desc: descCtrl.text.trim().isEmpty ? null : descCtrl.text.trim(),
-                            date: date1 ?? DateTime.now(),
-                          );
-                        } else if (index == 2) {
-                          await _controller!.addOrUpdatePrescription(
-                            existing: null,
-                            med: nameCtrl.text.trim(),
-                            desc: descCtrl.text.trim().isEmpty ? null : descCtrl.text.trim(),
-                            start: date1 ?? DateTime.now(),
-                            end: date2,
-                          );
-                        }
-
-                        await _controller!.loadAll(); // ✅ reload records after save
-                        if (mounted) Navigator.pop(context);
-                      } catch (e) {
-                        if (mounted) {
-                          ScaffoldMessenger.of(context).showSnackBar(
-                            SnackBar(content: Text('Failed to save: $e')),
-                          );
-                        }
-                      }
-                    },
-                    child: const Text('Save', style: TextStyle(color: Colors.white)),
-                  ),
-
-          ],
-        );
-      },
-    );
-  }
-
-  // === Tabs ===
-  Widget _vaccinationsTabInline(MedicalRecordsController controller) {
-    if (controller.loadingVacc) {
-      return const Center(child: CircularProgressIndicator());
-    }
-    if (controller.vaccinations.isEmpty) {
-      return const Center(child: Text('No vaccinations found'));
-    }
-
-    return SingleChildScrollView(
-      child: Column(
-        children: controller.vaccinations.map((v) {
-          final nameCtrl = TextEditingController(text: v.vaccinationName);
-          final descCtrl = TextEditingController(text: v.description ?? '');
-          DateTime? dateGiven = v.dateGiven;
-          DateTime? nextDue = v.nextDueDate;
-          bool editing = _vaccEditing[v.id] ?? false;
-
-          return Container(
-            margin: const EdgeInsets.symmetric(vertical: 6),
-            decoration: BoxDecoration(
-              color: Colors.white,
-              borderRadius: BorderRadius.circular(14),
-              border: Border.all(color: _primaryLight),
-            ),
-            child: ListTile(
-              title: editing
-                  ? TextField(
-                      controller: nameCtrl,
-                      decoration: const InputDecoration(labelText: 'Name'))
-                  : Text(v.vaccinationName, style: const TextStyle(fontWeight: FontWeight.w700)),
-              subtitle: AnimatedCrossFade(
-                duration: const Duration(milliseconds: 180),
-                crossFadeState: editing ? CrossFadeState.showSecond : CrossFadeState.showFirst,
-                firstChild: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text('${_df.format(v.dateGiven)}  ·  Next: ${v.nextDueDate != null ? _df.format(v.nextDueDate!) : '—'}'),
-                    if ((v.description ?? '').isNotEmpty)
-                      Padding(
-                        padding: const EdgeInsets.only(top: 4),
-                        child: Text(v.description!, style: TextStyle(fontSize: 12, color: Colors.grey.shade700)),
-                      ),
-                  ],
-                ),
-                secondChild: Column(
-                  children: [
-                    TextField(
-                      controller: descCtrl,
-                      decoration: const InputDecoration(labelText: 'Description'),
-                    ),
-                    const SizedBox(height: 8),
-                    Row(
-                      children: [
-                        Expanded(child: _datePickerField('Date Given', dateGiven, (d) => setState(() => dateGiven = d))),
-                        const SizedBox(width: 12),
-                        Expanded(child: _datePickerField('Next Due', nextDue, (d) => setState(() => nextDue = d))),
-                      ],
-                    )
-                  ],
+  await showDialog(
+    context: context,
+    builder: (dialogContext) {
+      return AlertDialog(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+        title: Text(
+          index == 0
+              ? 'Add Vaccination'
+              : index == 1
+                  ? 'Add Medical Checkup'
+                  : 'Add Prescription',
+          style: const TextStyle(fontWeight: FontWeight.bold),
+        ),
+        content: SingleChildScrollView(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              TextField(
+                controller: nameCtrl,
+                decoration: InputDecoration(
+                  labelText: index == 0
+                      ? 'Vaccine Name'
+                      : index == 1
+                          ? 'Reason'
+                          : 'Medicine Name',
                 ),
               ),
-              trailing: _rowActions(
-                editing: editing,
-                onEdit: () => setState(() => _vaccEditing[v.id] = true),
-                onSave: () async {
-                  await controller.addOrUpdateVaccination(
-                    existing: v,
+              TextField(
+                controller: descCtrl,
+                decoration: const InputDecoration(labelText: 'Description'),
+              ),
+              const SizedBox(height: 12),
+              if (index == 0) ...[
+                _datePickerField('Date Given', date1, (d) => date1 = d),
+                const SizedBox(height: 8),
+                _datePickerField('Next Due', date2, (d) => date2 = d),
+              ],
+              if (index == 1) ...[
+                _datePickerField('Date', date1, (d) => date1 = d),
+              ],
+              if (index == 2) ...[
+                _datePickerField('Start Date', date1, (d) => date1 = d),
+                const SizedBox(height: 8),
+                _datePickerField('End Date', date2, (d) => date2 = d),
+              ],
+            ],
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(dialogContext),
+            child: const Text('Cancel'),
+          ),
+          ElevatedButton(
+            style: ElevatedButton.styleFrom(backgroundColor: _primary),
+            onPressed: () async {
+              try {
+                // === Add/Update record based on tab ===
+                if (index == 0) {
+                  await _controller!.addOrUpdateVaccination(
+                    existing: null,
                     name: nameCtrl.text.trim(),
                     desc: descCtrl.text.trim().isEmpty ? null : descCtrl.text.trim(),
-                    dateGiven: dateGiven!,
-                    nextDue: nextDue,
+                    dateGiven: date1 ?? DateTime.now(),
+                    nextDue: date2,
                   );
-                  setState(() => _vaccEditing[v.id] = false);
-                },
-                onCancel: () => setState(() => _vaccEditing[v.id] = false),
-                onDelete: () async => controller.deleteVaccination(v.id),
+                } else if (index == 1) {
+                  await _controller!.addOrUpdateCheckup(
+                    existing: null,
+                    reason: nameCtrl.text.trim(),
+                    desc: descCtrl.text.trim().isEmpty ? null : descCtrl.text.trim(),
+                    date: date1 ?? DateTime.now(),
+                  );
+                } else if (index == 2) {
+                  await _controller!.addOrUpdatePrescription(
+                    existing: null,
+                    med: nameCtrl.text.trim(),
+                    desc: descCtrl.text.trim().isEmpty ? null : descCtrl.text.trim(),
+                    start: date1 ?? DateTime.now(),
+                    end: date2,
+                  );
+                }
+
+                // Close the dialog first
+                if (mounted) Navigator.pop(dialogContext);
+
+                // No need to call setState; controller already calls notifyListeners
+              } catch (e) {
+                if (mounted) {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    SnackBar(content: Text('Failed to save: $e')),
+                  );
+                }
+              }
+            },
+            child: const Text('Save', style: TextStyle(color: Colors.white)),
+          ),
+        ],
+      );
+    },
+  );
+}
+
+  // === Tabs ===
+// === Vaccinations Tab ===
+Widget _vaccinationsTab(MedicalRecordsController controller) {
+  return AnimatedBuilder(
+    animation: controller,
+    builder: (context, _) {
+      if (controller.loadingVacc) {
+        return const Center(child: CircularProgressIndicator());
+      }
+      if (controller.vaccinations.isEmpty) {
+        return const Center(child: Text('No vaccinations found'));
+      }
+
+      return SingleChildScrollView(
+        child: Column(
+          children: controller.vaccinations.map((v) {
+            final nameCtrl = TextEditingController(text: v.vaccinationName);
+            final descCtrl = TextEditingController(text: v.description ?? '');
+            DateTime? dateGiven = v.dateGiven;
+            DateTime? nextDue = v.nextDueDate;
+            bool editing = _vaccEditing[v.id] ?? false;
+
+            return Container(
+              margin: const EdgeInsets.symmetric(vertical: 6),
+              decoration: BoxDecoration(
+                color: Colors.white,
+                borderRadius: BorderRadius.circular(14),
+                border: Border.all(color: _primaryLight),
               ),
-            ),
-          );
-        }).toList(),
-      ),
-    );
-  }
-
-  Widget _checkupsTabInline(MedicalRecordsController controller) {
-    if (controller.loadingCheck) {
-      return const Center(child: CircularProgressIndicator());
-    }
-    if (controller.checkups.isEmpty) {
-      return const Center(child: Text('No checkups found'));
-    }
-
-    return SingleChildScrollView(
-      child: Column(
-        children: controller.checkups.map((c) {
-          final reasonCtrl = TextEditingController(text: c.reason);
-          final descCtrl = TextEditingController(text: c.description ?? '');
-          DateTime date = c.date;
-          bool editing = _checkEditing[c.id] ?? false;
-
-          return Container(
-            margin: const EdgeInsets.symmetric(vertical: 6),
-            decoration: BoxDecoration(
-              color: Colors.white,
-              borderRadius: BorderRadius.circular(14),
-              border: Border.all(color: _primaryLight),
-            ),
-            child: ListTile(
-              title: editing
-                  ? TextField(
-                      controller: reasonCtrl,
-                      decoration: const InputDecoration(labelText: 'Reason'))
-                  : Text(c.reason, style: const TextStyle(fontWeight: FontWeight.w700)),
-              subtitle: AnimatedCrossFade(
-                duration: const Duration(milliseconds: 180),
-                crossFadeState: editing ? CrossFadeState.showSecond : CrossFadeState.showFirst,
-                firstChild: Text(_df.format(c.date)),
-                secondChild: Column(
-                  children: [
-                    TextField(
-                      controller: descCtrl,
-                      decoration: const InputDecoration(labelText: 'Description'),
-                    ),
-                    const SizedBox(height: 8),
-                    _datePickerField('Date', date, (d) => setState(() => date = d)),
-                  ],
+              child: ListTile(
+                title: editing
+                    ? TextField(controller: nameCtrl, decoration: const InputDecoration(labelText: 'Name'))
+                    : Text(v.vaccinationName, style: const TextStyle(fontWeight: FontWeight.w700)),
+                subtitle: AnimatedCrossFade(
+                  duration: const Duration(milliseconds: 180),
+                  crossFadeState: editing ? CrossFadeState.showSecond : CrossFadeState.showFirst,
+                  firstChild: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text('${_df.format(v.dateGiven)}  ·  Next: ${v.nextDueDate != null ? _df.format(v.nextDueDate!) : '—'}'),
+                      if ((v.description ?? '').isNotEmpty)
+                        Padding(
+                          padding: const EdgeInsets.only(top: 4),
+                          child: Text(v.description!, style: TextStyle(fontSize: 12, color: Colors.grey.shade700)),
+                        ),
+                    ],
+                  ),
+                  secondChild: Column(
+                    children: [
+                      TextField(controller: descCtrl, decoration: const InputDecoration(labelText: 'Description')),
+                      const SizedBox(height: 8),
+                      Row(
+                        children: [
+                          Expanded(child: _datePickerField('Date Given', dateGiven, (d) => dateGiven = d)),
+                          const SizedBox(width: 12),
+                          Expanded(child: _datePickerField('Next Due', nextDue, (d) => nextDue = d)),
+                        ],
+                      ),
+                    ],
+                  ),
+                ),
+                trailing: _rowActions(
+                  editing: editing,
+                  onEdit: () => _vaccEditing[v.id] = true,
+                  onSave: () async {
+                    await controller.addOrUpdateVaccination(
+                      existing: v,
+                      name: nameCtrl.text.trim(),
+                      desc: descCtrl.text.trim().isEmpty ? null : descCtrl.text.trim(),
+                      dateGiven: dateGiven!,
+                      nextDue: nextDue,
+                    );
+                    _vaccEditing[v.id] = false;
+                  },
+                  onCancel: () => _vaccEditing[v.id] = false,
+                  onDelete: () async => controller.deleteVaccination(v.id),
                 ),
               ),
-              trailing: _rowActions(
-                editing: editing,
-                onEdit: () => setState(() => _checkEditing[c.id] = true),
-                onSave: () async {
-                  await controller.addOrUpdateCheckup(
-                    existing: c,
-                    reason: reasonCtrl.text.trim(),
-                    desc: descCtrl.text.trim().isEmpty ? null : descCtrl.text.trim(),
-                    date: date,
-                  );
-                  setState(() => _checkEditing[c.id] = false);
-                },
-                onCancel: () => setState(() => _checkEditing[c.id] = false),
-                onDelete: () async => controller.deleteCheckup(c.id),
+            );
+          }).toList(),
+        ),
+      );
+    },
+  );
+}
+
+// === Medical Checkups Tab ===
+Widget _checkupsTab(MedicalRecordsController controller) {
+  return AnimatedBuilder(
+    animation: controller,
+    builder: (context, _) {
+      if (controller.loadingCheck) return const Center(child: CircularProgressIndicator());
+      if (controller.checkups.isEmpty) return const Center(child: Text('No checkups found'));
+
+      return SingleChildScrollView(
+        child: Column(
+          children: controller.checkups.map((c) {
+            final reasonCtrl = TextEditingController(text: c.reason);
+            final descCtrl = TextEditingController(text: c.description ?? '');
+            DateTime date = c.date;
+            bool editing = _checkEditing[c.id] ?? false;
+
+            return Container(
+              margin: const EdgeInsets.symmetric(vertical: 6),
+              decoration: BoxDecoration(
+                color: Colors.white,
+                borderRadius: BorderRadius.circular(14),
+                border: Border.all(color: _primaryLight),
               ),
-            ),
-          );
-        }).toList(),
-      ),
-    );
-  }
-
-  Widget _prescriptionsTabInline(MedicalRecordsController controller) {
-    if (controller.loadingRx) {
-      return const Center(child: CircularProgressIndicator());
-    }
-    if (controller.prescriptions.isEmpty) {
-      return const Center(child: Text('No prescriptions found'));
-    }
-
-    return SingleChildScrollView(
-      child: Column(
-        children: controller.prescriptions.map((p) {
-          final medCtrl = TextEditingController(text: p.medicineName);
-          final descCtrl = TextEditingController(text: p.description ?? '');
-          DateTime start = p.startDate;
-          DateTime? end = p.endDate;
-          bool editing = _rxEditing[p.id] ?? false;
-
-          return Container(
-            margin: const EdgeInsets.symmetric(vertical: 6),
-            decoration: BoxDecoration(
-              color: Colors.white,
-              borderRadius: BorderRadius.circular(14),
-              border: Border.all(color: _primaryLight),
-            ),
-            child: ListTile(
-              title: editing
-                  ? TextField(
-                      controller: medCtrl,
-                      decoration: const InputDecoration(labelText: 'Medicine'))
-                  : Text(p.medicineName, style: const TextStyle(fontWeight: FontWeight.w700)),
-              subtitle: AnimatedCrossFade(
-                duration: const Duration(milliseconds: 180),
-                crossFadeState: editing ? CrossFadeState.showSecond : CrossFadeState.showFirst,
-                firstChild: Text('${_df.format(p.startDate)}  ·  End: ${p.endDate != null ? _df.format(p.endDate!) : '—'}'),
-                secondChild: Column(
-                  children: [
-                    TextField(
-                      controller: descCtrl,
-                      decoration: const InputDecoration(labelText: 'Description'),
-                    ),
-                    const SizedBox(height: 8),
-                    Row(
-                      children: [
-                        Expanded(child: _datePickerField('Start', start, (d) => setState(() => start = d))),
-                        const SizedBox(width: 12),
-                        Expanded(child: _datePickerField('End', end, (d) => setState(() => end = d))),
-                      ],
-                    )
-                  ],
+              child: ListTile(
+                title: editing
+                    ? TextField(controller: reasonCtrl, decoration: const InputDecoration(labelText: 'Reason'))
+                    : Text(c.reason, style: const TextStyle(fontWeight: FontWeight.w700)),
+                subtitle: AnimatedCrossFade(
+                  duration: const Duration(milliseconds: 180),
+                  crossFadeState: editing ? CrossFadeState.showSecond : CrossFadeState.showFirst,
+                  firstChild: Text(_df.format(c.date)),
+                  secondChild: Column(
+                    children: [
+                      TextField(controller: descCtrl, decoration: const InputDecoration(labelText: 'Description')),
+                      const SizedBox(height: 8),
+                      _datePickerField('Date', date, (d) => date = d),
+                    ],
+                  ),
+                ),
+                trailing: _rowActions(
+                  editing: editing,
+                  onEdit: () => _checkEditing[c.id] = true,
+                  onSave: () async {
+                    await controller.addOrUpdateCheckup(
+                      existing: c,
+                      reason: reasonCtrl.text.trim(),
+                      desc: descCtrl.text.trim().isEmpty ? null : descCtrl.text.trim(),
+                      date: date,
+                    );
+                    _checkEditing[c.id] = false;
+                  },
+                  onCancel: () => _checkEditing[c.id] = false,
+                  onDelete: () async => controller.deleteCheckup(c.id),
                 ),
               ),
-              trailing: _rowActions(
-                editing: editing,
-                onEdit: () => setState(() => _rxEditing[p.id] = true),
-                onSave: () async {
-                  await controller.addOrUpdatePrescription(
-                    existing: p,
-                    med: medCtrl.text.trim(),
-                    desc: descCtrl.text.trim().isEmpty ? null : descCtrl.text.trim(),
-                    start: start,
-                    end: end,
-                  );
-                  setState(() => _rxEditing[p.id] = false);
-                },
-                onCancel: () => setState(() => _rxEditing[p.id] = false),
-                onDelete: () async => controller.deletePrescription(p.id),
+            );
+          }).toList(),
+        ),
+      );
+    },
+  );
+}
+
+// === Prescriptions Tab ===
+Widget _prescriptionsTab(MedicalRecordsController controller) {
+  return AnimatedBuilder(
+    animation: controller,
+    builder: (context, _) {
+      if (controller.loadingRx) return const Center(child: CircularProgressIndicator());
+      if (controller.prescriptions.isEmpty) return const Center(child: Text('No prescriptions found'));
+
+      return SingleChildScrollView(
+        child: Column(
+          children: controller.prescriptions.map((p) {
+            final medCtrl = TextEditingController(text: p.medicineName);
+            final descCtrl = TextEditingController(text: p.description ?? '');
+            DateTime start = p.startDate;
+            DateTime? end = p.endDate;
+            bool editing = _rxEditing[p.id] ?? false;
+
+            return Container(
+              margin: const EdgeInsets.symmetric(vertical: 6),
+              decoration: BoxDecoration(
+                color: Colors.white,
+                borderRadius: BorderRadius.circular(14),
+                border: Border.all(color: _primaryLight),
               ),
-            ),
-          );
-        }).toList(),
-      ),
-    );
-  }
+              child: ListTile(
+                title: editing
+                    ? TextField(controller: medCtrl, decoration: const InputDecoration(labelText: 'Medicine'))
+                    : Text(p.medicineName, style: const TextStyle(fontWeight: FontWeight.w700)),
+                subtitle: AnimatedCrossFade(
+                  duration: const Duration(milliseconds: 180),
+                  crossFadeState: editing ? CrossFadeState.showSecond : CrossFadeState.showFirst,
+                  firstChild: Text('${_df.format(p.startDate)}  ·  End: ${p.endDate != null ? _df.format(p.endDate!) : '—'}'),
+                  secondChild: Column(
+                    children: [
+                      TextField(controller: descCtrl, decoration: const InputDecoration(labelText: 'Description')),
+                      const SizedBox(height: 8),
+                      Row(
+                        children: [
+                          Expanded(child: _datePickerField('Start', start, (d) => start = d)),
+                          const SizedBox(width: 12),
+                          Expanded(child: _datePickerField('End', end, (d) => end = d)),
+                        ],
+                      ),
+                    ],
+                  ),
+                ),
+                trailing: _rowActions(
+                  editing: editing,
+                  onEdit: () => _rxEditing[p.id] = true,
+                  onSave: () async {
+                    await controller.addOrUpdatePrescription(
+                      existing: p,
+                      med: medCtrl.text.trim(),
+                      desc: descCtrl.text.trim().isEmpty ? null : descCtrl.text.trim(),
+                      start: start,
+                      end: end,
+                    );
+                    _rxEditing[p.id] = false;
+                  },
+                  onCancel: () => _rxEditing[p.id] = false,
+                  onDelete: () async => controller.deletePrescription(p.id),
+                ),
+              ),
+            );
+          }).toList(),
+        ),
+      );
+    },
+  );
+}
 
   Widget _rowActions({
     required bool editing,

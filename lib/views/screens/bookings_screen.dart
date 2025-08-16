@@ -1,54 +1,115 @@
+// ignore_for_file: use_build_context_synchronously
+
 import 'package:flutter/material.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
 
-class BookingsScreen extends StatelessWidget {
-  // Dummy data for bookings and reminders
-  final List<Map<String, String>> bookings = [
-    {'title': 'Dog Walking', 'date': '2024-07-01', 'time': '10:00 AM'},
-    {'title': 'Vet Appointment', 'date': '2024-07-03', 'time': '02:00 PM'},
-  ];
+class BookingsScreen extends StatefulWidget {
+  const BookingsScreen({super.key});
 
-  final List<Map<String, String>> reminders = [
-    {'reminder': 'Feed Scooby', 'time': '08:00 AM'},
-    {'reminder': 'Give medicine', 'time': '09:00 PM'},
-  ];
+  @override
+  State<BookingsScreen> createState() => _BookingsScreenState();
+}
 
-  BookingsScreen({super.key});
+class _BookingsScreenState extends State<BookingsScreen> {
+  final SupabaseClient supabase = Supabase.instance.client;
+  List<Map<String, dynamic>> bookings = [];
+  bool isLoading = true;
+  String? ownerId;
+
+  @override
+  void initState() {
+    super.initState();
+    fetchOwnerIdAndBookings();
+  }
+
+  Future<void> fetchOwnerIdAndBookings() async {
+    setState(() => isLoading = true);
+
+    try {
+      // Get current auth user
+      final authUserId = supabase.auth.currentUser?.id;
+      if (authUserId == null) {
+        debugPrint('No logged-in user found.');
+        setState(() => isLoading = false);
+        return;
+      }
+
+      // Get ownerId from pet_owners table
+      final ownerResponse = await supabase
+          .from('pet_owners')
+          .select('id')
+          .eq('user_id', authUserId)
+          .single();
+
+      if (ownerResponse == null || ownerResponse['id'] == null) {
+        debugPrint('No pet owner found for this user.');
+        setState(() => isLoading = false);
+        return;
+      }
+
+      ownerId = ownerResponse['id'] as String;
+      debugPrint('OwnerId fetched: $ownerId');
+
+      // Fetch bookings
+      await fetchBookings();
+    } catch (e) {
+      debugPrint('Error fetching owner/bookings: $e');
+      setState(() => isLoading = false);
+    }
+  }
+
+  Future<void> fetchBookings() async {
+    if (ownerId == null) return;
+
+    setState(() => isLoading = true);
+    try {
+      final data = await supabase
+          .from('bookings')
+          .select()
+          .eq('owner_id', ownerId);
+
+      final bookingList = List<Map<String, dynamic>>.from(data as List);
+
+      debugPrint('Bookings fetched: ${bookingList.length}');
+
+      setState(() {
+        bookings = bookingList;
+        isLoading = false;
+      });
+    } catch (e) {
+      setState(() => isLoading = false);
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Failed to fetch bookings: $e')),
+      );
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(
-        title: Text('My Bookings & Reminders'),
-      ),
-      body: SingleChildScrollView(
-        child: Padding(
-          padding: const EdgeInsets.all(16.0),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text('My Bookings', style: Theme.of(context).textTheme.titleLarge),
-              SizedBox(height: 10),
-              ...bookings.map((booking) => Card(
-                    child: ListTile(
-                      leading: Icon(Icons.event),
-                      title: Text(booking['title']!),
-                      subtitle: Text('${booking['date']} at ${booking['time']}'),
-                    ),
-                  )),
-              SizedBox(height: 30),
-              Text('Reminders', style: Theme.of(context).textTheme.titleLarge),
-              SizedBox(height: 10),
-              ...reminders.map((reminder) => Card(
-                    child: ListTile(
-                      leading: Icon(Icons.alarm),
-                      title: Text(reminder['reminder']!),
-                      subtitle: Text('Time: ${reminder['time']}'),
-                    ),
-                  )),
-            ],
-          ),
-        ),
-      ),
+      appBar: AppBar(title: const Text('My Bookings')),
+      body: isLoading
+          ? const Center(child: CircularProgressIndicator())
+          : bookings.isEmpty
+              ? const Center(child: Text('No bookings found'))
+              : ListView.builder(
+                  padding: const EdgeInsets.all(16),
+                  itemCount: bookings.length,
+                  itemBuilder: (context, index) {
+                    final booking = bookings[index];
+                    return Card(
+                      child: ListTile(
+                        leading: const Icon(Icons.event),
+                        title: Text(booking['owner_name'] ?? 'Booking'),
+                        subtitle: Text(
+                          'Date: ${booking['date'].toString().split('T')[0]} \n'
+                          'Time: ${booking['time']} \n'
+                          'Status: ${booking['status']}',
+                        ),
+                      ),
+                    );
+                  },
+                ),
     );
   }
 }

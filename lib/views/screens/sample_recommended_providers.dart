@@ -10,7 +10,7 @@ final List<ServiceProvider> sampleRecommendedProviders = [
     email: 'chamari.silva.vet@gmail.com',
     city: 'Colombo',
     role: 'Veterinarian',
-    profileImageUrl: 'https://example.com/images/chamari_silva.jpg',
+    profileImageUrl: 'assets/images/vet1.jpeg',
     galleryImages: [
       'https://example.com/images/vet_gallery_1.jpg',
       'https://example.com/images/vet_gallery_2.jpg',
@@ -40,7 +40,7 @@ final List<ServiceProvider> sampleRecommendedProviders = [
     email: 'nimal.perera.vet@gmail.com',
     city: 'Gampaha', 
     role: 'Veterinarian',
-    profileImageUrl: 'https://example.com/images/nimal_perera.jpg',
+    profileImageUrl: 'assets/images/vet2 (2).jpg',
     galleryImages: [
       'https://example.com/images/vet2_gallery_1.jpg',
       'https://example.com/images/vet2_gallery_2.jpg',
