@@ -77,55 +77,19 @@ class PetService {
   // Update pet details
 Future<void> updatePet(Pet pet, String authUserId) async {
   try {
-    // Check if the user is a service provider first
-    bool isServiceProvider = await _checkIfServiceProvider(authUserId);
+    final petJson = pet.toJson(forInsert: true);
 
-    if (!isServiceProvider) {
-      // If it's a pet owner, continue with the normal flow
-      final ownerData = await supabase
-          .from('pet_owners')
-          .select('id')
-          .eq('user_id', authUserId)
-          .maybeSingle();
+    // ⚠️ DO NOT overwrite user_id here
+    petJson.remove('user_id'); 
 
-      final String? petOwnerId = ownerData?['id'] as String?;
-      if (petOwnerId == null) {
-        throw Exception("Pet owner not found for user_id: $authUserId");
-      }
-
-      final petJson = pet.toJson(forInsert: true);
-      petJson['user_id'] = petOwnerId;
-
-      await supabase
-          .from('pets')
-          .update(petJson)
-          .eq('id', pet.id)
-          .eq('user_id', petOwnerId);
-    } else {
-      // If it's a service provider, update directly with the service provider's user_id
-      final petJson = pet.toJson(forInsert: true);
-      petJson['user_id'] = authUserId; // Use service provider's user_id
-
-      await supabase
-          .from('pets')
-          .update(petJson)
-          .eq('id', pet.id)
-          .eq('user_id', authUserId);
-    }
+    await supabase
+        .from('pets')
+        .update(petJson)
+        .eq('id', pet.id);
   } catch (e) {
     rethrow;
   }
 }
 
-// Helper function to check if user is a service provider
-Future<bool> _checkIfServiceProvider(String userId) async {
-  final serviceProviderData = await supabase
-      .from('service_providers') // assuming there's a `service_providers` table
-      .select('id')
-      .eq('user_id', userId)
-      .maybeSingle();
-
-  return serviceProviderData != null;
-}
 
 }

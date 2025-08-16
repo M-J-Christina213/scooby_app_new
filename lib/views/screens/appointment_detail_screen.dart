@@ -146,7 +146,6 @@ class _AppointmentDetailScreenState extends State<AppointmentDetailScreen>
   Future<void> _updatePetDetails() async {
     if (pet == null) return;
     try {
-      // Upload image first if changed
       if (_imageFile != null) {
         final fileName = 'pet_${pet!['id']}_${DateTime.now().millisecondsSinceEpoch}.png';
         final url = await PetService.instance
@@ -155,42 +154,40 @@ class _AppointmentDetailScreenState extends State<AppointmentDetailScreen>
         _imageFile = null;
       }
 
-      await PetService.instance.updatePet(
-        Pet(
-          id: pet!['id'],
-          userId: widget.userId,
-          name: pet!['name'],
-          type: pet!['type'],
-          breed: pet!['breed'],
-          age: pet!['age'],
-          gender: pet!['gender'],
-          color: pet!['color'],
-          weight: _weightController.text.trim().isEmpty
-              ? null
-              : double.tryParse(_weightController.text.trim()),
-          height: _heightController.text.trim().isEmpty
-              ? null
-              : double.tryParse(_heightController.text.trim()),
-          foodPreference: _foodController.text.trim().isEmpty
-              ? null
-              : _foodController.text.trim(),
-          mood: _moodController.text.trim().isEmpty
-              ? null
-              : _moodController.text.trim(),
-          healthStatus: _healthController.text.trim().isEmpty
-              ? null
-              : _healthController.text.trim(),
-          description: _descController.text.trim().isEmpty
-              ? null
-              : _descController.text.trim(),
-          imageUrl: _uploadedImageUrl ?? pet!['image_url'],
-        ),
-        widget.userId,
+      final updatedPet = Pet(
+        id: pet!['id'],
+        userId: widget.userId,
+        name: pet!['name'],
+        type: pet!['type'],
+        breed: pet!['breed'],
+        age: pet!['age'],
+        gender: pet!['gender'],
+        color: pet!['color'],
+        weight: _weightController.text.trim().isEmpty
+            ? null
+            : double.tryParse(_weightController.text.trim()),
+        height: _heightController.text.trim().isEmpty
+            ? null
+            : double.tryParse(_heightController.text.trim()),
+        foodPreference: _foodController.text.trim().isEmpty
+            ? null
+            : _foodController.text.trim(),
+        mood: _moodController.text.trim().isEmpty
+            ? null
+            : _moodController.text.trim(),
+        healthStatus: _healthController.text.trim().isEmpty
+            ? null
+            : _healthController.text.trim(),
+        description: _descController.text.trim().isEmpty
+            ? null
+            : _descController.text.trim(),
+        imageUrl: _uploadedImageUrl ?? pet!['image_url'],
       );
 
-      // Refresh local pet map
+      await PetService.instance.updatePet(updatedPet, widget.userId); // ✅ ensures save to pets table
+
       pet = Map<String, dynamic>.from(pet!);
-      pet!['image_url'] = _uploadedImageUrl ?? pet!['image_url'];
+      pet!.addAll(updatedPet.toJson()); // ✅ update local copy
 
       if (mounted) {
         setState(() => _petEditMode = false);
@@ -261,11 +258,11 @@ class _AppointmentDetailScreenState extends State<AppointmentDetailScreen>
       children: [
         Container(
           decoration: BoxDecoration(
-            gradient: const LinearGradient(colors: [_primary, _primaryDark]),
+            color: _primary,
             borderRadius: BorderRadius.circular(10),
           ),
           padding: const EdgeInsets.all(8),
-          child: const Icon(Icons.star, color: Colors.white, size: 18),
+          child: const Icon(Icons.medical_services, color: Colors.white, size: 18), 
         ),
         const SizedBox(width: 10),
         Text(
@@ -279,16 +276,10 @@ class _AppointmentDetailScreenState extends State<AppointmentDetailScreen>
     );
   }
 
-  BoxDecoration get _cardDecoration => BoxDecoration(
+ BoxDecoration get _cardDecoration => BoxDecoration(
         color: _cardSurface,
         borderRadius: BorderRadius.circular(18),
-        boxShadow: [
-          BoxShadow(
-            color: _primary..withValues(alpha: 0.08),
-            blurRadius: 16,
-            offset: const Offset(0, 8),
-          ),
-        ],
+        border: Border.all(color: _primaryLight), 
       );
 
   Widget _ownerInfoCard() {
@@ -714,46 +705,48 @@ class _AppointmentDetailScreenState extends State<AppointmentDetailScreen>
               onPressed: () => Navigator.pop(dialogContext),
               child: const Text('Cancel'),
             ),
-            ElevatedButton(
-              style: ElevatedButton.styleFrom(backgroundColor: _primary),
-              onPressed: () async {
-                try {
-                  if (index == 0) {
-                    await _controller!.addOrUpdateVaccination(
-                      existing: null,
-                      name: nameCtrl.text.trim(),
-                      desc: descCtrl.text.trim().isEmpty ? null : descCtrl.text.trim(),
-                      dateGiven: date1 ?? DateTime.now(),
-                      nextDue: date2,
-                    );
-                  } else if (index == 1) {
-                    await _controller!.addOrUpdateCheckup(
-                      existing: null,
-                      reason: nameCtrl.text.trim(),
-                      desc: descCtrl.text.trim().isEmpty ? null : descCtrl.text.trim(),
-                      date: date1 ?? DateTime.now(),
-                    );
-                  } else if (index == 2) {
-                    await _controller!.addOrUpdatePrescription(
-                      existing: null,
-                      med: nameCtrl.text.trim(),
-                      desc: descCtrl.text.trim().isEmpty ? null : descCtrl.text.trim(),
-                      start: date1 ?? DateTime.now(),
-                      end: date2,
-                    );
-                  }
+              ElevatedButton(
+                    style: ElevatedButton.styleFrom(backgroundColor: _primary),
+                    onPressed: () async {
+                      try {
+                        if (index == 0) {
+                          await _controller!.addOrUpdateVaccination(
+                            existing: null,
+                            name: nameCtrl.text.trim(),
+                            desc: descCtrl.text.trim().isEmpty ? null : descCtrl.text.trim(),
+                            dateGiven: date1 ?? DateTime.now(),
+                            nextDue: date2,
+                          );
+                        } else if (index == 1) {
+                          await _controller!.addOrUpdateCheckup(
+                            existing: null,
+                            reason: nameCtrl.text.trim(),
+                            desc: descCtrl.text.trim().isEmpty ? null : descCtrl.text.trim(),
+                            date: date1 ?? DateTime.now(),
+                          );
+                        } else if (index == 2) {
+                          await _controller!.addOrUpdatePrescription(
+                            existing: null,
+                            med: nameCtrl.text.trim(),
+                            desc: descCtrl.text.trim().isEmpty ? null : descCtrl.text.trim(),
+                            start: date1 ?? DateTime.now(),
+                            end: date2,
+                          );
+                        }
 
-                  if (mounted) Navigator.pop(context);
-                } catch (e) {
-                  if (mounted) {
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      SnackBar(content: Text('Failed to save: $e')),
-                    );
-                  }
-                }
-              },
-              child: const Text('Save', style: TextStyle(color: Colors.white)),
-            ),
+                        await _controller!.loadAll(); // ✅ reload records after save
+                        if (mounted) Navigator.pop(context);
+                      } catch (e) {
+                        if (mounted) {
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            SnackBar(content: Text('Failed to save: $e')),
+                          );
+                        }
+                      }
+                    },
+                    child: const Text('Save', style: TextStyle(color: Colors.white)),
+                  ),
+
           ],
         );
       },
