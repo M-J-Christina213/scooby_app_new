@@ -10,7 +10,7 @@ import 'package:scooby_app_new/models/service_provider.dart';
 import 'package:scooby_app_new/views/screens/bookings_screen.dart';
 import 'package:scooby_app_new/views/screens/my_pets_screen.dart';
 import 'package:scooby_app_new/views/screens/profile_screen.dart';
-import 'package:scooby_app_new/views/screens/nearby_services_screen.dart'; // You need to create this!
+import 'package:scooby_app_new/views/screens/nearby_services_screen.dart'; 
 import 'package:scooby_app_new/widgets/bottom_nav.dart';
 
 class HomeScreen extends StatefulWidget {
@@ -470,18 +470,26 @@ class ServiceProviderCard extends StatelessWidget {
             ClipRRect(
               borderRadius: BorderRadius.circular(12),
               child: provider.profileImageUrl.isNotEmpty
-                  ? Image.network(
-                      provider.profileImageUrl,
-                      height: 100,
-                      width: double.infinity,
-                      fit: BoxFit.cover,
-                    )
+                  ? (provider.profileImageUrl.startsWith('http')
+                      ? Image.network(
+                          provider.profileImageUrl,
+                          height: 100,
+                          width: double.infinity,
+                          fit: BoxFit.cover,
+                        )
+                      : Image.asset(
+                          provider.profileImageUrl,
+                          height: 100,
+                          width: double.infinity,
+                          fit: BoxFit.cover,
+                        ))
                   : Container(
                       height: 100,
                       color: Colors.grey[300],
                       child: const Icon(Icons.pets, size: 60, color: Colors.white),
                     ),
             ),
+
             const SizedBox(height: 8),
             Text(
               provider.clinicOrSalonName.isNotEmpty
