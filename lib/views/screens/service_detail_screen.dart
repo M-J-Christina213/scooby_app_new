@@ -65,8 +65,19 @@ class _ServiceDetailScreenState extends State<ServiceDetailScreen> {
             pinned: true,
             flexibleSpace: FlexibleSpaceBar(
               background: sp.profileImageUrl.isNotEmpty
-                  ? Image.network(sp.profileImageUrl, fit: BoxFit.cover)
-                  : Image.asset('assets/images/default_user.png', fit: BoxFit.cover),
+                ? (sp.profileImageUrl.startsWith('http')
+                    ? Image.network(
+                        sp.profileImageUrl,
+                        fit: BoxFit.cover,
+                        errorBuilder: (context, error, stackTrace) =>
+                            Image.asset('assets/images/default_user.png', fit: BoxFit.cover),
+                      )
+                    : Image.asset(
+                        sp.profileImageUrl,
+                        fit: BoxFit.cover,
+                      ))
+                : Image.asset('assets/images/default_user.png', fit: BoxFit.cover),
+
             ),
           ),
           SliverPadding(
@@ -137,25 +148,32 @@ class _ServiceDetailScreenState extends State<ServiceDetailScreen> {
                 padding: const EdgeInsets.symmetric(horizontal: 8),
                 child: ClipRRect(
                   borderRadius: BorderRadius.circular(16),
-                  child: Image.network(
-                    imgUrl,
-                    fit: BoxFit.cover,
-                    loadingBuilder: (context, child, loadingProgress) {
-                      if (loadingProgress == null) return child;
-                      return Center(
-                        child: CircularProgressIndicator(
-                          value: loadingProgress.expectedTotalBytes != null
-                              ? loadingProgress.cumulativeBytesLoaded / loadingProgress.expectedTotalBytes!
-                              : null,
+                  child: imgUrl.startsWith('http')
+                      ? Image.network(
+                          imgUrl,
+                          fit: BoxFit.cover,
+                          loadingBuilder: (context, child, loadingProgress) {
+                            if (loadingProgress == null) return child;
+                            return Center(
+                              child: CircularProgressIndicator(
+                                value: loadingProgress.expectedTotalBytes != null
+                                    ? loadingProgress.cumulativeBytesLoaded /
+                                        loadingProgress.expectedTotalBytes!
+                                    : null,
+                              ),
+                            );
+                          },
+                          errorBuilder: (context, error, stackTrace) => Container(
+                            color: Colors.grey[300],
+                            child: const Icon(Icons.broken_image, size: 64, color: Colors.grey),
+                          ),
+                        )
+                      : Image.asset(
+                          imgUrl,
+                          fit: BoxFit.cover,
                         ),
-                      );
-                    },
-                    errorBuilder: (context, error, stackTrace) => Container(
-                      color: Colors.grey[300],
-                      child: const Icon(Icons.broken_image, size: 64, color: Colors.grey),
-                    ),
-                  ),
                 ),
+
               );
             },
           ),
