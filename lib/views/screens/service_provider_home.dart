@@ -72,7 +72,7 @@ class _ServiceProviderHomeState extends State<ServiceProviderHome>
     final pageList = [
       TodayAppointments(providerEmail: providerEmail, userId: provider?.id ?? ''),
       PendingAppointments(providerEmail: providerEmail, userId: provider?.id ?? '',),
-      CompletedAppointments(providerEmail: providerEmail, userId: provider?.id ?? ''),
+      UpcomingAppointments(providerEmail: providerEmail, userId: provider?.id ?? ''),
     ];
 
     return MaterialApp(
