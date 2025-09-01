@@ -21,6 +21,16 @@ class _LoginScreenState extends State<LoginScreen> {
   String selectedRole = '';
   bool rememberMe = false;
 
+  // NEW: toggle password visibility
+  bool _obscurePassword = true;
+
+  @override
+  void dispose() {
+    emailController.dispose();
+    passwordController.dispose();
+    super.dispose();
+  }
+
   void showFlushBar(String message, Color color) {
     Flushbar(
       message: message,
@@ -30,40 +40,38 @@ class _LoginScreenState extends State<LoginScreen> {
     ).show(context);
   }
 
-Future<void> login() async {
-  final email = emailController.text.trim();
-  final password = passwordController.text.trim();
+  Future<void> login() async {
+    final email = emailController.text.trim();
+    final password = passwordController.text.trim();
 
-  if (email.isEmpty || password.isEmpty) {
-    showFlushBar("Please fill in all fields", Colors.red);
-    return;
-  }
-
-  setState(() => isLoading = true);
-  try {
-    final authResponse = await Supabase.instance.client.auth.signInWithPassword(
-      email: email,
-      password: password,
-    );
-
-    final user = authResponse.user;
-    final session = authResponse.session;
-
-    if (user != null && session != null) {
-      showFlushBar("Login successful!", Colors.green);
-
-      // Let AuthGate handle navigation automatically
-    } else {
-      showFlushBar("Login failed: Invalid credentials", Colors.red);
+    if (email.isEmpty || password.isEmpty) {
+      showFlushBar("Please fill in all fields", Colors.red);
+      return;
     }
-  } catch (e) {
-    if (!mounted) return;
-    showFlushBar("Login failed: $e", Colors.red);
-  } finally {
-    if (mounted) setState(() => isLoading = false);
-  }
-}
 
+    setState(() => isLoading = true);
+    try {
+      final authResponse = await Supabase.instance.client.auth.signInWithPassword(
+        email: email,
+        password: password,
+      );
+
+      final user = authResponse.user;
+      final session = authResponse.session;
+
+      if (user != null && session != null) {
+        showFlushBar("Login successful!", Colors.green);
+        // Let your AuthGate / router handle navigation automatically.
+      } else {
+        showFlushBar("Login failed: Invalid credentials", Colors.red);
+      }
+    } catch (e) {
+      if (!mounted) return;
+      showFlushBar("Login failed: $e", Colors.red);
+    } finally {
+      if (mounted) setState(() => isLoading = false);
+    }
+  }
 
   Widget buildRegisterOption(String text, String role, VoidCallback onTap) {
     final bool isSelected = selectedRole == role;
@@ -91,6 +99,8 @@ Future<void> login() async {
 
   @override
   Widget build(BuildContext context) {
+    const purple = Color(0xFF842EAC);
+
     return Scaffold(
       backgroundColor: Colors.white,
       body: SafeArea(
@@ -113,13 +123,14 @@ Future<void> login() async {
                       ),
                       TextField(
                         controller: emailController,
+                        keyboardType: TextInputType.emailAddress,
                         style: const TextStyle(color: Colors.black),
                         decoration: InputDecoration(
                           prefixIcon: const Icon(Icons.email_outlined, color: Colors.grey),
                           hintText: 'Email Address',
                           hintStyle: const TextStyle(color: Colors.grey),
                           focusedBorder: OutlineInputBorder(
-                            borderSide: const BorderSide(color: Color(0xFF842EAC), width: 2),
+                            borderSide: const BorderSide(color: purple, width: 2),
                             borderRadius: BorderRadius.circular(12),
                           ),
                           enabledBorder: OutlineInputBorder(
@@ -131,13 +142,24 @@ Future<void> login() async {
                       const SizedBox(height: 16),
                       TextField(
                         controller: passwordController,
-                        obscureText: true,
+                        obscureText: _obscurePassword,
                         decoration: InputDecoration(
                           prefixIcon: const Icon(Icons.lock_outline, color: Colors.grey),
                           hintText: 'Password',
                           hintStyle: const TextStyle(color: Colors.grey),
+                          // NEW: eye toggle
+                          suffixIcon: IconButton(
+                            icon: Icon(
+                              _obscurePassword ? Icons.visibility : Icons.visibility_off,
+                              color: Colors.grey[700],
+                            ),
+                            onPressed: () => setState(() {
+                              _obscurePassword = !_obscurePassword;
+                            }),
+                            tooltip: _obscurePassword ? 'Show password' : 'Hide password',
+                          ),
                           focusedBorder: OutlineInputBorder(
-                            borderSide: const BorderSide(color: Color(0xFF842EAC), width: 2),
+                            borderSide: const BorderSide(color: purple, width: 2),
                             borderRadius: BorderRadius.circular(12),
                           ),
                           enabledBorder: OutlineInputBorder(
@@ -154,7 +176,7 @@ Future<void> login() async {
                             children: [
                               Checkbox(
                                 value: rememberMe,
-                                activeColor: const Color(0xFF842EAC),
+                                activeColor: purple,
                                 onChanged: (bool? newValue) {
                                   setState(() {
                                     rememberMe = newValue ?? false;
@@ -165,7 +187,9 @@ Future<void> login() async {
                             ],
                           ),
                           TextButton(
-                            onPressed: () {},
+                            onPressed: () {
+                              // TODO: implement forgot-password flow
+                            },
                             child: const Text('Forgot Password?'),
                           ),
                         ],
@@ -174,7 +198,7 @@ Future<void> login() async {
                       ElevatedButton(
                         onPressed: isLoading ? null : login,
                         style: ElevatedButton.styleFrom(
-                          backgroundColor: const Color(0xFF842EAC),
+                          backgroundColor: purple,
                           padding: const EdgeInsets.symmetric(horizontal: 100, vertical: 14),
                           shape: RoundedRectangleBorder(
                             borderRadius: BorderRadius.circular(12),
@@ -183,12 +207,12 @@ Future<void> login() async {
                         child: isLoading
                             ? const CircularProgressIndicator(color: Colors.white)
                             : const Text(
-                                'LOGIN',
-                                style: TextStyle(
-                                  color: Colors.white,
-                                  fontWeight: FontWeight.bold,
-                                ),
-                              ),
+                          'LOGIN',
+                          style: TextStyle(
+                            color: Colors.white,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
                       ),
                       const SizedBox(height: 20),
                       const Text(
@@ -201,7 +225,9 @@ Future<void> login() async {
                       ),
                       const SizedBox(height: 16),
                       ElevatedButton.icon(
-                        onPressed: () {},
+                        onPressed: () {
+                          // TODO: implement Google sign-in if needed
+                        },
                         icon: Image.asset('assets/images/google_logo.png', height: 24),
                         label: const Text('Sign-in with Google', style: TextStyle(color: Colors.black)),
                         style: ElevatedButton.styleFrom(
@@ -235,7 +261,7 @@ Future<void> login() async {
               ),
               Container(
                 width: double.infinity,
-                color: const Color(0xFF842EAC),
+                color: purple,
                 padding: const EdgeInsets.all(16),
                 child: const Center(
                   child: Text(

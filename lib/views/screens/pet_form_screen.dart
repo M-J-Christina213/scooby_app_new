@@ -145,20 +145,29 @@ class _PetFormScreenState extends State<PetFormScreen> {
     );
   }
 
-  Widget _buildDropdown(ValueNotifier<String?> notifier, String label, List<String> options) {
+  Widget _buildDropdown(
+      ValueNotifier<String?> notifier,
+      String label,
+      List<String> options,
+      ) {
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: 8),
       child: ValueListenableBuilder<String?>(
         valueListenable: notifier,
         builder: (context, value, _) {
+          final safeValue = options.contains(value) ? value : null; // guard
           return DropdownButtonFormField<String>(
-            value: value,
+            value: safeValue, // <- was initialValue
+            hint: Text('Select ${label.replaceAll('*', '').trim()}'),
             decoration: InputDecoration(
               labelText: label,
               border: OutlineInputBorder(borderRadius: BorderRadius.circular(8)),
             ),
-            items: options.map((opt) => DropdownMenuItem(value: opt, child: Text(opt))).toList(),
+            items: options
+                .map((opt) => DropdownMenuItem(value: opt, child: Text(opt)))
+                .toList(),
             onChanged: (val) => notifier.value = val,
+            validator: (val) => val == null && label.contains('*') ? 'Required' : null,
           );
         },
       ),

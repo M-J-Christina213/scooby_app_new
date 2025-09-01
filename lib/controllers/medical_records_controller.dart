@@ -6,6 +6,7 @@ import 'package:scooby_app_new/services/medical_record_service.dart';
 class MedicalRecordsController with ChangeNotifier {
   final MedicalRecordService service;
   final String petId;
+
   MedicalRecordsController({required this.service, required this.petId});
 
   final df = DateFormat('yyyy-MM-dd');
@@ -19,44 +20,60 @@ class MedicalRecordsController with ChangeNotifier {
   bool loadingRx = false;
 
   Future<void> loadAll() async {
-    await Future.wait([loadVaccinations(), loadCheckups(), loadPrescriptions()]);
+    await Future.wait([
+      loadVaccinations(),
+      loadCheckups(),
+      loadPrescriptions(),
+    ]);
   }
 
   Future<void> loadVaccinations() async {
     loadingVacc = true; notifyListeners();
-    vaccinations = await service.listVaccinations(petId);
-    loadingVacc = false; notifyListeners();
+    try {
+      vaccinations = await service.listVaccinations(petId);
+    } finally {
+      loadingVacc = false; notifyListeners();
+    }
   }
 
   Future<void> loadCheckups() async {
     loadingCheck = true; notifyListeners();
-    checkups = await service.listCheckups(petId);
-    loadingCheck = false; notifyListeners();
+    try {
+      checkups = await service.listCheckups(petId);
+    } finally {
+      loadingCheck = false; notifyListeners();
+    }
   }
 
   Future<void> loadPrescriptions() async {
     loadingRx = true; notifyListeners();
-    prescriptions = await service.listPrescriptions(petId);
-    loadingRx = false; notifyListeners();
+    try {
+      prescriptions = await service.listPrescriptions(petId);
+    } finally {
+      loadingRx = false; notifyListeners();
+    }
   }
 
-  // === CRUD helpers ===
   Future<void> addOrUpdateVaccination({
     Vaccination? existing,
     required String name,
     String? desc,
     required DateTime dateGiven,
     DateTime? nextDue,
+    String? createdBy, // camelCase
   }) async {
     if (existing == null) {
-      await service.addVaccination(Vaccination(
-        id: '', // Supabase will generate
-        petId: petId,
-        vaccinationName: name,
-        description: desc,
-        dateGiven: dateGiven,
-        nextDueDate: nextDue,
-      ));
+      await service.addVaccination(
+        Vaccination(
+          id: '',
+          petId: petId,
+          vaccinationName: name,
+          description: desc,
+          dateGiven: dateGiven,
+          nextDueDate: nextDue,
+          createdBy: createdBy,
+        ),
+      );
     } else {
       await service.updateVaccination(
         existing.id,
@@ -67,6 +84,7 @@ class MedicalRecordsController with ChangeNotifier {
           description: desc,
           dateGiven: dateGiven,
           nextDueDate: nextDue,
+          createdBy: createdBy ?? existing.createdBy,
         ),
       );
     }
@@ -83,15 +101,19 @@ class MedicalRecordsController with ChangeNotifier {
     required String reason,
     String? desc,
     required DateTime date,
+    String? createdBy, // camelCase
   }) async {
     if (existing == null) {
-      await service.addCheckup(MedicalCheckup(
-        id: '', 
-        petId: petId,
-        reason: reason,
-        description: desc,
-        date: date,
-      ));
+      await service.addCheckup(
+        MedicalCheckup(
+          id: '',
+          petId: petId,
+          reason: reason,
+          description: desc,
+          date: date,
+          createdBy: createdBy,
+        ),
+      );
     } else {
       await service.updateCheckup(
         existing.id,
@@ -101,6 +123,7 @@ class MedicalRecordsController with ChangeNotifier {
           reason: reason,
           description: desc,
           date: date,
+          createdBy: createdBy ?? existing.createdBy,
         ),
       );
     }
@@ -118,16 +141,20 @@ class MedicalRecordsController with ChangeNotifier {
     String? desc,
     required DateTime start,
     DateTime? end,
+    String? createdBy, // camelCase
   }) async {
     if (existing == null) {
-      await service.addPrescription(Prescription(
-        id: '',
-        petId: petId,
-        medicineName: med,
-        description: desc,
-        startDate: start,
-        endDate: end,
-      ));
+      await service.addPrescription(
+        Prescription(
+          id: '',
+          petId: petId,
+          medicineName: med,
+          description: desc,
+          startDate: start,
+          endDate: end,
+          createdBy: createdBy,
+        ),
+      );
     } else {
       await service.updatePrescription(
         existing.id,
@@ -138,6 +165,7 @@ class MedicalRecordsController with ChangeNotifier {
           description: desc,
           startDate: start,
           endDate: end,
+          createdBy: createdBy ?? existing.createdBy,
         ),
       );
     }

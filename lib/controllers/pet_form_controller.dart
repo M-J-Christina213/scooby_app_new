@@ -10,6 +10,7 @@ import 'package:uuid/uuid.dart';
 class PetFormController {
   final PetService petService;
 
+  // Text fields
   final TextEditingController nameController = TextEditingController();
   final TextEditingController ageController = TextEditingController();
   final TextEditingController breedController = TextEditingController();
@@ -21,10 +22,16 @@ class PetFormController {
   final TextEditingController healthController = TextEditingController();
   final TextEditingController descriptionController = TextEditingController();
 
+  // Dropdowns
   final ValueNotifier<String?> type = ValueNotifier(null);
   final ValueNotifier<String?> gender = ValueNotifier(null);
 
+  // Dynamic medical history fields
   final List<TextEditingController> medicalControllers = [];
+
+  // NEW: walking time fields (stored as 'HH:mm:ss' for Postgres time columns)
+  String? startWalkingTime;
+  String? endWalkingTime;
 
   File? imageFile;
   bool _isSaving = false;
@@ -34,6 +41,7 @@ class PetFormController {
 
   PetFormController({Pet? existingPet, required this.petService}) {
     if (existingPet != null) {
+      // Populate from existing pet
       nameController.text = existingPet.name;
       ageController.text = existingPet.age.toString();
       breedController.text = existingPet.breed;
@@ -47,6 +55,10 @@ class PetFormController {
       type.value = existingPet.type;
       gender.value = existingPet.gender;
 
+      // NEW: carry over walking times if present
+      startWalkingTime = existingPet.startWalkingTime;
+      endWalkingTime = existingPet.endWalkingTime;
+
       if (existingPet.medicalHistory != null && existingPet.medicalHistory!.isNotEmpty) {
         for (var record in existingPet.medicalHistory!.split(',')) {
           medicalControllers.add(TextEditingController(text: record));
@@ -59,6 +71,25 @@ class PetFormController {
     }
   }
 
+  // =========================
+  // Image helpers
+  // =========================
+  ImageProvider? get imageProvider {
+    if (imageFile != null) return FileImage(imageFile!);
+    return null;
+  }
+
+  Future<void> pickImage() async {
+    final picked =
+    await ImagePicker().pickImage(source: ImageSource.gallery, imageQuality: 70);
+    if (picked != null) {
+      imageFile = File(picked.path);
+    }
+  }
+
+  // =========================
+  // Medical fields helpers
+  // =========================
   void addMedicalRecord() {
     medicalControllers.add(TextEditingController());
   }
@@ -70,18 +101,60 @@ class PetFormController {
     }
   }
 
-  ImageProvider? get imageProvider {
-    if (imageFile != null) return FileImage(imageFile!);
-    return null;
+  // =========================
+  // Walking time helpers
+  // =========================
+  String _fmtHms(TimeOfDay t) =>
+      '${t.hour.toString().padLeft(2, '0')}:${t.minute.toString().padLeft(2, '0')}:00';
+
+  /// Set from a TimeOfDay (e.g., from showTimePicker)
+  void setStartTime(TimeOfDay t) {
+    startWalkingTime = _fmtHms(t);
   }
 
-  Future<void> pickImage() async {
-    final picked = await ImagePicker().pickImage(source: ImageSource.gallery, imageQuality: 70);
-    if (picked != null) {
-      imageFile = File(picked.path);
+  /// Set from a TimeOfDay (e.g., from showTimePicker)
+  void setEndTime(TimeOfDay t) {
+    endWalkingTime = _fmtHms(t);
+  }
+
+  int? _minutesFromHms(String? hms) {
+    if (hms == null || hms.isEmpty) return null;
+    final parts = hms.split(':');
+    if (parts.length < 2) return null;
+    final h = int.tryParse(parts[0]);
+    final m = int.tryParse(parts[1]);
+    if (h == null || m == null) return null;
+    return h * 60 + m;
+  }
+
+  /// Validates walking time rule: both selected AND end >= start + [minMinutes].
+  /// Returns `true` if valid; otherwise shows a SnackBar and returns `false`.
+  bool _validateWalkingTimes(BuildContext context, {int minMinutes = 10}) {
+    final sm = _minutesFromHms(startWalkingTime);
+    final em = _minutesFromHms(endWalkingTime);
+
+    if (sm == null || em == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Please select both start and end walking times')),
+      );
+      return false;
     }
+
+    // Same-day constraint (no wrap-around): end must be >= start + minMinutes
+    if (em - sm < minMinutes) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('End time must be at least $minMinutes minutes after start time'),
+        ),
+      );
+      return false;
+    }
+    return true;
   }
 
+  // =========================
+  // Validation & save
+  // =========================
   bool validate(BuildContext context) {
     if (nameController.text.trim().isEmpty ||
         type.value == null ||
@@ -93,6 +166,13 @@ class PetFormController {
       );
       return false;
     }
+
+    // Include walking time validation in the controller as well,
+    // so any UI using this controller benefits from the same rule.
+    if (!_validateWalkingTimes(context, minMinutes: 10)) {
+      return false;
+    }
+
     return true;
   }
 
@@ -105,7 +185,8 @@ class PetFormController {
       String? imageUrl;
       if (imageFile != null) {
         final fileName = '${uuid.v4()}.jpg';
-        imageUrl = await petService.uploadPetImage(authUserId, imageFile!.path, fileName);
+        imageUrl =
+        await petService.uploadPetImage(authUserId, imageFile!.path, fileName);
       }
 
       final medicalRecordsString = medicalControllers
@@ -123,16 +204,28 @@ class PetFormController {
         breed: breedController.text.trim(),
         age: int.tryParse(ageController.text.trim()) ?? 0,
         gender: gender.value ?? '',
-        color: colorController.text.trim().isEmpty ? null : colorController.text.trim(),
+        color: colorController.text.trim().isEmpty
+            ? null
+            : colorController.text.trim(),
         weight: double.tryParse(weightController.text.trim()),
         height: double.tryParse(heightController.text.trim()),
-        medicalHistory: medicalRecordsString.isEmpty ? null : medicalRecordsString,
-        foodPreference: foodController.text.trim().isEmpty ? null : foodController.text.trim(),
+        medicalHistory:
+        medicalRecordsString.isEmpty ? null : medicalRecordsString,
+        foodPreference:
+        foodController.text.trim().isEmpty ? null : foodController.text.trim(),
         mood: moodController.text.trim().isEmpty ? null : moodController.text.trim(),
-        healthStatus: healthController.text.trim().isEmpty ? null : healthController.text.trim(),
-        description: descriptionController.text.trim().isEmpty ? null : descriptionController.text.trim(),
+        healthStatus: healthController.text.trim().isEmpty
+            ? null
+            : healthController.text.trim(),
+        description: descriptionController.text.trim().isEmpty
+            ? null
+            : descriptionController.text.trim(),
         imageUrl: imageUrl,
         createdAt: null,
+
+        // NEW: walking time fields go to DB
+        startWalkingTime: startWalkingTime,
+        endWalkingTime: endWalkingTime,
       );
 
       if (existingId == null) {
@@ -143,7 +236,9 @@ class PetFormController {
 
       return true;
     } catch (e) {
-      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Failed to save pet: $e')));
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Failed to save pet: $e')),
+      );
       return false;
     } finally {
       _isSaving = false;
@@ -168,4 +263,3 @@ class PetFormController {
     }
   }
 }
-

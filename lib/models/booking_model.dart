@@ -11,6 +11,7 @@ class Booking {
   final String time;
   final String status;
   final DateTime createdAt;
+  final bool notificationStatus;
 
   Booking({
     required this.id,
@@ -25,6 +26,7 @@ class Booking {
     required this.time,
     this.status = 'pending',
     required this.createdAt,
+    this.notificationStatus = false,
   });
 
   Map<String, dynamic> toMap() => {
@@ -40,6 +42,7 @@ class Booking {
         'time': time,
         'status': status,
         'created_at': createdAt.toIso8601String(),
+        'notofication_status': notificationStatus,
       };
 
   factory Booking.fromMap(Map<String, dynamic> map) => Booking(
@@ -55,5 +58,6 @@ class Booking {
         time: map['time'] ?? '',
         status: map['status'] ?? 'pending',
         createdAt: DateTime.parse(map['created_at']),
+        notificationStatus: (map['notofication_status'] as bool?) ?? false,
       );
 }
