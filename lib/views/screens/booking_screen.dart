@@ -24,6 +24,15 @@ class _BookingScreenState extends State<BookingScreen> {
 
   Color get primaryColor => const Color(0xFF842EAC);
 
+  // ── Helpers ────────────────────────────────────────────────────────────────
+  DateTime _combine(DateTime d, TimeOfDay t) =>
+      DateTime(d.year, d.month, d.day, t.hour, t.minute);
+
+  bool _isAtLeastMinutesFromNow(DateTime dt, int minutes) {
+    return dt.isAfter(DateTime.now().add(Duration(minutes: minutes)));
+  }
+
+  // ── UI ─────────────────────────────────────────────────────────────────────
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -68,6 +77,9 @@ class _BookingScreenState extends State<BookingScreen> {
     }
   }
 
+
+
+  // ── Veterinarian ───────────────────────────────────────────────────────────
   Widget _buildVetBooking() {
     final consultationFee = widget.serviceProvider.consultationFee;
     return Column(
@@ -81,7 +93,7 @@ class _BookingScreenState extends State<BookingScreen> {
         const SizedBox(height: 8),
         _buildBigTimePicker(),
         const SizedBox(height: 24),
-        Text('Consultation Fee:', style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 18)),
+        const Text('Consultation Fee:', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 18)),
         Text(
           consultationFee.isNotEmpty ? consultationFee : 'Not specified',
           style: const TextStyle(fontSize: 16),
@@ -108,7 +120,7 @@ class _BookingScreenState extends State<BookingScreen> {
         onDateChanged: (date) {
           setState(() {
             _selectedDate = date;
-            _selectedTime = null;
+            _selectedTime = null; // reset time when date changes
           });
         },
       ),
@@ -139,6 +151,7 @@ class _BookingScreenState extends State<BookingScreen> {
     );
   }
 
+  // ── Groomer ────────────────────────────────────────────────────────────────
   Widget _buildGroomerBooking() {
     final services = widget.serviceProvider.groomingServices;
     return Column(
@@ -153,29 +166,32 @@ class _BookingScreenState extends State<BookingScreen> {
         services.isEmpty
             ? const Text('No grooming services specified.')
             : Wrap(
-                spacing: 8,
-                children: services.map((service) {
-                  final selected = _selectedServices.contains(service);
-                  return FilterChip(
-                    label: Text(service),
-                    selected: selected,
-                    onSelected: (val) {
-                      setState(() {
-                        if (val) {
-                          _selectedServices.add(service);
-                        } else {
-                          _selectedServices.remove(service);
-                        }
-                      });
-                    },
-                  );
-                }).toList(),
-              ),
+          spacing: 8,
+          children: services.map((service) {
+            final selected = _selectedServices.contains(service);
+            return FilterChip(
+              label: Text(service),
+              selected: selected,
+              onSelected: (val) {
+                setState(() {
+                  if (val) {
+                    _selectedServices.add(service);
+                  } else {
+                    _selectedServices.remove(service);
+                  }
+                });
+              },
+            );
+          }).toList(),
+        ),
         const SizedBox(height: 24),
-        Text('Pricing Details:', style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 18)),
-        Text(widget.serviceProvider.pricingDetails.isNotEmpty
-            ? widget.serviceProvider.pricingDetails
-            : 'Not specified', style: const TextStyle(fontSize: 16)),
+        const Text('Pricing Details:', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 18)),
+        Text(
+          widget.serviceProvider.pricingDetails.isNotEmpty
+              ? widget.serviceProvider.pricingDetails
+              : 'Not specified',
+          style: const TextStyle(fontSize: 16),
+        ),
         const SizedBox(height: 24),
       ],
     );
@@ -199,6 +215,7 @@ class _BookingScreenState extends State<BookingScreen> {
     );
   }
 
+  // ── Pet Sitter ─────────────────────────────────────────────────────────────
   Widget _buildPetSitterBooking() {
     final hourlyDailyRate = widget.serviceProvider.rate;
     return Column(
@@ -208,7 +225,7 @@ class _BookingScreenState extends State<BookingScreen> {
         const SizedBox(height: 8),
         _buildDateRangePicker(),
         const SizedBox(height: 24),
-        Text('Hourly / Daily Rate:', style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 18)),
+        const Text('Hourly / Daily Rate:', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 18)),
         Text(hourlyDailyRate.isNotEmpty ? hourlyDailyRate : 'Not specified', style: const TextStyle(fontSize: 16)),
         const SizedBox(height: 24),
         Container(
@@ -236,7 +253,7 @@ class _BookingScreenState extends State<BookingScreen> {
         final now = DateTime.now();
         final picked = await showDateRangePicker(
           context: context,
-          firstDate: now,
+          firstDate: now, // prevents past
           lastDate: DateTime(now.year + 1),
           initialDateRange: _rangeStartDate != null && _rangeEndDate != null
               ? DateTimeRange(start: _rangeStartDate!, end: _rangeEndDate!)
@@ -267,12 +284,13 @@ class _BookingScreenState extends State<BookingScreen> {
     );
   }
 
+  // ── Pickers ────────────────────────────────────────────────────────────────
   Future<void> _pickDate() async {
     final now = DateTime.now();
     final picked = await showDatePicker(
       context: context,
       initialDate: _selectedDate ?? now,
-      firstDate: now,
+      firstDate: now, // prevents past dates
       lastDate: DateTime(now.year + 1),
     );
     if (picked != null) {
@@ -284,54 +302,84 @@ class _BookingScreenState extends State<BookingScreen> {
   }
 
   Future<void> _pickTime() async {
-    final picked = await showTimePicker(
+    TimeOfDay? picked = await showTimePicker(
       context: context,
       initialTime: _selectedTime ?? const TimeOfDay(hour: 9, minute: 0),
     );
-    if (picked != null) {
-      setState(() {
-        _selectedTime = picked;
-      });
+    if (picked == null) return;
+
+    bool withinOfficeHours(TimeOfDay t) {
+      final mins = t.hour * 60 + t.minute;
+      return mins >= 8 * 60 && mins <= 17 * 60; // 08:00–17:00
     }
-  }
 
-  void _showError(String msg) {
-    ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(msg)));
-  }
+    if (!withinOfficeHours(picked)) {
+      // friendly dialog
+      await showDialog(
+        context: context,
+        builder: (_) => AlertDialog(
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: const [
+              Icon(Icons.access_time_filled_rounded, color: Colors.orange, size: 40),
+              SizedBox(height: 12),
+              Text('Outside Working Hours', style: TextStyle(fontWeight: FontWeight.w700)),
+              SizedBox(height: 6),
+              Text('Please choose a time between 8:00 AM and 5:00 PM.'),
+            ],
+          ),
+        ),
+      );
+      return;
+    }
 
-    void _onConfirmBookingPressed() {
-      if (widget.serviceProvider.role == 'Pet Sitter') {
-        if (_rangeStartDate == null || _rangeEndDate == null) {
-          _showError('Please select a booking period.');
-          return;
-        }
-
-        // Navigate with date range for Pet Sitter
-        Navigator.push(
-          context,
-          MaterialPageRoute(
-            builder: (context) => ConfirmBookingScreen(
-              serviceProviderEmail: widget.serviceProvider.email,
-              rangeStartDate: _rangeStartDate!,
-              rangeEndDate: _rangeEndDate!,
+    // NEW: Block past or < 30 minutes from now when the selected date is today
+    if (_selectedDate != null) {
+      final candidate = _combine(_selectedDate!, picked);
+      if (!_isAtLeastMinutesFromNow(candidate, 30)) {
+        await showDialog(
+          context: context,
+          builder: (_) => AlertDialog(
+            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+            content: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: const [
+                Icon(Icons.warning_amber_rounded, color: Colors.red, size: 40),
+                SizedBox(height: 12),
+                Text('Pick a Later Time', style: TextStyle(fontWeight: FontWeight.w700)),
+                SizedBox(height: 6),
+                Text('Please choose a time at least 30 minutes from now.'),
+              ],
             ),
           ),
         );
         return;
       }
+    }
 
-      // For Vet or Groomer
-      if (_selectedDate == null) {
-        _showError('Please select a date.');
+    setState(() => _selectedTime = picked);
+  }
+
+  // ── Confirm ────────────────────────────────────────────────────────────────
+  void _showError(String msg) {
+    ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(msg)));
+  }
+
+  void _onConfirmBookingPressed() {
+    if (widget.serviceProvider.role == 'Pet Sitter') {
+      if (_rangeStartDate == null || _rangeEndDate == null) {
+        _showError('Please select a booking period.');
         return;
       }
-      if (_selectedTime == null) {
-        _showError('Please select a time.');
-        return;
-      }
 
-      if (widget.serviceProvider.role == 'Pet Groomer' && _selectedServices.isEmpty) {
-        _showError('Please select at least one grooming service.');
+      // NEW: prevent sitter start date in the past (date-only comparison)
+      final today = DateTime.now();
+      final startOfToday = DateTime(today.year, today.month, today.day);
+      final startDateOnly =
+      DateTime(_rangeStartDate!.year, _rangeStartDate!.month, _rangeStartDate!.day);
+      if (startDateOnly.isBefore(startOfToday)) {
+        _showError('Start date can’t be in the past.');
         return;
       }
 
@@ -340,11 +388,45 @@ class _BookingScreenState extends State<BookingScreen> {
         MaterialPageRoute(
           builder: (context) => ConfirmBookingScreen(
             serviceProviderEmail: widget.serviceProvider.email,
-            preselectedDate: _selectedDate!,
-            preselectedTime: _selectedTime!,
+            rangeStartDate: _rangeStartDate!,
+            rangeEndDate: _rangeEndDate!,
           ),
         ),
       );
+      return;
     }
 
+    // Vet / Groomer
+    if (_selectedDate == null) {
+      _showError('Please select a date.');
+      return;
+    }
+    if (_selectedTime == null) {
+      _showError('Please select a time.');
+      return;
+    }
+
+    // NEW: Block past or < 30 minutes from now
+    final when = _combine(_selectedDate!, _selectedTime!);
+    if (!_isAtLeastMinutesFromNow(when, 30)) {
+      _showError('Please pick a time at least 30 minutes from now.');
+      return;
+    }
+
+    if (widget.serviceProvider.role == 'Pet Groomer' && _selectedServices.isEmpty) {
+      _showError('Please select at least one grooming service.');
+      return;
+    }
+
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (context) => ConfirmBookingScreen(
+          serviceProviderEmail: widget.serviceProvider.email,
+          preselectedDate: _selectedDate!,
+          preselectedTime: _selectedTime!,
+        ),
+      ),
+    );
+  }
 }

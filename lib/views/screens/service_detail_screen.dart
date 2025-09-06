@@ -60,6 +60,7 @@ class _ServiceDetailScreenState extends State<ServiceDetailScreen> {
       body: CustomScrollView(
         slivers: [
           SliverAppBar(
+            automaticallyImplyLeading: false,
             backgroundColor: primaryColor,
             expandedHeight: 320,
             pinned: true,

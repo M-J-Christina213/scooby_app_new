@@ -18,7 +18,7 @@ class _ServiceProviderRegisterScreenState extends State<ServiceProviderRegisterS
   final _emailController = TextEditingController();
   final _passwordController = TextEditingController();
   final _clinicNameController = TextEditingController();
- final _clinicAddressController = TextEditingController();
+  final _clinicAddressController = TextEditingController();
   final _descriptionController = TextEditingController();
   final _experienceController = TextEditingController();
   final _notesController = TextEditingController();
@@ -44,6 +44,26 @@ class _ServiceProviderRegisterScreenState extends State<ServiceProviderRegisterS
   final List<String> _serviceTypes = ['Veterinarian', 'Pet Groomer', 'Pet Sitter'];
   final List<String> _groomingServices = ['Bathing', 'Hair Trimming', 'Nail Clipping', 'Styling', 'Others'];
   final List<String> _comfortableWith = ['Dogs', 'Cats'];
+
+  @override
+  void dispose() {
+    _nameController.dispose();
+    _phoneController.dispose();
+    _emailController.dispose();
+    _passwordController.dispose();
+    _clinicNameController.dispose();
+    _clinicAddressController.dispose();
+    _descriptionController.dispose();
+    _experienceController.dispose();
+    _notesController.dispose();
+    _pricingController.dispose();
+    _consultationFeeController.dispose();
+    _aboutClinicOrSalonController.dispose();
+    _dislikesController.dispose();
+    _rateController.dispose();
+    _availableDaysTimesController.dispose();
+    super.dispose();
+  }
 
   void _pickImage() async {
     final picked = await ImagePicker().pickImage(source: ImageSource.gallery);
@@ -87,37 +107,32 @@ class _ServiceProviderRegisterScreenState extends State<ServiceProviderRegisterS
 
       try {
         await _authService.registerServiceProvider(
-  name: _nameController.text.trim(),
-  phoneNo: _phoneController.text.trim(),
-  email: _emailController.text.trim(),
-  password: _passwordController.text.trim(),
-  clinicOrSalonName: _clinicNameController.text.trim(),
-  clinicOrSalonAddress: _clinicAddressController.text.trim(),
-  city: _selectedCity ?? '',
-  role: _selectedServiceType ?? '',
-
-  // Convert File? to XFile?
-  profileImage: _profileImage != null ? XFile(_profileImage!.path) : null,
-
-  // Convert List<File> to List<XFile>
-  galleryImages: _galleryImages.map((file) => XFile(file.path)).toList(),
-
-  qualificationFile: _qualificationFile != null ? XFile(_qualificationFile!.path) : null,
-  idVerificationFile: _idVerificationFile != null ? XFile(_idVerificationFile!.path) : null,
-
-  experience: _experienceController.text.trim(),
-  serviceDescription: _descriptionController.text.trim(),
-  notes: _notesController.text.trim(),
-  pricingDetails: _pricingController.text.trim(),
-  consultationFee: _consultationFeeController.text.trim(),
-  aboutClinicOrSalon: _aboutClinicOrSalonController.text.trim(),
-  groomingServices: _selectedGroomingServices,
-  comfortableWith: _selectedComfortableWith,
-  availableTimes: _availableDaysTimesController.text.trim(),
-  dislikes: _dislikesController.text.trim(),
-  rate: _rateController.text.trim(),
-);
-
+          name: _nameController.text.trim(),
+          phoneNo: _phoneController.text.trim(),
+          email: _emailController.text.trim(),
+          password: _passwordController.text.trim(),
+          clinicOrSalonName: _clinicNameController.text.trim(),
+          clinicOrSalonAddress: _clinicAddressController.text.trim(),
+          city: _selectedCity ?? '',
+          role: _selectedServiceType ?? '',
+          // Convert File? to XFile?
+          profileImage: _profileImage != null ? XFile(_profileImage!.path) : null,
+          // Convert List<File> to List<XFile>
+          galleryImages: _galleryImages.map((file) => XFile(file.path)).toList(),
+          qualificationFile: _qualificationFile != null ? XFile(_qualificationFile!.path) : null,
+          idVerificationFile: _idVerificationFile != null ? XFile(_idVerificationFile!.path) : null,
+          experience: _experienceController.text.trim(),
+          serviceDescription: _descriptionController.text.trim(),
+          notes: _notesController.text.trim(),
+          pricingDetails: _pricingController.text.trim(),
+          consultationFee: _consultationFeeController.text.trim(),
+          aboutClinicOrSalon: _aboutClinicOrSalonController.text.trim(),
+          groomingServices: _selectedGroomingServices,
+          comfortableWith: _selectedComfortableWith,
+          availableTimes: _availableDaysTimesController.text.trim(),
+          dislikes: _dislikesController.text.trim(),
+          rate: _rateController.text.trim(),
+        );
 
         if (!mounted) return;
         Navigator.of(context).pop();
@@ -185,11 +200,25 @@ class _ServiceProviderRegisterScreenState extends State<ServiceProviderRegisterS
                       ),
                     ),
                     const SizedBox(height: 20),
-                    TextFormField(controller: _nameController, decoration: _inputDecoration('Full Name'), validator: (val) => val!.isEmpty ? 'Required' : null),
+                    TextFormField(
+                      controller: _nameController,
+                      decoration: _inputDecoration('Full Name'),
+                      validator: (val) => (val == null || val.isEmpty) ? 'Required' : null,
+                    ),
                     const SizedBox(height: 16),
-                    TextFormField(controller: _phoneController, decoration: _inputDecoration('Phone Number'), keyboardType: TextInputType.phone, validator: (val) => val!.length != 10 ? 'Enter valid number' : null),
+                    TextFormField(
+                      controller: _phoneController,
+                      decoration: _inputDecoration('Phone Number'),
+                      keyboardType: TextInputType.phone,
+                      validator: (val) => (val == null || val.length != 10 || int.tryParse(val) == null) ? 'Enter valid number' : null,
+                    ),
                     const SizedBox(height: 16),
-                    TextFormField(controller: _emailController, decoration: _inputDecoration('Email'), keyboardType: TextInputType.emailAddress, validator: (val) => !val!.contains('@') ? 'Invalid email' : null),
+                    TextFormField(
+                      controller: _emailController,
+                      decoration: _inputDecoration('Email'),
+                      keyboardType: TextInputType.emailAddress,
+                      validator: (val) => (val == null || !val.contains('@')) ? 'Invalid email' : null,
+                    ),
                     const SizedBox(height: 16),
                     TextFormField(
                       controller: _passwordController,
@@ -200,27 +229,44 @@ class _ServiceProviderRegisterScreenState extends State<ServiceProviderRegisterS
                           onPressed: () => setState(() => _obscurePassword = !_obscurePassword),
                         ),
                       ),
-                      validator: (val) => val!.length < 8 ? 'Min 8 characters' : null,
+                      validator: (val) => (val == null || val.length < 8) ? 'Min 8 characters' : null,
                     ),
                     const SizedBox(height: 16),
-                    DropdownButtonFormField<String>(value: _selectedCity, items: _cities.map((e) => DropdownMenuItem(value: e, child: Text(e))).toList(), onChanged: (val) => setState(() => _selectedCity = val), decoration: _inputDecoration('City'), validator: (val) => val == null ? 'Select city' : null),
+
+                    // FIX 1: City dropdown – use `value:` and guard with contains()
+                    DropdownButtonFormField<String>(
+                      value: _cities.contains(_selectedCity) ? _selectedCity : null,
+                      hint: const Text('Select a city'),
+                      items: _cities.map((e) => DropdownMenuItem(value: e, child: Text(e))).toList(),
+                      onChanged: (val) => setState(() => _selectedCity = val),
+                      decoration: _inputDecoration('City'),
+                      validator: (val) => val == null ? 'Select city' : null,
+                    ),
                     const SizedBox(height: 16),
-                    DropdownButtonFormField<String>(value: _selectedServiceType, items: _serviceTypes.map((e) => DropdownMenuItem(value: e, child: Text(e))).toList(), onChanged: (val) => setState(() => _selectedServiceType = val), decoration: _inputDecoration('Service Type'), validator: (val) => val == null ? 'Select service' : null),
+
+                    // FIX 2: Service type dropdown – use `value:` and guard
+                    DropdownButtonFormField<String>(
+                      value: _serviceTypes.contains(_selectedServiceType) ? _selectedServiceType : null,
+                      hint: const Text('Select a service'),
+                      items: _serviceTypes.map((e) => DropdownMenuItem(value: e, child: Text(e))).toList(),
+                      onChanged: (val) => setState(() => _selectedServiceType = val),
+                      decoration: _inputDecoration('Service Type'),
+                      validator: (val) => val == null ? 'Select service' : null,
+                    ),
                     const SizedBox(height: 16),
 
                     if (_selectedServiceType == 'Veterinarian' || _selectedServiceType == 'Pet Groomer') ...[
                       TextFormField(
                         controller: _clinicNameController,
                         decoration: _inputDecoration(_selectedServiceType == 'Veterinarian' ? 'Clinic Name' : 'Salon Name'),
-                        validator: (val) => val!.isEmpty ? 'Required' : null,
+                        validator: (val) => (val == null || val.isEmpty) ? 'Required' : null,
                       ),
                       const SizedBox(height: 16),
                       TextFormField(
                         controller: _clinicAddressController,
                         decoration: _inputDecoration(_selectedServiceType == 'Veterinarian' ? 'Clinic Address' : 'Salon Address'),
-                        validator: (val) => val!.isEmpty ? 'Required' : null,
+                        validator: (val) => (val == null || val.isEmpty) ? 'Required' : null,
                       ),
-
                       const SizedBox(height: 16),
                       TextFormField(controller: _aboutClinicOrSalonController, decoration: _inputDecoration('About the Place'), maxLines: 2),
                       const SizedBox(height: 16),
@@ -228,15 +274,23 @@ class _ServiceProviderRegisterScreenState extends State<ServiceProviderRegisterS
                       const SizedBox(height: 16),
                       TextFormField(controller: _descriptionController, decoration: _inputDecoration('Service Description'), maxLines: 3),
                       const SizedBox(height: 16),
-                      TextFormField(controller: _selectedServiceType == 'Veterinarian' ? _consultationFeeController : _pricingController, decoration: _inputDecoration(_selectedServiceType == 'Veterinarian' ? 'Consultation Fee (Optional)' : 'Pricing Details (Optional)')),
+                      TextFormField(
+                        controller: _selectedServiceType == 'Veterinarian' ? _consultationFeeController : _pricingController,
+                        decoration: _inputDecoration(_selectedServiceType == 'Veterinarian' ? 'Consultation Fee (Optional)' : 'Pricing Details (Optional)'),
+                      ),
                       const SizedBox(height: 16),
-                      ElevatedButton.icon(onPressed: _pickQualification, icon: const Icon(Icons.file_present), label: const Text('Upload Qualification', style: TextStyle(color: Colors.white)), style: ElevatedButton.styleFrom(backgroundColor: purple)),
+                      ElevatedButton.icon(
+                        onPressed: _pickQualification,
+                        icon: const Icon(Icons.file_present),
+                        label: const Text('Upload Qualification', style: TextStyle(color: Colors.white)),
+                        style: ElevatedButton.styleFrom(backgroundColor: purple),
+                      ),
                       const SizedBox(height: 16),
                       // Gallery image picker + preview
                       Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          Text('Gallery Images', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
+                          const Text('Gallery Images', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
                           const SizedBox(height: 8),
                           GestureDetector(
                             onTap: _pickGalleryImages,
@@ -248,56 +302,55 @@ class _ServiceProviderRegisterScreenState extends State<ServiceProviderRegisterS
                               ),
                               child: _galleryImages.isEmpty
                                   ? Center(
-                                      child: Text(
-                                        'Tap to select images',
-                                        style: TextStyle(color: Colors.grey.shade600),
-                                      ),
-                                    )
+                                child: Text(
+                                  'Tap to select images',
+                                  style: TextStyle(color: Colors.grey.shade600),
+                                ),
+                              )
                                   : ListView.builder(
-                                      scrollDirection: Axis.horizontal,
-                                      padding: const EdgeInsets.all(8),
-                                      itemCount: _galleryImages.length,
-                                      itemBuilder: (context, index) {
-                                        return Stack(
-                                          children: [
-                                            Container(
-                                              margin: const EdgeInsets.only(right: 8),
-                                              width: 100,
-                                              decoration: BoxDecoration(
-                                                borderRadius: BorderRadius.circular(12),
-                                                image: DecorationImage(
-                                                  image: FileImage(_galleryImages[index]),
-                                                  fit: BoxFit.cover,
-                                                ),
-                                              ),
+                                scrollDirection: Axis.horizontal,
+                                padding: const EdgeInsets.all(8),
+                                itemCount: _galleryImages.length,
+                                itemBuilder: (context, index) {
+                                  return Stack(
+                                    children: [
+                                      Container(
+                                        margin: const EdgeInsets.only(right: 8),
+                                        width: 100,
+                                        decoration: BoxDecoration(
+                                          borderRadius: BorderRadius.circular(12),
+                                          image: DecorationImage(
+                                            image: FileImage(_galleryImages[index]),
+                                            fit: BoxFit.cover,
+                                          ),
+                                        ),
+                                      ),
+                                      Positioned(
+                                        top: 4,
+                                        right: 4,
+                                        child: GestureDetector(
+                                          onTap: () {
+                                            setState(() {
+                                              _galleryImages.removeAt(index);
+                                            });
+                                          },
+                                          child: Container(
+                                            decoration: const BoxDecoration(
+                                              color: Colors.black54,
+                                              shape: BoxShape.circle,
                                             ),
-                                            Positioned(
-                                              top: 4,
-                                              right: 4,
-                                              child: GestureDetector(
-                                                onTap: () {
-                                                  setState(() {
-                                                    _galleryImages.removeAt(index);
-                                                  });
-                                                },
-                                                child: Container(
-                                                  decoration: BoxDecoration(
-                                                    color: Colors.black54,
-                                                    shape: BoxShape.circle,
-                                                  ),
-                                                  child: const Icon(Icons.close, size: 20, color: Colors.white),
-                                                ),
-                                              ),
-                                            ),
-                                          ],
-                                        );
-                                      },
-                                    ),
+                                            child: const Icon(Icons.close, size: 20, color: Colors.white),
+                                          ),
+                                        ),
+                                      ),
+                                    ],
+                                  );
+                                },
+                              ),
                             ),
                           ),
                         ],
                       ),
-
                     ],
 
                     if (_selectedServiceType == 'Pet Groomer') ...[
@@ -355,7 +408,12 @@ class _ServiceProviderRegisterScreenState extends State<ServiceProviderRegisterS
                       const SizedBox(height: 16),
                       TextFormField(controller: _rateController, decoration: _inputDecoration('Hourly / Daily Rate')),
                       const SizedBox(height: 16),
-                      ElevatedButton.icon(onPressed: _pickVerificationFile, icon: const Icon(Icons.file_copy), label: const Text('Upload ID / Verification Document (Optional)', style: TextStyle(color: Colors.white)), style: ElevatedButton.styleFrom(backgroundColor: purple)),
+                      ElevatedButton.icon(
+                        onPressed: _pickVerificationFile,
+                        icon: const Icon(Icons.file_copy),
+                        label: const Text('Upload ID / Verification Document (Optional)', style: TextStyle(color: Colors.white)),
+                        style: ElevatedButton.styleFrom(backgroundColor: purple),
+                      ),
                     ],
 
                     const SizedBox(height: 24),

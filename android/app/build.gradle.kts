@@ -9,7 +9,7 @@ plugins {
 android {
     namespace = "com.example.scooby_app_new"
     compileSdk = 35
-    ndkVersion = "27.0.12077973"
+    ndkVersion = "29.0.13846066"
 
     compileOptions {
         sourceCompatibility = JavaVersion.VERSION_11
@@ -25,7 +25,7 @@ android {
         applicationId = "com.example.scooby_app_new"
         // You can update the following values to match your application needs.
         // For more information, see: https://flutter.dev/to/review-gradle-config.
-        minSdk = 21
+        minSdk = flutter.minSdkVersion
         targetSdk = 34
         versionCode = 1
         versionName = "1.0"

@@ -9,12 +9,6 @@ import 'package:scooby_app_new/models/pet.dart';
 import 'package:scooby_app_new/services/medical_record_service.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
-/// Appointment Detail Screen
-/// - Modern purple theme, rounded cards, smooth alpha transitions
-/// - Clear flow: Owner Info -> Pet Profile -> Medical Records
-/// - Pet Profile: readonly by default, edit with pen → save with check
-/// - Medical Records: 3 tabs with full CRUD. Add (+) works and persists
-/// - Fix: listens to MedicalRecordsController changes to rebuild UI after CRUD
 class AppointmentDetailScreen extends StatefulWidget {
   final String bookingId;
   final String providerEmail;
@@ -40,7 +34,7 @@ class _AppointmentDetailScreenState extends State<AppointmentDetailScreen>
   bool loading = true;
 
   late final TabController _tabController;
-  MedicalRecordsController? _controller; // late after fetch
+  MedicalRecordsController? _controller;
 
   late TextEditingController _weightController;
   late TextEditingController _heightController;
@@ -53,14 +47,21 @@ class _AppointmentDetailScreenState extends State<AppointmentDetailScreen>
   File? _imageFile;
   String? _uploadedImageUrl;
 
+  // who creates/updates records
+  String? _createdByName;
+
+  // provider role -> controls edit ability
+  String? _providerRole;
+  bool get _canEdit => (_providerRole?.toLowerCase() == 'veterinarian');
+
   // Edit modes
-  bool _petEditMode = false; // controls editability of profile fields
+  bool _petEditMode = false;
   final Map<String, bool> _vaccEditing = {};
   final Map<String, bool> _checkEditing = {};
   final Map<String, bool> _rxEditing = {};
 
   // Theme
-  static const Color _primary = Color(0xFF6C4CCE); // rich purple
+  static const Color _primary = Color(0xFF6C4CCE);
   static const Color _primaryDark = Color(0xFF4B2DBE);
   static const Color _primaryLight = Color(0xFFEDE7FF);
   static const Color _cardSurface = Colors.white;
@@ -69,29 +70,54 @@ class _AppointmentDetailScreenState extends State<AppointmentDetailScreen>
   void initState() {
     super.initState();
     _tabController = TabController(length: 3, vsync: this);
-    fetchBooking();
+    _bootstrap();
+  }
+
+  Future<void> _bootstrap() async {
+    await Future.wait([
+      _fetchProviderMeta(),
+      fetchBooking(),
+    ]);
+  }
+
+  Future<void> _fetchProviderMeta() async {
+    try {
+      final row = await supabase
+          .from('service_providers')
+          .select('name, role')
+          .eq('email', widget.providerEmail)
+          .maybeSingle();
+
+      setState(() {
+        _createdByName = (row?['name'] as String?)?.trim();
+        _createdByName ??= widget.providerEmail; // fallback
+        _providerRole = (row?['role'] as String?)?.trim();
+      });
+    } catch (_) {
+      setState(() {
+        _createdByName = widget.providerEmail;
+        _providerRole = null;
+      });
+    }
   }
 
   @override
   void dispose() {
     _tabController.dispose();
     _controller?.removeListener(_onControllerChanged);
-    if (mounted) {
-      // dispose text controllers if initialized
-      try {
-        _weightController.dispose();
-        _heightController.dispose();
-        _foodController.dispose();
-        _moodController.dispose();
-        _healthController.dispose();
-        _descController.dispose();
-      } catch (_) {}
-    }
+    try {
+      _weightController.dispose();
+      _heightController.dispose();
+      _foodController.dispose();
+      _moodController.dispose();
+      _healthController.dispose();
+      _descController.dispose();
+    } catch (_) {}
     super.dispose();
   }
 
   void _onControllerChanged() {
-    if (mounted) setState(() {}); // rebuild when lists update
+    if (mounted) setState(() {});
   }
 
   Future<void> fetchBooking() async {
@@ -113,17 +139,13 @@ class _AppointmentDetailScreenState extends State<AppointmentDetailScreen>
             pet = Map<String, dynamic>.from(booking!['pets']);
           }
 
-          // Text controllers
-          _weightController = TextEditingController(
-              text: pet!['weight']?.toString() ?? '');
-          _heightController = TextEditingController(
-              text: pet!['height']?.toString() ?? '');
+          _weightController = TextEditingController(text: pet!['weight']?.toString() ?? '');
+          _heightController = TextEditingController(text: pet!['height']?.toString() ?? '');
           _foodController = TextEditingController(text: pet!['food_preference'] ?? '');
           _moodController = TextEditingController(text: pet!['mood'] ?? '');
           _healthController = TextEditingController(text: pet!['health_status'] ?? '');
           _descController = TextEditingController(text: pet!['description'] ?? '');
 
-          // Medical controller
           _controller = MedicalRecordsController(
             service: SupabaseMedicalRecordService(supabase),
             petId: pet!['id'],
@@ -171,25 +193,20 @@ class _AppointmentDetailScreenState extends State<AppointmentDetailScreen>
         height: _heightController.text.trim().isEmpty
             ? null
             : double.tryParse(_heightController.text.trim()),
-        foodPreference: _foodController.text.trim().isEmpty
+        allergies: _foodController.text.trim().isEmpty
             ? null
             : _foodController.text.trim(),
-        mood: _moodController.text.trim().isEmpty
-            ? null
-            : _moodController.text.trim(),
-        healthStatus: _healthController.text.trim().isEmpty
-            ? null
-            : _healthController.text.trim(),
+       
         description: _descController.text.trim().isEmpty
             ? null
             : _descController.text.trim(),
         imageUrl: _uploadedImageUrl ?? pet!['image_url'],
       );
 
-      await PetService.instance.updatePet(updatedPet, widget.userId); // ✅ ensures save to pets table
+      await PetService.instance.updatePet(updatedPet, widget.userId);
 
       pet = Map<String, dynamic>.from(pet!);
-      pet!.addAll(updatedPet.toJson()); // ✅ update local copy
+      pet!.addAll(updatedPet.toJson());
 
       if (mounted) {
         setState(() => _petEditMode = false);
@@ -206,50 +223,52 @@ class _AppointmentDetailScreenState extends State<AppointmentDetailScreen>
     }
   }
 
+  
+
   // ========================= Build =========================
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: const Color(0xFFF5F5FB),
+      backgroundColor: const Color(0xFFF4F3FA),
       appBar: AppBar(
         title: const Text('Appointment Details'),
         backgroundColor: _primary,
         elevation: 6,
-        shadowColor: _primary..withValues(alpha: 0.5),
+        shadowColor: _primary.withOpacity(0.5),
       ),
       body: loading
           ? const Center(child: CircularProgressIndicator())
           : booking == null || pet == null
-              ? const Center(child: Text('Booking or Pet not found'))
-              : AnimatedSwitcher(
-                  duration: const Duration(milliseconds: 250),
-                  child: SingleChildScrollView(
-                    key: ValueKey('loaded-${booking!['id']}'),
-                    padding: const EdgeInsets.all(16),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.stretch,
-                      children: [
-                        _sectionTitle('Pet Owner Info', Icons.person_outline),
-                        const SizedBox(height: 8),
-                        _ownerInfoCard(),
-                        const SizedBox(height: 20),
-                        _sectionTitle('Pet Profile', Icons.pets_outlined),
-                        const SizedBox(height: 8),
-                        _petInfoCard(),
-                        const SizedBox(height: 24),
-                        _sectionTitle('Medical Records', Icons.health_and_safety_outlined),
-                        const SizedBox(height: 8),
-                        _medicalRecordsCard(),
-                        const SizedBox(height: 88), // space for FAB
-                      ],
-                    ),
-                  ),
-                ),
-      floatingActionButton: (_controller != null)
+          ? const Center(child: Text('Booking or Pet not found'))
+          : AnimatedSwitcher(
+        duration: const Duration(milliseconds: 250),
+        child: SingleChildScrollView(
+          key: ValueKey('loaded-${booking!['id']}'),
+          padding: const EdgeInsets.all(16),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              _sectionTitle('Pet Owner Info', Icons.person_outline),
+              const SizedBox(height: 8),
+              _ownerInfoCard(),
+              const SizedBox(height: 20),
+              _sectionTitle('Pet Profile', Icons.pets_outlined),
+              const SizedBox(height: 8),
+              _petInfoCard(),
+              const SizedBox(height: 24),
+              _sectionTitle('Medical Records', Icons.health_and_safety_outlined),
+              const SizedBox(height: 8),
+              _medicalRecordsCard(),
+              const SizedBox(height: 88),
+            ],
+          ),
+        ),
+      ),
+      floatingActionButton: (_controller != null && _canEdit)
           ? AnimatedBuilder(
-              animation: _tabController,
-              builder: (_, __) => _fabForTab(_tabController.index),
-            )
+        animation: _tabController,
+        builder: (_, __) => _fabForTab(_tabController.index),
+      )
           : null,
     );
   }
@@ -261,10 +280,17 @@ class _AppointmentDetailScreenState extends State<AppointmentDetailScreen>
         Container(
           decoration: BoxDecoration(
             color: _primary,
-            borderRadius: BorderRadius.circular(10),
+            borderRadius: BorderRadius.circular(12),
+            boxShadow: [
+              BoxShadow(
+                color: _primary.withOpacity(.25),
+                blurRadius: 10,
+                offset: const Offset(0, 6),
+              ),
+            ],
           ),
           padding: const EdgeInsets.all(8),
-          child: const Icon(Icons.star, color: Colors.white, size: 18), 
+          child: Icon(icon, color: Colors.white, size: 18),
         ),
         const SizedBox(width: 10),
         Text(
@@ -278,11 +304,18 @@ class _AppointmentDetailScreenState extends State<AppointmentDetailScreen>
     );
   }
 
- BoxDecoration get _cardDecoration => BoxDecoration(
-        color: _cardSurface,
-        borderRadius: BorderRadius.circular(18),
-        border: Border.all(color: _primaryLight), 
-      );
+  BoxDecoration get _cardDecoration => BoxDecoration(
+    color: _cardSurface,
+    borderRadius: BorderRadius.circular(18),
+    border: Border.all(color: _primaryLight),
+    boxShadow: const [
+      BoxShadow(
+        color: Color(0x22000000),
+        blurRadius: 14,
+        offset: Offset(0, 6),
+      ),
+    ],
+  );
 
   Widget _ownerInfoCard() {
     return AnimatedContainer(
@@ -306,10 +339,12 @@ class _AppointmentDetailScreenState extends State<AppointmentDetailScreen>
                       style: const TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
                     ),
                     const SizedBox(height: 4),
-                    _chip('Date', booking!['date'] != null
-                        ? DateFormat.yMMMd().format(DateTime.parse(booking!['date']))
-                        : '—'),
-                    const SizedBox(height: 6),
+                    _chip(
+                      'Date',
+                      booking!['date'] != null
+                          ? DateFormat.yMMMd().format(DateTime.parse(booking!['date']))
+                          : '—',
+                    ),
                   ],
                 ),
               ),
@@ -395,21 +430,19 @@ class _AppointmentDetailScreenState extends State<AppointmentDetailScreen>
                           ? const Icon(Icons.pets, color: _primary, size: 36)
                           : null,
                     ),
-                    Positioned(
-                      bottom: -2,
-                      right: -2,
-                      child: GestureDetector(
-                        
+                    if (_canEdit)
+                      Positioned(
+                        bottom: -2,
+                        right: -2,
                         child: Container(
-                          decoration: BoxDecoration(
-                            gradient: const LinearGradient(colors: [_primary, _primaryDark]),
+                          decoration: const BoxDecoration(
+                            gradient: LinearGradient(colors: [_primary, _primaryDark]),
                             shape: BoxShape.circle,
                           ),
                           padding: const EdgeInsets.all(8),
                           child: const Icon(Icons.camera_alt, size: 16, color: Colors.white),
                         ),
                       ),
-                    ),
                   ],
                 ),
               ),
@@ -437,13 +470,13 @@ class _AppointmentDetailScreenState extends State<AppointmentDetailScreen>
                   ],
                 ),
               ),
-              // Edit toggle
-              _editIconButton(
-                active: _petEditMode,
-                onEdit: () => setState(() => _petEditMode = true),
-                onSave: _updatePetDetails,
-                onCancel: () => setState(() => _petEditMode = false),
-              ),
+              if (_canEdit)
+                _editIconButton(
+                  active: _petEditMode,
+                  onEdit: () => setState(() => _petEditMode = true),
+                  onSave: _updatePetDetails,
+                  onCancel: () => setState(() => _petEditMode = false),
+                ),
             ],
           ),
           const SizedBox(height: 14),
@@ -507,18 +540,21 @@ class _AppointmentDetailScreenState extends State<AppointmentDetailScreen>
     );
   }
 
-  // Read-only layout for pet editable fields
   Widget _petReadonlyFields() {
     final tiles = <Widget>[
       _kv('Weight', _weightController.text.isEmpty ? '—' : _weightController.text),
       _kv('Height', _heightController.text.isEmpty ? '—' : _heightController.text),
-      _kv('Food Preference', _foodController.text.isEmpty ? '—' : _foodController.text),
-      _kv('Mood', _moodController.text.isEmpty ? '—' : _moodController.text),
-      _kv('Health Status', _healthController.text.isEmpty ? '—' : _healthController.text),
+      _kv('Allergies', _foodController.text.isEmpty ? '—' : _foodController.text),
+      
+    
       _kv('Description', _descController.text.isEmpty ? '—' : _descController.text),
     ];
 
-    return Column(children: tiles.map((w) => Padding(padding: const EdgeInsets.symmetric(vertical: 6), child: w)).toList());
+    return Column(
+      children: tiles
+          .map((w) => Padding(padding: const EdgeInsets.symmetric(vertical: 6), child: w))
+          .toList(),
+    );
   }
 
   Widget _kv(String label, String value) {
@@ -538,22 +574,20 @@ class _AppointmentDetailScreenState extends State<AppointmentDetailScreen>
     );
   }
 
-  // Editable layout for pet fields
   Widget _petEditableFields() {
     return Column(
       children: [
-        _editableRow('Weight (kg)', _weightController, keyboard: TextInputType.numberWithOptions(decimal: true)),
-        _editableRow('Height (cm)', _heightController, keyboard: TextInputType.numberWithOptions(decimal: true)),
-        _editableRow('Food Preference', _foodController),
-        _editableRow('Mood', _moodController),
-        _editableRow('Health Status', _healthController),
+        _editableRow('Weight (kg)', _weightController, keyboard: const TextInputType.numberWithOptions(decimal: true)),
+        _editableRow('Height (cm)', _heightController, keyboard: const TextInputType.numberWithOptions(decimal: true)),
+        _editableRow('Allergies', _foodController),
         _editableRow('Description', _descController, maxLines: 3),
         const SizedBox(height: 6),
       ],
     );
   }
 
-  Widget _editableRow(String label, TextEditingController controller, {TextInputType? keyboard, int maxLines = 1}) {
+  Widget _editableRow(String label, TextEditingController controller,
+      {TextInputType? keyboard, int maxLines = 1}) {
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: 6),
       child: TextField(
@@ -562,6 +596,7 @@ class _AppointmentDetailScreenState extends State<AppointmentDetailScreen>
         maxLines: maxLines,
         decoration: InputDecoration(
           labelText: label,
+          prefixIcon: const Icon(Icons.edit_outlined),
           filled: true,
           fillColor: const Color(0xFFF7F4FF),
           border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
@@ -581,7 +616,6 @@ class _AppointmentDetailScreenState extends State<AppointmentDetailScreen>
   // ========================= Medical Records =========================
   Widget _medicalRecordsCard() {
     final controller = _controller!;
-
     return Container(
       decoration: _cardDecoration,
       padding: const EdgeInsets.all(12),
@@ -621,9 +655,14 @@ class _AppointmentDetailScreenState extends State<AppointmentDetailScreen>
           borderRadius: BorderRadius.circular(10),
           gradient: const LinearGradient(colors: [_primary, _primaryDark]),
           boxShadow: [
-            BoxShadow(color: _primary..withValues(alpha: 0.3), blurRadius: 8, offset: Offset(0, 4)),
+            BoxShadow(
+              color: _primary.withOpacity(.3),
+              blurRadius: 8,
+              offset: const Offset(0, 4),
+            ),
           ],
         ),
+        labelStyle: const TextStyle(fontWeight: FontWeight.w800),
         tabs: const [
           Tab(text: 'Vaccinations'),
           Tab(text: 'Checkups'),
@@ -645,337 +684,488 @@ class _AppointmentDetailScreenState extends State<AppointmentDetailScreen>
     );
   }
 
-void _addMedicalRecord() async {
-  if (_controller == null) return;
-  final index = _tabController.index;
+  void _addMedicalRecord() async {
+    if (_controller == null) return;
+    final index = _tabController.index;
 
-  final nameCtrl = TextEditingController();
-  final descCtrl = TextEditingController();
-  DateTime? date1;
-  DateTime? date2;
+    final nameCtrl = TextEditingController();
+    final descCtrl = TextEditingController();
+    DateTime? date1;
+    DateTime? date2;
 
-  await showDialog(
-    context: context,
-    builder: (dialogContext) {
-      return AlertDialog(
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-        title: Text(
-          index == 0
-              ? 'Add Vaccination'
-              : index == 1
-                  ? 'Add Medical Checkup'
-                  : 'Add Prescription',
-          style: const TextStyle(fontWeight: FontWeight.bold),
-        ),
-        content: SingleChildScrollView(
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              TextField(
-                controller: nameCtrl,
-                decoration: InputDecoration(
-                  labelText: index == 0
-                      ? 'Vaccine Name'
-                      : index == 1
-                          ? 'Reason'
-                          : 'Medicine Name',
+    await showDialog(
+      context: context,
+      builder: (dialogContext) {
+        return StatefulBuilder(
+          builder: (ctx, setLocal) {
+            return AlertDialog(
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+              title: Row(
+                children: [
+                  CircleAvatar(
+                    radius: 18,
+                    backgroundColor: _primary.withOpacity(.12),
+                    child: Icon(
+                      index == 0
+                          ? Icons.vaccines_outlined
+                          : index == 1
+                          ? Icons.medical_services_outlined
+                          : Icons.receipt_long_outlined,
+                      color: _primary,
+                    ),
+                  ),
+                  const SizedBox(width: 10),
+                  Text(
+                    index == 0
+                        ? 'Add Vaccination'
+                        : index == 1
+                        ? 'Add Medical Checkup'
+                        : 'Add Prescription',
+                    style: const TextStyle(fontWeight: FontWeight.bold),
+                  ),
+                ],
+              ),
+              content: SingleChildScrollView(
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    TextField(
+                      controller: nameCtrl,
+                      decoration: InputDecoration(
+                        prefixIcon: const Icon(Icons.title_outlined),
+                        labelText: index == 0
+                            ? 'Vaccine Name'
+                            : index == 1
+                            ? 'Reason'
+                            : 'Medicine Name',
+                        filled: true,
+                        fillColor: const Color(0xFFF7F4FF),
+                        border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+                      ),
+                    ),
+                    const SizedBox(height: 10),
+                    TextField(
+                      controller: descCtrl,
+                      decoration: InputDecoration(
+                        prefixIcon: const Icon(Icons.description_outlined),
+                        labelText: 'Description',
+                        filled: true,
+                        fillColor: const Color(0xFFF7F4FF),
+                        border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+                      ),
+                    ),
+                    const SizedBox(height: 12),
+                    if (index == 0) ...[
+                      _datePickerField(
+                        'Date Given',
+                        date1,
+                            (d) {
+                          date1 = d;
+                          setLocal(() {});
+                        },
+                      ),
+                      const SizedBox(height: 8),
+                      _datePickerField(
+                        'Next Due',
+                        date2,
+                            (d) {
+                          date2 = d;
+                          setLocal(() {});
+                        },
+                      ),
+                    ],
+                    if (index == 1) ...[
+                      _datePickerField(
+                        'Date',
+                        date1,
+                            (d) {
+                          date1 = d;
+                          setLocal(() {});
+                        },
+                      ),
+                    ],
+                    if (index == 2) ...[
+                      Row(
+                        children: [
+                          Expanded(
+                            child: _datePickerField(
+                              'Start Date',
+                              date1,
+                                  (d) {
+                                date1 = d;
+                                setLocal(() {});
+                              },
+                            ),
+                          ),
+                          const SizedBox(width: 12),
+                          Expanded(
+                            child: _datePickerField(
+                              'End Date',
+                              date2,
+                                  (d) {
+                                date2 = d;
+                                setLocal(() {});
+                              },
+                            ),
+                          ),
+                        ],
+                      ),
+                    ],
+                  ],
                 ),
               ),
-              TextField(
-                controller: descCtrl,
-                decoration: const InputDecoration(labelText: 'Description'),
-              ),
-              const SizedBox(height: 12),
-              if (index == 0) ...[
-                _datePickerField('Date Given', date1, (d) => date1 = d),
-                const SizedBox(height: 8),
-                _datePickerField('Next Due', date2, (d) => date2 = d),
-              ],
-              if (index == 1) ...[
-                _datePickerField('Date', date1, (d) => date1 = d),
-              ],
-              if (index == 2) ...[
-                _datePickerField('Start Date', date1, (d) => date1 = d),
-                const SizedBox(height: 8),
-                _datePickerField('End Date', date2, (d) => date2 = d),
-              ],
-            ],
-          ),
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(dialogContext),
-            child: const Text('Cancel'),
-          ),
-          ElevatedButton(
-            style: ElevatedButton.styleFrom(backgroundColor: _primary),
-            onPressed: () async {
-              try {
-                // === Add/Update record based on tab ===
-                if (index == 0) {
-                  await _controller!.addOrUpdateVaccination(
-                    existing: null,
-                    name: nameCtrl.text.trim(),
-                    desc: descCtrl.text.trim().isEmpty ? null : descCtrl.text.trim(),
-                    dateGiven: date1 ?? DateTime.now(),
-                    nextDue: date2,
-                  );
-                } else if (index == 1) {
-                  await _controller!.addOrUpdateCheckup(
-                    existing: null,
-                    reason: nameCtrl.text.trim(),
-                    desc: descCtrl.text.trim().isEmpty ? null : descCtrl.text.trim(),
-                    date: date1 ?? DateTime.now(),
-                  );
-                } else if (index == 2) {
-                  await _controller!.addOrUpdatePrescription(
-                    existing: null,
-                    med: nameCtrl.text.trim(),
-                    desc: descCtrl.text.trim().isEmpty ? null : descCtrl.text.trim(),
-                    start: date1 ?? DateTime.now(),
-                    end: date2,
-                  );
-                }
+              actions: [
+                TextButton.icon(
+                  onPressed: () => Navigator.pop(dialogContext),
+                  icon: const Icon(Icons.close),
+                  label: const Text('Cancel'),
+                ),
+                ElevatedButton.icon(
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: _primary,
+                    foregroundColor: Colors.white,
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                  ),
+                  onPressed: () async {
+                    try {
+                      final createdBy = _createdByName ?? widget.providerEmail;
 
-                // Close the dialog first
-                if (mounted) Navigator.pop(dialogContext);
+                      if (index == 0) {
+                        await _controller!.addOrUpdateVaccination(
+                          existing: null,
+                          name: nameCtrl.text.trim(),
+                          desc: descCtrl.text.trim().isEmpty ? null : descCtrl.text.trim(),
+                          dateGiven: date1 ?? DateTime.now(),
+                          nextDue: date2,
+                          createdBy: createdBy,
+                        );
+                      } else if (index == 1) {
+                        await _controller!.addOrUpdateCheckup(
+                          existing: null,
+                          reason: nameCtrl.text.trim(),
+                          desc: descCtrl.text.trim().isEmpty ? null : descCtrl.text.trim(),
+                          date: date1 ?? DateTime.now(),
+                          createdBy: createdBy,
+                        );
+                      } else if (index == 2) {
+                        await _controller!.addOrUpdatePrescription(
+                          existing: null,
+                          med: nameCtrl.text.trim(),
+                          desc: descCtrl.text.trim().isEmpty ? null : descCtrl.text.trim(),
+                          start: date1 ?? DateTime.now(),
+                          end: date2,
+                          createdBy: createdBy,
+                        );
+                      }
 
-                // No need to call setState; controller already calls notifyListeners
-              } catch (e) {
-                if (mounted) {
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    SnackBar(content: Text('Failed to save: $e')),
-                  );
-                }
-              }
-            },
-            child: const Text('Save', style: TextStyle(color: Colors.white)),
-          ),
-        ],
-      );
-    },
-  );
-}
+                      if (mounted) Navigator.pop(dialogContext);
+                    } catch (e) {
+                      if (mounted) {
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          SnackBar(content: Text('Failed to save: $e')),
+                        );
+                      }
+                    }
+                  },
+                  icon: const Icon(Icons.save_outlined),
+                  label: const Text('Save'),
+                ),
+              ],
+            );
+          },
+        );
+      },
+    );
+  }
 
   // === Tabs ===
-// === Vaccinations Tab ===
-Widget _vaccinationsTab(MedicalRecordsController controller) {
-  return AnimatedBuilder(
-    animation: controller,
-    builder: (context, _) {
-      if (controller.loadingVacc) {
-        return const Center(child: CircularProgressIndicator());
-      }
-      if (controller.vaccinations.isEmpty) {
-        return const Center(child: Text('No vaccinations found'));
-      }
+  Widget _vaccinationsTab(MedicalRecordsController controller) {
+    return AnimatedBuilder(
+      animation: controller,
+      builder: (context, _) {
+        if (controller.loadingVacc) return const Center(child: CircularProgressIndicator());
+        if (controller.vaccinations.isEmpty) return const Center(child: Text('No vaccinations found'));
 
-      return SingleChildScrollView(
-        child: Column(
-          children: controller.vaccinations.map((v) {
-            final nameCtrl = TextEditingController(text: v.vaccinationName);
-            final descCtrl = TextEditingController(text: v.description ?? '');
-            DateTime? dateGiven = v.dateGiven;
-            DateTime? nextDue = v.nextDueDate;
-            bool editing = _vaccEditing[v.id] ?? false;
+        return SingleChildScrollView(
+          child: Column(
+            children: controller.vaccinations.map((v) {
+              final nameCtrl = TextEditingController(text: v.vaccinationName);
+              final descCtrl = TextEditingController(text: v.description ?? '');
+              DateTime? dateGiven = v.dateGiven;
+              DateTime? nextDue = v.nextDueDate;
+              bool editing = _vaccEditing[v.id] ?? false;
 
-            return Container(
-              margin: const EdgeInsets.symmetric(vertical: 6),
-              decoration: BoxDecoration(
-                color: Colors.white,
-                borderRadius: BorderRadius.circular(14),
-                border: Border.all(color: _primaryLight),
-              ),
-              child: ListTile(
-                title: editing
-                    ? TextField(controller: nameCtrl, decoration: const InputDecoration(labelText: 'Name'))
-                    : Text(v.vaccinationName, style: const TextStyle(fontWeight: FontWeight.w700)),
-                subtitle: AnimatedCrossFade(
-                  duration: const Duration(milliseconds: 180),
-                  crossFadeState: editing ? CrossFadeState.showSecond : CrossFadeState.showFirst,
-                  firstChild: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text('${_df.format(v.dateGiven)}  ·  Next: ${v.nextDueDate != null ? _df.format(v.nextDueDate!) : '—'}'),
-                      if ((v.description ?? '').isNotEmpty)
-                        Padding(
-                          padding: const EdgeInsets.only(top: 4),
-                          child: Text(v.description!, style: TextStyle(fontSize: 12, color: Colors.grey.shade700)),
+              return Container(
+                margin: const EdgeInsets.symmetric(vertical: 6),
+                decoration: BoxDecoration(
+                  color: Colors.white,
+                  borderRadius: BorderRadius.circular(14),
+                  border: Border.all(color: _primaryLight),
+                ),
+                child: ListTile(
+                  title: editing
+                      ? TextField(
+                    controller: nameCtrl,
+                    decoration: const InputDecoration(labelText: 'Name'),
+                  )
+                      : Text(v.vaccinationName, style: const TextStyle(fontWeight: FontWeight.w700)),
+                  subtitle: AnimatedCrossFade(
+                    duration: const Duration(milliseconds: 180),
+                    crossFadeState: editing ? CrossFadeState.showSecond : CrossFadeState.showFirst,
+                    firstChild: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          '${_df.format(v.dateGiven)}  ·  Next: ${v.nextDueDate != null ? _df.format(v.nextDueDate!) : '—'}',
                         ),
-                    ],
+                        const SizedBox(height: 2),
+                        Text(
+                          'Created by: ${v.createdBy ?? '—'}',
+                          style: TextStyle(color: Colors.grey.shade600, fontSize: 12),
+                        ),
+                        if ((v.description ?? '').isNotEmpty)
+                          Padding(
+                            padding: const EdgeInsets.only(top: 4),
+                            child: Text(
+                              v.description!,
+                              style: TextStyle(fontSize: 12, color: Colors.grey.shade700),
+                            ),
+                          ),
+                      ],
+                    ),
+                    secondChild: Column(
+                      children: [
+                        TextField(
+                          controller: descCtrl,
+                          decoration: const InputDecoration(labelText: 'Description'),
+                        ),
+                        const SizedBox(height: 8),
+                        Row(
+                          children: [
+                            Expanded(
+                              child: _datePickerField(
+                                'Date Given',
+                                dateGiven,
+                                    (d) {
+                                  dateGiven = d;
+                                  setState(() {});
+                                },
+                              ),
+                            ),
+                            const SizedBox(width: 12),
+                            Expanded(
+                              child: _datePickerField(
+                                'Next Due',
+                                nextDue,
+                                    (d) {
+                                  nextDue = d;
+                                  setState(() {});
+                                },
+                              ),
+                            ),
+                          ],
+                        ),
+                      ],
+                    ),
                   ),
-                  secondChild: Column(
-                    children: [
-                      TextField(controller: descCtrl, decoration: const InputDecoration(labelText: 'Description')),
-                      const SizedBox(height: 8),
-                      Row(
-                        children: [
-                          Expanded(child: _datePickerField('Date Given', dateGiven, (d) => dateGiven = d)),
-                          const SizedBox(width: 12),
-                          Expanded(child: _datePickerField('Next Due', nextDue, (d) => nextDue = d)),
-                        ],
-                      ),
-                    ],
+                  trailing: _canEdit
+                      ? _rowActions(
+                    editing: editing,
+                    onEdit: () => setState(() => _vaccEditing[v.id] = true),
+                    onSave: () async {
+                      await controller.addOrUpdateVaccination(
+                        existing: v,
+                        name: nameCtrl.text.trim(),
+                        desc: descCtrl.text.trim().isEmpty ? null : descCtrl.text.trim(),
+                        dateGiven: dateGiven!,
+                        nextDue: nextDue,
+                        createdBy: _createdByName ?? widget.providerEmail,
+                      );
+                      _vaccEditing[v.id] = false;
+                    },
+                    onCancel: () => _vaccEditing[v.id] = false,
+                    onDelete: () async => controller.deleteVaccination(v.id),
+                  )
+                      : const SizedBox.shrink(),
+                ),
+              );
+            }).toList(),
+          ),
+        );
+      },
+    );
+  }
+
+  Widget _checkupsTab(MedicalRecordsController controller) {
+    return AnimatedBuilder(
+      animation: controller,
+      builder: (context, _) {
+        if (controller.loadingCheck) return const Center(child: CircularProgressIndicator());
+        if (controller.checkups.isEmpty) return const Center(child: Text('No checkups found'));
+
+        return SingleChildScrollView(
+          child: Column(
+            children: controller.checkups.map((c) {
+              final reasonCtrl = TextEditingController(text: c.reason);
+              final descCtrl = TextEditingController(text: c.description ?? '');
+              DateTime date = c.date;
+              bool editing = _checkEditing[c.id] ?? false;
+
+              return Container(
+                margin: const EdgeInsets.symmetric(vertical: 6),
+                decoration: BoxDecoration(
+                  color: Colors.white,
+                  borderRadius: BorderRadius.circular(14),
+                  border: Border.all(color: _primaryLight),
+                ),
+                child: ListTile(
+                  title: editing
+                      ? TextField(controller: reasonCtrl, decoration: const InputDecoration(labelText: 'Reason'))
+                      : Text(c.reason, style: const TextStyle(fontWeight: FontWeight.w700)),
+                  subtitle: AnimatedCrossFade(
+                    duration: const Duration(milliseconds: 180),
+                    crossFadeState: editing ? CrossFadeState.showSecond : CrossFadeState.showFirst,
+                    firstChild: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(_df.format(c.date)),
+                        const SizedBox(height: 2),
+                        Text(
+                          'Created by: ${c.createdBy ?? '—'}',
+                          style: TextStyle(color: Colors.grey.shade600, fontSize: 12),
+                        ),
+                      ],
+                    ),
+                    secondChild: Column(
+                      children: [
+                        TextField(controller: descCtrl, decoration: const InputDecoration(labelText: 'Description')),
+                        const SizedBox(height: 8),
+                        _datePickerField('Date', date, (d) {
+                          date = d;
+                          setState(() {});
+                        }),
+                      ],
+                    ),
                   ),
+                  trailing: _canEdit
+                      ? _rowActions(
+                    editing: editing,
+                    onEdit: () => setState(() => _checkEditing[c.id] = true),
+                    onSave: () async {
+                      await controller.addOrUpdateCheckup(
+                        existing: c,
+                        reason: reasonCtrl.text.trim(),
+                        desc: descCtrl.text.trim().isEmpty ? null : descCtrl.text.trim(),
+                        date: date,
+                        createdBy: _createdByName ?? widget.providerEmail,
+                      );
+                      _checkEditing[c.id] = false;
+                    },
+                    onCancel: () => _checkEditing[c.id] = false,
+                    onDelete: () async => controller.deleteCheckup(c.id),
+                  )
+                      : const SizedBox.shrink(),
                 ),
-                trailing: _rowActions(
-                  editing: editing,
-                  onEdit: () => setState(() => _vaccEditing[v.id] = true),
-                  onSave: () async {
-                    await controller.addOrUpdateVaccination(
-                      existing: v,
-                      name: nameCtrl.text.trim(),
-                      desc: descCtrl.text.trim().isEmpty ? null : descCtrl.text.trim(),
-                      dateGiven: dateGiven!,
-                      nextDue: nextDue,
-                    );
-                    _vaccEditing[v.id] = false;
-                  },
-                  onCancel: () => _vaccEditing[v.id] = false,
-                  onDelete: () async => controller.deleteVaccination(v.id),
+              );
+            }).toList(),
+          ),
+        );
+      },
+    );
+  }
+
+  Widget _prescriptionsTab(MedicalRecordsController controller) {
+    return AnimatedBuilder(
+      animation: controller,
+      builder: (context, _) {
+        if (controller.loadingRx) return const Center(child: CircularProgressIndicator());
+        if (controller.prescriptions.isEmpty) return const Center(child: Text('No prescriptions found'));
+
+        return SingleChildScrollView(
+          child: Column(
+            children: controller.prescriptions.map((p) {
+              final medCtrl = TextEditingController(text: p.medicineName);
+              final descCtrl = TextEditingController(text: p.description ?? '');
+              DateTime start = p.startDate;
+              DateTime? end = p.endDate;
+              bool editing = _rxEditing[p.id] ?? false;
+
+              return Container(
+                margin: const EdgeInsets.symmetric(vertical: 6),
+                decoration: BoxDecoration(
+                  color: Colors.white,
+                  borderRadius: BorderRadius.circular(14),
+                  border: Border.all(color: _primaryLight),
                 ),
-              ),
-            );
-          }).toList(),
-        ),
-      );
-    },
-  );
-}
-
-// === Medical Checkups Tab ===
-Widget _checkupsTab(MedicalRecordsController controller) {
-  return AnimatedBuilder(
-    animation: controller,
-    builder: (context, _) {
-      if (controller.loadingCheck) return const Center(child: CircularProgressIndicator());
-      if (controller.checkups.isEmpty) return const Center(child: Text('No checkups found'));
-
-      return SingleChildScrollView(
-        child: Column(
-          children: controller.checkups.map((c) {
-            final reasonCtrl = TextEditingController(text: c.reason);
-            final descCtrl = TextEditingController(text: c.description ?? '');
-            DateTime date = c.date;
-            bool editing = _checkEditing[c.id] ?? false;
-
-            return Container(
-              margin: const EdgeInsets.symmetric(vertical: 6),
-              decoration: BoxDecoration(
-                color: Colors.white,
-                borderRadius: BorderRadius.circular(14),
-                border: Border.all(color: _primaryLight),
-              ),
-              child: ListTile(
-                title: editing
-                    ? TextField(controller: reasonCtrl, decoration: const InputDecoration(labelText: 'Reason'))
-                    : Text(c.reason, style: const TextStyle(fontWeight: FontWeight.w700)),
-                subtitle: AnimatedCrossFade(
-                  duration: const Duration(milliseconds: 180),
-                  crossFadeState: editing ? CrossFadeState.showSecond : CrossFadeState.showFirst,
-                  firstChild: Text(_df.format(c.date)),
-                  secondChild: Column(
-                    children: [
-                      TextField(controller: descCtrl, decoration: const InputDecoration(labelText: 'Description')),
-                      const SizedBox(height: 8),
-                      _datePickerField('Date', date, (d) => date = d),
-                    ],
+                child: ListTile(
+                  title: editing
+                      ? TextField(controller: medCtrl, decoration: const InputDecoration(labelText: 'Medicine'))
+                      : Text(p.medicineName, style: const TextStyle(fontWeight: FontWeight.w700)),
+                  subtitle: AnimatedCrossFade(
+                    duration: const Duration(milliseconds: 180),
+                    crossFadeState: editing ? CrossFadeState.showSecond : CrossFadeState.showFirst,
+                    firstChild: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text('${_df.format(p.startDate)}  ·  End: ${p.endDate != null ? _df.format(p.endDate!) : '—'}'),
+                        const SizedBox(height: 2),
+                        Text(
+                          'Created by: ${p.createdBy ?? '—'}',
+                          style: TextStyle(color: Colors.grey.shade600, fontSize: 12),
+                        ),
+                      ],
+                    ),
+                    secondChild: Column(
+                      children: [
+                        TextField(controller: descCtrl, decoration: const InputDecoration(labelText: 'Description')),
+                        const SizedBox(height: 8),
+                        Row(
+                          children: [
+                            Expanded(
+                              child: _datePickerField('Start', start, (d) {
+                                start = d;
+                                setState(() {});
+                              }),
+                            ),
+                            const SizedBox(width: 12),
+                            Expanded(
+                              child: _datePickerField('End', end, (d) {
+                                end = d;
+                                setState(() {});
+                              }),
+                            ),
+                          ],
+                        ),
+                      ],
+                    ),
                   ),
+                  trailing: _canEdit
+                      ? _rowActions(
+                    editing: editing,
+                    onEdit: () => setState(() => _rxEditing[p.id] = true),
+                    onSave: () async {
+                      await controller.addOrUpdatePrescription(
+                        existing: p,
+                        med: medCtrl.text.trim(),
+                        desc: descCtrl.text.trim().isEmpty ? null : descCtrl.text.trim(),
+                        start: start,
+                        end: end,
+                        createdBy: _createdByName ?? widget.providerEmail,
+                      );
+                      _rxEditing[p.id] = false;
+                    },
+                    onCancel: () => _rxEditing[p.id] = false,
+                    onDelete: () async => controller.deletePrescription(p.id),
+                  )
+                      : const SizedBox.shrink(),
                 ),
-                trailing: _rowActions(
-                  editing: editing,
-                  onEdit: () => setState(() => _checkEditing[c.id] = true),
-                  onSave: () async {
-                    await controller.addOrUpdateCheckup(
-                      existing: c,
-                      reason: reasonCtrl.text.trim(),
-                      desc: descCtrl.text.trim().isEmpty ? null : descCtrl.text.trim(),
-                      date: date,
-                    );
-                    _checkEditing[c.id] = false;
-                  },
-                  onCancel: () => _checkEditing[c.id] = false,
-                  onDelete: () async => controller.deleteCheckup(c.id),
-                ),
-              ),
-            );
-          }).toList(),
-        ),
-      );
-    },
-  );
-}
-
-// === Prescriptions Tab ===
-Widget _prescriptionsTab(MedicalRecordsController controller) {
-  return AnimatedBuilder(
-    animation: controller,
-    builder: (context, _) {
-      if (controller.loadingRx) return const Center(child: CircularProgressIndicator());
-      if (controller.prescriptions.isEmpty) return const Center(child: Text('No prescriptions found'));
-
-      return SingleChildScrollView(
-        child: Column(
-          children: controller.prescriptions.map((p) {
-            final medCtrl = TextEditingController(text: p.medicineName);
-            final descCtrl = TextEditingController(text: p.description ?? '');
-            DateTime start = p.startDate;
-            DateTime? end = p.endDate;
-            bool editing = _rxEditing[p.id] ?? false;
-
-            return Container(
-              margin: const EdgeInsets.symmetric(vertical: 6),
-              decoration: BoxDecoration(
-                color: Colors.white,
-                borderRadius: BorderRadius.circular(14),
-                border: Border.all(color: _primaryLight),
-              ),
-              child: ListTile(
-                title: editing
-                    ? TextField(controller: medCtrl, decoration: const InputDecoration(labelText: 'Medicine'))
-                    : Text(p.medicineName, style: const TextStyle(fontWeight: FontWeight.w700)),
-                subtitle: AnimatedCrossFade(
-                  duration: const Duration(milliseconds: 180),
-                  crossFadeState: editing ? CrossFadeState.showSecond : CrossFadeState.showFirst,
-                  firstChild: Text('${_df.format(p.startDate)}  ·  End: ${p.endDate != null ? _df.format(p.endDate!) : '—'}'),
-                  secondChild: Column(
-                    children: [
-                      TextField(controller: descCtrl, decoration: const InputDecoration(labelText: 'Description')),
-                      const SizedBox(height: 8),
-                      Row(
-                        children: [
-                          Expanded(child: _datePickerField('Start', start, (d) => start = d)),
-                          const SizedBox(width: 12),
-                          Expanded(child: _datePickerField('End', end, (d) => end = d)),
-                        ],
-                      ),
-                    ],
-                  ),
-                ),
-                trailing: _rowActions(
-                  editing: editing,
-                  onEdit: () => setState(() =>_rxEditing[p.id] = true),
-                  onSave: () async {
-                    await controller.addOrUpdatePrescription(
-                      existing: p,
-                      med: medCtrl.text.trim(),
-                      desc: descCtrl.text.trim().isEmpty ? null : descCtrl.text.trim(),
-                      start: start,
-                      end: end,
-                    );
-                    _rxEditing[p.id] = false;
-                  },
-                  onCancel: () => _rxEditing[p.id] = false,
-                  onDelete: () async => controller.deletePrescription(p.id),
-                ),
-              ),
-            );
-          }).toList(),
-        ),
-      );
-    },
-  );
-}
+              );
+            }).toList(),
+          ),
+        );
+      },
+    );
+  }
 
   Widget _rowActions({
     required bool editing,
@@ -1016,9 +1206,7 @@ Widget _prescriptionsTab(MedicalRecordsController controller) {
           builder: (context, child) {
             return Theme(
               data: Theme.of(context).copyWith(
-                colorScheme: const ColorScheme.light(
-                  primary: _primary,
-                ),
+                colorScheme: const ColorScheme.light(primary: _primary),
               ),
               child: child!,
             );
@@ -1032,6 +1220,7 @@ Widget _prescriptionsTab(MedicalRecordsController controller) {
           border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
           filled: true,
           fillColor: const Color(0xFFF7F4FF),
+          suffixIcon: const Icon(Icons.calendar_today_outlined),
         ),
         child: Text(date != null ? _df.format(date) : '—'),
       ),

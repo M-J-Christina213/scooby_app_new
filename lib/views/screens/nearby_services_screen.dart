@@ -1,20 +1,25 @@
 import 'package:flutter/material.dart';
 import 'package:scooby_app_new/models/service_provider.dart';
 import 'package:scooby_app_new/widgets/service_provider.dart';
+import 'package:scooby_app_new/views/screens/service_detail_screen.dart';
 
 class NearbyServicesScreen extends StatelessWidget {
   final List<ServiceProvider> providers;
   final String role;
 
-  const NearbyServicesScreen({super.key, required this.providers, required this.role});
+  const NearbyServicesScreen({
+    super.key,
+    required this.providers,
+    required this.role,
+  });
 
   @override
   Widget build(BuildContext context) {
-    final purple = const Color(0xFF842EAC);
+    const purple = Color(0xFF842EAC);
 
     return Scaffold(
       appBar: AppBar(
-        title: Text('All Nearby $role\'s'),
+        title: Text("All Nearby $role's"),
         backgroundColor: purple,
       ),
       body: ListView.separated(
@@ -26,7 +31,14 @@ class NearbyServicesScreen extends StatelessWidget {
           return ServiceProviderCard(
             provider: provider,
             onTap: () {
-              // Navigate to detail screen
+              Navigator.push(
+                context,
+                MaterialPageRoute(
+                  builder: (_) => ServiceDetailScreen(
+                    serviceProvider: provider,
+                  ),
+                ),
+              );
             },
           );
         },
