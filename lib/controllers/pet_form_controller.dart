@@ -9,6 +9,7 @@ class PetFormController {
   final PetService petService;
 
   // Text fields
+  // Text fields
   final TextEditingController nameController = TextEditingController();
   final TextEditingController ageController = TextEditingController();
   final TextEditingController breedController = TextEditingController();
@@ -19,9 +20,11 @@ class PetFormController {
   final TextEditingController descriptionController = TextEditingController();
 
   // Dropdowns
+  // Dropdowns
   final ValueNotifier<String?> type = ValueNotifier(null);
   final ValueNotifier<String?> gender = ValueNotifier(null);
 
+  // Dynamic medical history fields
   // Dynamic medical history fields
   final List<TextEditingController> medicalControllers = [];
 
@@ -37,6 +40,7 @@ class PetFormController {
 
   PetFormController({Pet? existingPet, required this.petService}) {
     if (existingPet != null) {
+      // Populate from existing pet
       // Populate from existing pet
       nameController.text = existingPet.name;
       ageController.text = existingPet.age.toString();
@@ -190,7 +194,9 @@ class PetFormController {
         breed: breedController.text.trim(),
         age: int.tryParse(ageController.text.trim()) ?? 0,
         gender: gender.value ?? '',
-        color: colorController.text.trim().isEmpty ? null : colorController.text.trim(),
+        color: colorController.text.trim().isEmpty
+            ? null
+            : colorController.text.trim(),
         weight: double.tryParse(weightController.text.trim()),
         height: double.tryParse(heightController.text.trim()),
         medicalHistory: medicalRecordsString.isEmpty ? null : medicalRecordsString,
@@ -212,6 +218,9 @@ class PetFormController {
 
       return true;
     } catch (e) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Failed to save pet: $e')),
+      );
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(content: Text('Failed to save pet: $e')),
       );

@@ -1,4 +1,5 @@
 // lib/views/screens/todays_appointments.dart
+// lib/views/screens/todays_appointments.dart
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import 'package:scooby_app_new/models/booking_model.dart';
@@ -8,6 +9,12 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 class TodayAppointments extends StatefulWidget {
   final String providerEmail;
   final String userId;
+
+  const TodayAppointments({
+    super.key,
+    required this.providerEmail,
+    required this.userId,
+  });
 
   const TodayAppointments({
     super.key,
@@ -27,6 +34,12 @@ class _TodayAppointmentsState extends State<TodayAppointments> {
 
   final DateFormat _dateFmt = DateFormat('EEE, MMM d');
 
+
+  static const Color kPrimary = Color(0xFF842EAC);
+  static const Color kCardShadowColor = Color(0x1F000000); // subtle shadow
+
+  final DateFormat _dateFmt = DateFormat('EEE, MMM d');
+
   List<Booking> bookings = [];
   bool loading = true;
 
@@ -38,6 +51,19 @@ class _TodayAppointmentsState extends State<TodayAppointments> {
 
   Future<void> fetchToday() async {
     setState(() => loading = true);
+    try {
+      final now = DateTime.now();
+      final todayStart = DateTime(now.year, now.month, now.day);
+      final tomorrowStart = todayStart.add(const Duration(days: 1));
+
+      final resp = await supabase
+          .from('bookings')
+          .select('*, pets(name)')
+          .eq('service_provider_email', widget.providerEmail)
+          .eq('status', 'accepted')
+          .gte('date', todayStart.toIso8601String())
+          .lt('date', tomorrowStart.toIso8601String())
+          .order('date', ascending: true);
     try {
       final now = DateTime.now();
       final todayStart = DateTime(now.year, now.month, now.day);
@@ -89,11 +115,124 @@ class _TodayAppointmentsState extends State<TodayAppointments> {
     } finally {
       if (mounted) setState(() => loading = false);
     }
+      final rows = (resp as List<dynamic>? ?? [])
+          .map<Map<String, dynamic>>((e) => Map<String, dynamic>.from(e))
+          .toList();
+
+      final list = rows.map((map) {
+        String petName = '';
+        final petsJoin = map['pets'];
+        if (petsJoin is List && petsJoin.isNotEmpty) {
+          petName = (petsJoin.first['name'] ?? '') as String;
+        } else if (petsJoin is Map) {
+          petName = (petsJoin['name'] ?? '') as String;
+        }
+        map['pet_name'] = petName;
+        return Booking.fromMap(map);
+      }).toList(growable: false);
+
+      list.sort((a, b) {
+        final da = _combineDateAndTime(a.date, a.time) ?? a.date;
+        final db = _combineDateAndTime(b.date, b.time) ?? b.date;
+        return da.compareTo(db);
+      });
+
+      if (!mounted) return;
+      setState(() => bookings = list);
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Failed to load today\'s appointments: $e'),
+            behavior: SnackBarBehavior.floating,
+            backgroundColor: Colors.red.shade600,
+          ),
+        );
+      }
+    } finally {
+      if (mounted) setState(() => loading = false);
+    }
   }
 
   @override
   Widget build(BuildContext context) {
     return SafeArea(
+      child: loading
+          ? const Center(child: CircularProgressIndicator())
+          : RefreshIndicator(
+        onRefresh: fetchToday,
+        child: bookings.isEmpty
+            ? ListView(
+          padding: const EdgeInsets.only(top: 120),
+          children: [
+            Icon(Icons.today, size: 64, color: Colors.grey.shade400),
+            const SizedBox(height: 12),
+            const Center(
+              child: Text(
+                'No appointments today',
+                style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
+              ),
+            ),
+            const SizedBox(height: 6),
+            Center(
+              child: Text(
+                'Accepted bookings for today will appear here.',
+                style: TextStyle(color: Colors.grey.shade600),
+              ),
+            ),
+          ],
+        )
+            : ListView.separated(
+          padding: const EdgeInsets.all(12),
+          itemCount: bookings.length,
+          separatorBuilder: (_, __) => const SizedBox(height: 12),
+          itemBuilder: (context, i) => _todayCard(bookings[i]),
+        ),
+      ),
+    );
+  }
+
+  Widget _todayCard(Booking b) {
+    final apptDt = _combineDateAndTime(b.date, b.time);
+    final dateStr = _dateFmt.format(b.date);
+    final petInitial = (b.petName.isNotEmpty ? b.petName[0] : 'P').toUpperCase();
+
+    return Container(
+      // solid white card + shadow
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(16),
+        boxShadow: const [
+          BoxShadow(
+            color: kCardShadowColor,
+            blurRadius: 12,
+            offset: Offset(0, 6),
+          ),
+        ],
+      ),
+      child: Material(
+        color: Colors.transparent,
+        borderRadius: BorderRadius.circular(16),
+        child: InkWell(
+          borderRadius: BorderRadius.circular(16),
+          onTap: () async {
+            final result = await Navigator.push(
+              context,
+              MaterialPageRoute(
+                builder: (_) => AppointmentDetailScreen(
+                  bookingId: b.id,
+                  providerEmail: widget.providerEmail,
+                  userId: widget.userId,
+                ),
+              ),
+            );
+            if (!mounted) return;
+            if (result == true) fetchToday();
+          },
+          child: Padding(
+            padding: const EdgeInsets.fromLTRB(14, 14, 14, 12),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
       child: loading
           ? const Center(child: CircularProgressIndicator())
           : RefreshIndicator(

@@ -77,8 +77,6 @@ class _BookingScreenState extends State<BookingScreen> {
     }
   }
 
-
-
   // ── Veterinarian ───────────────────────────────────────────────────────────
   Widget _buildVetBooking() {
     final consultationFee = widget.serviceProvider.consultationFee;

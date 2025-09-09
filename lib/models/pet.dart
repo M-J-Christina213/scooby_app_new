@@ -20,6 +20,10 @@ class Pet {
   final String? startWalkingTime;
   final String? endWalkingTime;
 
+  // NEW: walking time (Postgres "time" columns; send as 'HH:mm:ss')
+  final String? startWalkingTime;
+  final String? endWalkingTime;
+
   Pet({
     required this.id,
     required this.userId,
@@ -37,6 +41,8 @@ class Pet {
     this.description,
     this.imageUrl,
     this.createdAt,
+    this.startWalkingTime, // NEW
+    this.endWalkingTime,   // NEW
     this.startWalkingTime, // NEW
     this.endWalkingTime,   // NEW
   });
@@ -61,6 +67,9 @@ class Pet {
       createdAt: json['created_at'] != null
           ? DateTime.tryParse(json['created_at'])
           : null,
+      // NEW
+      startWalkingTime: json['start_walking_time'],
+      endWalkingTime: json['end_walking_time'],
       // NEW
       startWalkingTime: json['start_walking_time'],
       endWalkingTime: json['end_walking_time'],
