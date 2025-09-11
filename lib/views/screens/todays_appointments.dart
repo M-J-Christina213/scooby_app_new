@@ -16,12 +16,7 @@ class TodayAppointments extends StatefulWidget {
     required this.userId,
   });
 
-  const TodayAppointments({
-    super.key,
-    required this.providerEmail,
-    required this.userId,
-  });
-
+  
   @override
   State<TodayAppointments> createState() => _TodayAppointmentsState();
 }
@@ -32,11 +27,9 @@ class _TodayAppointmentsState extends State<TodayAppointments> {
   static const Color kPrimary = Color(0xFF842EAC);
   static const Color kCardShadowColor = Color(0x1F000000); // subtle shadow
 
-  final DateFormat _dateFmt = DateFormat('EEE, MMM d');
+  
 
 
-  static const Color kPrimary = Color(0xFF842EAC);
-  static const Color kCardShadowColor = Color(0x1F000000); // subtle shadow
 
   final DateFormat _dateFmt = DateFormat('EEE, MMM d');
 
@@ -192,82 +185,7 @@ class _TodayAppointmentsState extends State<TodayAppointments> {
     );
   }
 
-  Widget _todayCard(Booking b) {
-    final apptDt = _combineDateAndTime(b.date, b.time);
-    final dateStr = _dateFmt.format(b.date);
-    final petInitial = (b.petName.isNotEmpty ? b.petName[0] : 'P').toUpperCase();
-
-    return Container(
-      // solid white card + shadow
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(16),
-        boxShadow: const [
-          BoxShadow(
-            color: kCardShadowColor,
-            blurRadius: 12,
-            offset: Offset(0, 6),
-          ),
-        ],
-      ),
-      child: Material(
-        color: Colors.transparent,
-        borderRadius: BorderRadius.circular(16),
-        child: InkWell(
-          borderRadius: BorderRadius.circular(16),
-          onTap: () async {
-            final result = await Navigator.push(
-              context,
-              MaterialPageRoute(
-                builder: (_) => AppointmentDetailScreen(
-                  bookingId: b.id,
-                  providerEmail: widget.providerEmail,
-                  userId: widget.userId,
-                ),
-              ),
-            );
-            if (!mounted) return;
-            if (result == true) fetchToday();
-          },
-          child: Padding(
-            padding: const EdgeInsets.fromLTRB(14, 14, 14, 12),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-      child: loading
-          ? const Center(child: CircularProgressIndicator())
-          : RefreshIndicator(
-        onRefresh: fetchToday,
-        child: bookings.isEmpty
-            ? ListView(
-          padding: const EdgeInsets.only(top: 120),
-          children: [
-            Icon(Icons.today, size: 64, color: Colors.grey.shade400),
-            const SizedBox(height: 12),
-            const Center(
-              child: Text(
-                'No appointments today',
-                style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
-              ),
-            ),
-            const SizedBox(height: 6),
-            Center(
-              child: Text(
-                'Accepted bookings for today will appear here.',
-                style: TextStyle(color: Colors.grey.shade600),
-              ),
-            ),
-          ],
-        )
-            : ListView.separated(
-          padding: const EdgeInsets.all(12),
-          itemCount: bookings.length,
-          separatorBuilder: (_, __) => const SizedBox(height: 12),
-          itemBuilder: (context, i) => _todayCard(bookings[i]),
-        ),
-      ),
-    );
-  }
-
+  
   Widget _todayCard(Booking b) {
     final apptDt = _combineDateAndTime(b.date, b.time);
     final dateStr = _dateFmt.format(b.date);

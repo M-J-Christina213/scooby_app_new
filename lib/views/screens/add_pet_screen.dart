@@ -20,11 +20,6 @@ class _AddPetScreenState extends State<AddPetScreen> {
   final Color _primaryColor = const Color(0xFF842EAC);
   bool _isEditing = false;
 
-  // NEW: UI controllers to display selected times
-  final TextEditingController _startTimeCtrl = TextEditingController();
-  final TextEditingController _endTimeCtrl = TextEditingController();
-
-  // NEW: UI controllers to display selected times
   final TextEditingController _startTimeCtrl = TextEditingController();
   final TextEditingController _endTimeCtrl = TextEditingController();
 
@@ -40,17 +35,11 @@ class _AddPetScreenState extends State<AddPetScreen> {
     // Pre-fill display if editing existing pet
     _startTimeCtrl.text = _displayFromDb(_formController.startWalkingTime) ?? '';
     _endTimeCtrl.text = _displayFromDb(_formController.endWalkingTime) ?? '';
-
-    // Pre-fill display if editing existing pet
-    _startTimeCtrl.text = _displayFromDb(_formController.startWalkingTime) ?? '';
-    _endTimeCtrl.text = _displayFromDb(_formController.endWalkingTime) ?? '';
   }
 
   @override
   void dispose() {
     _formController.dispose();
-    _startTimeCtrl.dispose();
-    _endTimeCtrl.dispose();
     _startTimeCtrl.dispose();
     _endTimeCtrl.dispose();
     super.dispose();
@@ -66,25 +55,6 @@ class _AddPetScreenState extends State<AddPetScreen> {
     return tod.format(context);
   }
 
-  // Convert 'HH:mm:ss' -> total minutes since 00:00
-  int _minutesFromDb(String hhmmss) {
-    final p = hhmmss.split(':');
-    final h = int.parse(p[0]);
-    final m = int.parse(p[1]);
-    return h * 60 + m;
-  }
-
-  String? _displayFromDb(String? hhmmss) {
-    if (hhmmss == null || hhmmss.isEmpty) return null;
-    final parts = hhmmss.split(':');
-    if (parts.length < 2) return hhmmss;
-    final h = int.tryParse(parts[0]) ?? 0;
-    final m = int.tryParse(parts[1]) ?? 0;
-    final tod = TimeOfDay(hour: h, minute: m);
-    return tod.format(context);
-  }
-
-  // Convert 'HH:mm:ss' -> total minutes since 00:00
   int _minutesFromDb(String hhmmss) {
     final p = hhmmss.split(':');
     final h = int.parse(p[0]);
@@ -125,36 +95,13 @@ class _AddPetScreenState extends State<AddPetScreen> {
     }
   }
 
-  Future<void> _pickStartTime() async {
-    final init = TimeOfDay.now();
-    final picked = await showTimePicker(context: context, initialTime: init);
-    if (picked != null) {
-      _formController.setStartTime(picked);
-      _startTimeCtrl.text = picked.format(context);
-      setState(() {});
-    }
-  }
-
-  Future<void> _pickEndTime() async {
-    final init = TimeOfDay.now();
-    final picked = await showTimePicker(context: context, initialTime: init);
-    if (picked != null) {
-      _formController.setEndTime(picked);
-      _endTimeCtrl.text = picked.format(context);
-      setState(() {});
-    }
-  }
-
   Future<void> _savePet() async {
-    // Field validators (name/type/breed/etc.)
-    // Field validators (name/type/breed/etc.)
     if (!_formKey.currentState!.validate()) {
       await _showFlushbar('Please fix the errors in the form',
           backgroundColor: Colors.redAccent, icon: Icons.error);
       return;
     }
 
-    // NEW: time validation
     final start = _formController.startWalkingTime;
     final end = _formController.endWalkingTime;
 
@@ -167,30 +114,6 @@ class _AddPetScreenState extends State<AddPetScreen> {
     final sm = _minutesFromDb(start);
     final em = _minutesFromDb(end);
 
-    // same-day constraint: end must be at least 10 minutes after start
-    if (em - sm < 10) {
-      await _showFlushbar(
-        'End time must be at least 10 minutes after start time',
-        backgroundColor: Colors.redAccent,
-        icon: Icons.error,
-      );
-      return;
-    }
-
-    // NEW: time validation
-    final start = _formController.startWalkingTime;
-    final end = _formController.endWalkingTime;
-
-    if (start == null || start.isEmpty || end == null || end.isEmpty) {
-      await _showFlushbar('Please select both start and end walking times',
-          backgroundColor: Colors.redAccent, icon: Icons.error);
-      return;
-    }
-
-    final sm = _minutesFromDb(start);
-    final em = _minutesFromDb(end);
-
-    // same-day constraint: end must be at least 10 minutes after start
     if (em - sm < 10) {
       await _showFlushbar(
         'End time must be at least 10 minutes after start time',
@@ -203,48 +126,28 @@ class _AddPetScreenState extends State<AddPetScreen> {
     final existingId = _isEditing ? widget.existingPet!.id : null;
 
     final success =
-    await _formController.savePet(widget.userId, context, existingId: existingId);
-    final success =
-    await _formController.savePet(widget.userId, context, existingId: existingId);
+        await _formController.savePet(widget.userId, context, existingId: existingId);
+
     if (success) {
-      await _showFlushbar(
-          _isEditing ? 'Pet updated successfully!' : 'Pet added successfully!');
-      await _showFlushbar(
-          _isEditing ? 'Pet updated successfully!' : 'Pet added successfully!');
+      await _showFlushbar(_isEditing ? 'Pet updated successfully!' : 'Pet added successfully!');
       if (mounted) Navigator.of(context).pop(true);
     } else {
-      await _showFlushbar(
-          _isEditing ? 'Failed to update pet' : 'Failed to add pet',
-          backgroundColor: Colors.redAccent,
-          icon: Icons.error);
-      await _showFlushbar(
-          _isEditing ? 'Failed to update pet' : 'Failed to add pet',
-          backgroundColor: Colors.redAccent,
-          icon: Icons.error);
+      await _showFlushbar(_isEditing ? 'Failed to update pet' : 'Failed to add pet',
+          backgroundColor: Colors.redAccent, icon: Icons.error);
     }
   }
 
   Widget _buildSectionTitle(String title) => Padding(
-    padding: const EdgeInsets.symmetric(vertical: 8.0),
-    child: Text(
-      title,
-      style: TextStyle(
-        fontWeight: FontWeight.bold,
-        fontSize: 16,
-        color: _primaryColor.withAlpha((0.9 * 255).round()),
-      ),
-    ),
-  );
-    padding: const EdgeInsets.symmetric(vertical: 8.0),
-    child: Text(
-      title,
-      style: TextStyle(
-        fontWeight: FontWeight.bold,
-        fontSize: 16,
-        color: _primaryColor.withAlpha((0.9 * 255).round()),
-      ),
-    ),
-  );
+        padding: const EdgeInsets.symmetric(vertical: 8.0),
+        child: Text(
+          title,
+          style: TextStyle(
+            fontWeight: FontWeight.bold,
+            fontSize: 16,
+            color: _primaryColor.withAlpha((0.9 * 255).round()),
+          ),
+        ),
+      );
 
   Widget _buildMedicalHistoryFields() {
     return Column(
@@ -303,9 +206,7 @@ class _AddPetScreenState extends State<AddPetScreen> {
     final inputBorder = OutlineInputBorder(
       borderRadius: BorderRadius.circular(12),
       borderSide:
-      BorderSide(color: _primaryColor.withAlpha((0.6 * 255).round()), width: 1.5),
-      borderSide:
-      BorderSide(color: _primaryColor.withAlpha((0.6 * 255).round()), width: 1.5),
+          BorderSide(color: _primaryColor.withAlpha((0.6 * 255).round()), width: 1.5),
     );
 
     return Scaffold(
@@ -323,8 +224,7 @@ class _AddPetScreenState extends State<AddPetScreen> {
             key: _formKey,
             child: Column(
               children: [
-                // avatar + camera
-                // avatar + camera
+                // Avatar + Camera
                 Stack(
                   children: [
                     CircleAvatar(
@@ -333,8 +233,7 @@ class _AddPetScreenState extends State<AddPetScreen> {
                       backgroundImage: _formController.imageProvider,
                       child: _formController.imageProvider == null
                           ? Icon(Icons.pets,
-                          size: 60, color: _primaryColor.withAlpha((0.4 * 255).round()))
-                          size: 60, color: _primaryColor.withAlpha((0.4 * 255).round()))
+                              size: 60, color: _primaryColor.withAlpha((0.4 * 255).round()))
                           : null,
                     ),
                     Positioned(
@@ -360,7 +259,7 @@ class _AddPetScreenState extends State<AddPetScreen> {
                 ),
                 const SizedBox(height: 25),
 
-
+                // --- Basic Info ---
                 _buildSectionTitle('Basic Information'),
                 TextFormField(
                   controller: _formController.nameController,
@@ -369,10 +268,7 @@ class _AddPetScreenState extends State<AddPetScreen> {
                     hintText: 'Enter pet name',
                     border: inputBorder,
                   ),
-                  validator: (v) =>
-                  (v == null || v.trim().isEmpty) ? 'Name is required' : null,
-                  validator: (v) =>
-                  (v == null || v.trim().isEmpty) ? 'Name is required' : null,
+                  validator: (v) => (v == null || v.trim().isEmpty) ? 'Name is required' : null,
                 ),
                 const SizedBox(height: 16),
                 ValueListenableBuilder<String?>(
@@ -380,48 +276,26 @@ class _AddPetScreenState extends State<AddPetScreen> {
                   builder: (context, value, _) {
                     final items = const ['Dog', 'Cat'];
                     final safeValue = items.contains(value) ? value : null;
-                    final items = const ['Dog', 'Cat'];
-                    final safeValue = items.contains(value) ? value : null;
                     return DropdownButtonFormField<String>(
                       value: safeValue,
                       hint: const Text('Select type'),
-                      value: safeValue,
-                      hint: const Text('Select type'),
-                      decoration: InputDecoration(
-                        labelText: 'Type *',
-                        border: inputBorder,
-                      ),
-                      items: items
-                          .map((e) => DropdownMenuItem(value: e, child: Text(e)))
-                          .toList(),
-                      items: items
-                          .map((e) => DropdownMenuItem(value: e, child: Text(e)))
-                          .toList(),
+                      decoration: InputDecoration(labelText: 'Type *', border: inputBorder),
+                      items: items.map((e) => DropdownMenuItem(value: e, child: Text(e))).toList(),
                       onChanged: (val) => _formController.type.value = val,
-                      validator: (v) =>
-                      (v == null || v.isEmpty) ? 'Please select type' : null,
-                      validator: (v) =>
-                      (v == null || v.isEmpty) ? 'Please select type' : null,
+                      validator: (v) => (v == null || v.isEmpty) ? 'Please select type' : null,
                     );
                   },
                 ),
                 const SizedBox(height: 16),
                 TextFormField(
                   controller: _formController.breedController,
-                  decoration:
-                  InputDecoration(labelText: 'Breed *', border: inputBorder),
-                  validator: (v) =>
-                  (v == null || v.trim().isEmpty) ? 'Breed is required' : null,
-                  decoration:
-                  InputDecoration(labelText: 'Breed *', border: inputBorder),
-                  validator: (v) =>
-                  (v == null || v.trim().isEmpty) ? 'Breed is required' : null,
+                  decoration: InputDecoration(labelText: 'Breed *', border: inputBorder),
+                  validator: (v) => (v == null || v.trim().isEmpty) ? 'Breed is required' : null,
                 ),
                 const SizedBox(height: 16),
                 TextFormField(
                   controller: _formController.ageController,
                   keyboardType: TextInputType.number,
-                  decoration: InputDecoration(labelText: 'Age *', border: inputBorder),
                   decoration: InputDecoration(labelText: 'Age *', border: inputBorder),
                   validator: (v) {
                     if (v == null || v.trim().isEmpty) return 'Age is required';
@@ -436,70 +310,41 @@ class _AddPetScreenState extends State<AddPetScreen> {
                   builder: (context, value, _) {
                     final items = const ['Male', 'Female'];
                     final safeValue = items.contains(value) ? value : null;
-                    final items = const ['Male', 'Female'];
-                    final safeValue = items.contains(value) ? value : null;
                     return DropdownButtonFormField<String>(
                       value: safeValue,
                       hint: const Text('Select gender'),
-                      value: safeValue,
-                      hint: const Text('Select gender'),
-                      decoration: InputDecoration(
-                        labelText: 'Gender *',
-                        border: inputBorder,
-                      ),
-                      items: items
-                          .map((e) => DropdownMenuItem(value: e, child: Text(e)))
-                          .toList(),
-                      items: items
-                          .map((e) => DropdownMenuItem(value: e, child: Text(e)))
-                          .toList(),
+                      decoration: InputDecoration(labelText: 'Gender *', border: inputBorder),
+                      items: items.map((e) => DropdownMenuItem(value: e, child: Text(e))).toList(),
                       onChanged: (val) => _formController.gender.value = val,
-                      validator: (v) =>
-                      (v == null || v.isEmpty) ? 'Please select gender' : null,
-                      validator: (v) =>
-                      (v == null || v.isEmpty) ? 'Please select gender' : null,
+                      validator: (v) => (v == null || v.isEmpty) ? 'Please select gender' : null,
                     );
                   },
                 ),
 
-
                 const SizedBox(height: 30),
+
+                // --- Additional Details ---
                 _buildSectionTitle('Additional Details (Optional)'),
                 TextFormField(
                   controller: _formController.colorController,
-                  decoration:
-                  InputDecoration(labelText: 'Color', border: inputBorder),
-                  decoration:
-                  InputDecoration(labelText: 'Color', border: inputBorder),
+                  decoration: InputDecoration(labelText: 'Color', border: inputBorder),
                 ),
                 const SizedBox(height: 16),
                 TextFormField(
                   controller: _formController.weightController,
-                  keyboardType:
-                  const TextInputType.numberWithOptions(decimal: true),
-                  decoration:
-                  InputDecoration(labelText: 'Weight (kg)', border: inputBorder),
-                  keyboardType:
-                  const TextInputType.numberWithOptions(decimal: true),
-                  decoration:
-                  InputDecoration(labelText: 'Weight (kg)', border: inputBorder),
+                  keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                  decoration: InputDecoration(labelText: 'Weight (kg)', border: inputBorder),
                 ),
                 const SizedBox(height: 16),
                 TextFormField(
                   controller: _formController.heightController,
-                  keyboardType:
-                  const TextInputType.numberWithOptions(decimal: true),
-                  decoration:
-                  InputDecoration(labelText: 'Height (cm)', border: inputBorder),
-                  keyboardType:
-                  const TextInputType.numberWithOptions(decimal: true),
-                  decoration:
-                  InputDecoration(labelText: 'Height (cm)', border: inputBorder),
+                  keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                  decoration: InputDecoration(labelText: 'Height (cm)', border: inputBorder),
                 ),
-
                 const SizedBox(height: 16),
+
+                // --- Walking Time ---
                 _buildSectionTitle('Walking Time'),
-                // START TIME
                 TextFormField(
                   controller: _startTimeCtrl,
                   readOnly: true,
@@ -510,11 +355,9 @@ class _AddPetScreenState extends State<AddPetScreen> {
                     suffixIcon: const Icon(Icons.schedule),
                   ),
                   onTap: _pickStartTime,
-                  validator: (v) =>
-                  (v == null || v.isEmpty) ? 'Please select start time' : null,
+                  validator: (v) => (v == null || v.isEmpty) ? 'Please select start time' : null,
                 ),
                 const SizedBox(height: 16),
-                // END TIME
                 TextFormField(
                   controller: _endTimeCtrl,
                   readOnly: true,
@@ -525,32 +368,28 @@ class _AddPetScreenState extends State<AddPetScreen> {
                     suffixIcon: const Icon(Icons.schedule),
                   ),
                   onTap: _pickEndTime,
-                  validator: (v) =>
-                  (v == null || v.isEmpty) ? 'Please select end time' : null,
+                  validator: (v) => (v == null || v.isEmpty) ? 'Please select end time' : null,
                 ),
-
                 const SizedBox(height: 16),
-                _buildSectionTitle('Allergies'),
+
+                // --- Medical / Allergies ---
+                _buildSectionTitle('Medical / Allergies'),
                 _buildMedicalHistoryFields(),
                 const SizedBox(height: 16),
                 TextFormField(
                   controller: _formController.foodController,
-                  decoration: InputDecoration(
-                      labelText: 'Allergies', border: inputBorder),
+                  decoration: InputDecoration(labelText: 'Allergies', border: inputBorder),
                 ),
                 const SizedBox(height: 16),
                 TextFormField(
                   controller: _formController.descriptionController,
-                  decoration: InputDecoration(
-                      labelText: 'Description', border: inputBorder),
-                  decoration: InputDecoration(
-                      labelText: 'Description', border: inputBorder),
+                  decoration: InputDecoration(labelText: 'Description', border: inputBorder),
                   maxLines: 3,
                   textInputAction: TextInputAction.newline,
                 ),
-
-
                 const SizedBox(height: 40),
+
+                // --- Buttons ---
                 Row(
                   children: [
                     Expanded(
@@ -560,25 +399,17 @@ class _AddPetScreenState extends State<AddPetScreen> {
                           backgroundColor: _primaryColor,
                           shape: RoundedRectangleBorder(
                               borderRadius: BorderRadius.circular(14)),
-                          shape: RoundedRectangleBorder(
-                              borderRadius: BorderRadius.circular(14)),
                         ),
                         child: _formController.isSaving
                             ? const SizedBox(
-                          height: 26,
-                          width: 26,
-                          child: CircularProgressIndicator(
-                              color: Colors.white, strokeWidth: 3),
-                        )
-                          height: 26,
-                          width: 26,
-                          child: CircularProgressIndicator(
-                              color: Colors.white, strokeWidth: 3),
-                        )
+                                height: 26,
+                                width: 26,
+                                child: CircularProgressIndicator(
+                                    color: Colors.white, strokeWidth: 3),
+                              )
                             : Text(_isEditing ? 'Save Changes' : 'Add Pet'),
                       ),
                     ),
-                    if (_isEditing) const SizedBox(width: 16),
                     if (_isEditing) const SizedBox(width: 16),
                     if (_isEditing)
                       Expanded(
@@ -586,13 +417,7 @@ class _AddPetScreenState extends State<AddPetScreen> {
                           onPressed: _formController.isSaving
                               ? null
                               : () => Navigator.of(context).pop(false),
-                          style: ElevatedButton.styleFrom(
-                              backgroundColor: Colors.grey),
-                          onPressed: _formController.isSaving
-                              ? null
-                              : () => Navigator.of(context).pop(false),
-                          style: ElevatedButton.styleFrom(
-                              backgroundColor: Colors.grey),
+                          style: ElevatedButton.styleFrom(backgroundColor: Colors.grey),
                           child: const Text('Cancel'),
                         ),
                       ),

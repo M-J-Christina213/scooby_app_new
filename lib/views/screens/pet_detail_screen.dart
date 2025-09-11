@@ -47,19 +47,13 @@ class PetDetailScreenModernIntegrated extends StatefulWidget {
   @override
   State<PetDetailScreenModernIntegrated> createState() =>
       _PetDetailScreenModernIntegratedState();
-  State<PetDetailScreenModernIntegrated> createState() =>
-      _PetDetailScreenModernIntegratedState();
 }
 
 class _PetDetailScreenModernIntegratedState
     extends State<PetDetailScreenModernIntegrated>
     with SingleTickerProviderStateMixin {
-class _PetDetailScreenModernIntegratedState
-    extends State<PetDetailScreenModernIntegrated>
-    with SingleTickerProviderStateMixin {
   late final TabController _tabController;
   late final MedicalRecordsController _controller;
-  late TextEditingController _nameController;
   late TextEditingController _nameController;
   late TextEditingController _typeController;
   late TextEditingController _breedController;
@@ -71,15 +65,6 @@ class _PetDetailScreenModernIntegratedState
   late TextEditingController _allergiesController;
   late TextEditingController _descController;
 
-  // NEW: walking time display controllers
-  final TextEditingController _startTimeCtrl = TextEditingController();
-  final TextEditingController _endTimeCtrl = TextEditingController();
-
-  // NEW: store DB/submit values as 'HH:mm:ss'
-  String? _startHms;
-  String? _endHms;
-
-  bool _editingPet = false;
   // NEW: walking time display controllers
   final TextEditingController _startTimeCtrl = TextEditingController();
   final TextEditingController _endTimeCtrl = TextEditingController();
@@ -116,8 +101,10 @@ class _PetDetailScreenModernIntegratedState
         TextEditingController(text: widget.weight?.toString() ?? '');
     _heightController =
         TextEditingController(text: widget.height?.toString() ?? '');
+
     _allergiesController =
         TextEditingController(text: widget.allergies ?? '');
+
     _descController =
         TextEditingController(text: widget.description ?? '');
 
@@ -130,12 +117,11 @@ class _PetDetailScreenModernIntegratedState
     _tabController.dispose();
     _startTimeCtrl.dispose();
     _endTimeCtrl.dispose();
-    _startTimeCtrl.dispose();
-    _endTimeCtrl.dispose();
     super.dispose();
   }
 
   // ========= WALKING TIME HELPERS =========
+
 
   Future<void> _loadWalkingTimes() async {
     final sb = Supabase.instance.client;
@@ -329,6 +315,7 @@ class _PetDetailScreenModernIntegratedState
     );
   }
 
+
   // ======= UI SECTIONS =======
 
   Widget _heroHeader() {
@@ -434,108 +421,6 @@ class _PetDetailScreenModernIntegratedState
       ],
     );
   }
-    return Stack(
-      children: [
-        AspectRatio(
-          aspectRatio: 16 / 9,
-          child: Container(
-            decoration: BoxDecoration(
-              color: Colors.grey.shade200,
-              image: _editingPet && _imageFile != null
-                  ? DecorationImage(
-                  image: FileImage(_imageFile!), fit: BoxFit.cover)
-                  : (_uploadedImageUrl ?? widget.imageUrl) != null
-                  ? DecorationImage(
-                  image: NetworkImage(
-                      _uploadedImageUrl ?? widget.imageUrl!),
-                  fit: BoxFit.cover)
-                  : null,
-            ),
-          ),
-        ),
-        Positioned(
-          bottom: 12,
-          left: 16,
-          right: 16,
-          child: Container(
-            padding:
-            const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-            decoration: BoxDecoration(
-              color: Colors.white.withAlpha((0.92 * 255).toInt()),
-              borderRadius: BorderRadius.circular(16),
-              boxShadow: [
-                BoxShadow(
-                    color: Colors.black.withAlpha((0.08 * 255).toInt()),
-                    blurRadius: 12,
-                    offset: const Offset(0, 6))
-              ],
-            ),
-            child: Row(
-              children: [
-                Stack(
-                  children: [
-                    CircleAvatar(
-                      radius: 28,
-                      backgroundColor: Colors.white,
-                      backgroundImage: _editingPet && _imageFile != null
-                          ? FileImage(_imageFile!)
-                          : (_uploadedImageUrl ?? widget.imageUrl) != null
-                          ? NetworkImage(
-                          _uploadedImageUrl ?? widget.imageUrl!)
-                          : null,
-                      child: (_uploadedImageUrl ?? widget.imageUrl) == null &&
-                          _imageFile == null
-                          ? Icon(Icons.pets, color: _primary, size: 28)
-                          : null,
-                    ),
-                    if (_editingPet)
-                      Positioned(
-                        bottom: -2,
-                        right: -2,
-                        child: GestureDetector(
-                          onTap: _pickImage,
-                          child: CircleAvatar(
-                            radius: 12,
-                            backgroundColor: _primary,
-                            child: const Icon(Icons.camera_alt,
-                                size: 14, color: Colors.white),
-                          ),
-                        ),
-                      ),
-                  ],
-                ),
-                const SizedBox(width: 12),
-                Expanded(
-                  child: _editingPet
-                      ? TextField(
-                    controller: _nameController,
-                    decoration: const InputDecoration(
-                      border: InputBorder.none,
-                      hintText: 'Pet Name',
-                    ),
-                    style: const TextStyle(
-                        fontSize: 20, fontWeight: FontWeight.w800),
-                  )
-                      : Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(widget.name,
-                          style: const TextStyle(
-                              fontSize: 20,
-                              fontWeight: FontWeight.w800)),
-                      Text('${widget.type} • ${widget.breed}',
-                          style: TextStyle(
-                              color: Colors.grey.shade700)),
-                    ],
-                  ),
-                ),
-              ],
-            ),
-          ),
-        ),
-      ],
-    );
-  }
 
   Widget _highlightChips() {
     final items = <(IconData, TextEditingController)>[
@@ -545,83 +430,7 @@ class _PetDetailScreenModernIntegratedState
       (Icons.monitor_weight, _weightController),
       (Icons.height, _heightController),
     ];
-  Widget _highlightChips() {
-    final items = <(IconData, TextEditingController)>[
-      (Icons.cake, _ageController),
-      (Icons.male, _genderController),
-      (Icons.color_lens, _colorController),
-      (Icons.monitor_weight, _weightController),
-      (Icons.height, _heightController),
-    ];
 
-    // 👇 Force the map to produce Widgets, not GestureDetector specifically
-    final List<Widget> chips = items.map<Widget>((it) => GestureDetector(
-      onTap: _editingPet
-          ? () async {
-        final result = await showDialog<String>(
-          context: context,
-          builder: (ctx) => AlertDialog(
-            title: Text('Edit ${_getLabelFromIcon(it.$1)}'),
-            content: TextField(
-              controller: it.$2,
-              keyboardType: (it.$1 == Icons.cake || it.$1 == Icons.monitor_weight || it.$1 == Icons.height)
-                  ? TextInputType.number
-                  : TextInputType.text,
-            ),
-            actions: [
-              TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('Cancel')),
-              ElevatedButton(onPressed: () => Navigator.pop(ctx, it.$2.text.trim()), child: const Text('Save')),
-            ],
-          ),
-        );
-        if (result != null) setState(() {}); // refresh chip text
-      }
-          : null,
-      child: Container(
-        margin: const EdgeInsets.only(right: 8),
-        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-        decoration: BoxDecoration(
-          color: Colors.white,
-          border: Border.all(color: _primary.withAlpha((0.12 * 255).toInt())),
-          borderRadius: BorderRadius.circular(20),
-          boxShadow: [BoxShadow(color: Colors.black.withAlpha((0.04 * 255).toInt()), blurRadius: 8, offset: const Offset(0, 4))],
-        ),
-        child: Row(
-          children: [
-            Icon(it.$1, size: 18, color: _primary),
-            const SizedBox(width: 6),
-            Text(it.$2.text.isEmpty ? '—' : it.$2.text),
-          ],
-        ),
-      ),
-    )).toList();
-
-    // Add the walking time chip (Container) safely now
-    final walkText = _walkRangeDisplay() ?? '—';
-    chips.add(Container(
-      margin: const EdgeInsets.only(right: 8),
-      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        border: Border.all(color: _primary.withAlpha((0.12 * 255).toInt())),
-        borderRadius: BorderRadius.circular(20),
-        boxShadow: [BoxShadow(color: Colors.black.withAlpha((0.04 * 255).toInt()), blurRadius: 8, offset: const Offset(0, 4))],
-      ),
-      child: Row(
-        children: [
-          Icon(Icons.directions_walk, size: 18, color: _primary),
-          const SizedBox(width: 6),
-          Text(walkText),
-        ],
-      ),
-    ));
-
-    return SingleChildScrollView(
-      scrollDirection: Axis.horizontal,
-      padding: const EdgeInsets.symmetric(horizontal: 12),
-      child: Row(children: chips),
-    );
-  }
     // 👇 Force the map to produce Widgets, not GestureDetector specifically
     final List<Widget> chips = items.map<Widget>((it) => GestureDetector(
       onTap: _editingPet
@@ -708,35 +517,7 @@ class _PetDetailScreenModernIntegratedState
         return '';
     }
   }
-  String _getLabelFromIcon(IconData icon) {
-    switch (icon) {
-      case Icons.cake:
-        return 'Age';
-      case Icons.male:
-        return 'Gender';
-      case Icons.color_lens:
-        return 'Color';
-      case Icons.monitor_weight:
-        return 'Weight';
-      case Icons.height:
-        return 'Height';
-      default:
-        return '';
-    }
-  }
 
-  Widget _detailsCard() {
-    return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 16),
-      child: Card(
-        elevation: 0,
-        color: Colors.white,
-        shape:
-        RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-        child: Padding(
-          padding: const EdgeInsets.all(16),
-          child:
-          Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
   Widget _detailsCard() {
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 16),
@@ -788,47 +569,6 @@ class _PetDetailScreenModernIntegratedState
     );
   }
 
-            const SizedBox(height: 12),
-            // NEW: Walking Time fields
-            _editableTimeRow(
-              label: 'Start Walking Time',
-              controller: _startTimeCtrl,
-              onPick: _pickStartTime,
-            ),
-            const SizedBox(height: 12),
-            _editableTimeRow(
-              label: 'End Walking Time',
-              controller: _endTimeCtrl,
-              onPick: _pickEndTime,
-            ),
-          ]),
-        ),
-      ),
-    );
-  }
-
-  Widget _editableRow(String label, TextEditingController controller,
-      {TextInputType inputType = TextInputType.text}) {
-    return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 6),
-      child: _editingPet
-          ? TextField(
-        controller: controller,
-        keyboardType: inputType,
-        decoration: InputDecoration(labelText: label),
-      )
-          : Row(
-        children: [
-          SizedBox(
-              width: 140,
-              child: Text(
-                label,
-                style: TextStyle(
-                    fontWeight: FontWeight.w700,
-                    color: Colors.grey.shade800),
-              )),
-          Expanded(
-              child: Text(
   Widget _editableRow(String label, TextEditingController controller,
       {TextInputType inputType = TextInputType.text}) {
     return Padding(
@@ -858,50 +598,7 @@ class _PetDetailScreenModernIntegratedState
       ),
     );
   }
-        ],
-      ),
-    );
-  }
 
-  // NEW: time row that uses a time picker when editing
-  Widget _editableTimeRow({
-    required String label,
-    required TextEditingController controller,
-    required VoidCallback onPick,
-  }) {
-    return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 2),
-      child: _editingPet
-          ? TextField(
-        controller: controller,
-        readOnly: true,
-        onTap: onPick,
-        decoration: InputDecoration(
-          labelText: label,
-          suffixIcon: const Icon(Icons.schedule),
-        ),
-      )
-          : Row(
-        children: [
-          SizedBox(
-            width: 140,
-            child: Text(
-              label,
-              style: TextStyle(
-                  fontWeight: FontWeight.w700,
-                  color: Colors.grey.shade800),
-            ),
-          ),
-          Expanded(
-            child: Text(
-              controller.text.isEmpty ? '—' : controller.text,
-              style: const TextStyle(color: Colors.black87),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
   // NEW: time row that uses a time picker when editing
   Widget _editableTimeRow({
     required String label,
@@ -951,20 +648,11 @@ class _PetDetailScreenModernIntegratedState
         color: Colors.white,
         shape:
         RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-        shape:
-        RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
         child: Padding(
           padding: const EdgeInsets.all(12),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Row(children: [
-                Icon(Icons.health_and_safety, color: _primary),
-                const SizedBox(width: 8),
-                const Text('Medical Records',
-                    style:
-                    TextStyle(fontSize: 16, fontWeight: FontWeight.w800))
-              ]),
               Row(children: [
                 Icon(Icons.health_and_safety, color: _primary),
                 const SizedBox(width: 8),
@@ -1007,18 +695,11 @@ class _PetDetailScreenModernIntegratedState
     if (_controller.loadingVacc) {
       return const Center(child: CircularProgressIndicator());
     }
-    if (_controller.loadingVacc) {
-      return const Center(child: CircularProgressIndicator());
-    }
     final rows = _controller.vaccinations.cast<Vaccination>();
 
     return SingleChildScrollView(
       child: Column(
         children: rows.map((v) {
-          final nameCtrl =
-          TextEditingController(text: v.vaccinationName);
-          final descCtrl =
-          TextEditingController(text: v.description ?? '');
           final nameCtrl =
           TextEditingController(text: v.vaccinationName);
           final descCtrl =
@@ -1035,32 +716,9 @@ class _PetDetailScreenModernIntegratedState
                   controller: nameCtrl,
                   decoration:
                   const InputDecoration(labelText: 'Name'))
-                  ? TextField(
-                  controller: nameCtrl,
-                  decoration:
-                  const InputDecoration(labelText: 'Name'))
                   : Text(v.vaccinationName),
               subtitle: editing
                   ? Column(children: [
-                TextField(
-                    controller: descCtrl,
-                    decoration: const InputDecoration(
-                        labelText: 'Description')),
-                const SizedBox(height: 8),
-                Row(children: [
-                  Expanded(
-                      child: _datePickerField('Date Given',
-                          dateGiven, (d) => setState(() {
-                            dateGiven = d;
-                          }))),
-                  const SizedBox(width: 12),
-                  Expanded(
-                      child: _datePickerField('Next Due', nextDue,
-                              (d) => setState(() {
-                            nextDue = d;
-                          }))),
-                ])
-              ])
                 TextField(
                     controller: descCtrl,
                     decoration: const InputDecoration(
@@ -1124,49 +782,6 @@ class _PetDetailScreenModernIntegratedState
                     icon: const Icon(Icons.delete),
                     onPressed: () async =>
                     await _controller.deleteVaccination(v.id)),
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                      '${_df.format(v.dateGiven)} - Next: ${v.nextDueDate != null ? _df.format(v.nextDueDate!) : '—'}'),
-                  if (v.description != null &&
-                      v.description!.isNotEmpty)
-                    Text(v.description!,
-                        style: TextStyle(
-                            fontSize: 12,
-                            color: Colors.grey.shade600)),
-                ],
-              ),
-              trailing:
-              Row(mainAxisSize: MainAxisSize.min, children: [
-                if (!editing)
-                  IconButton(
-                      icon: const Icon(Icons.edit),
-                      onPressed: () =>
-                          setState(() => _vaccEditing[v.id] = true)),
-                if (editing)
-                  IconButton(
-                      icon: const Icon(Icons.check),
-                      onPressed: () async {
-                        await _controller.addOrUpdateVaccination(
-                          existing: v,
-                          name: nameCtrl.text.trim(),
-                          desc: descCtrl.text.trim().isEmpty
-                              ? null
-                              : descCtrl.text.trim(),
-                          dateGiven: dateGiven!,
-                          nextDue: nextDue,
-                        );
-                        setState(() => _vaccEditing[v.id] = false);
-                      }),
-                if (editing)
-                  IconButton(
-                      icon: const Icon(Icons.close),
-                      onPressed: () => setState(
-                              () => _vaccEditing[v.id] = false)),
-                IconButton(
-                    icon: const Icon(Icons.delete),
-                    onPressed: () async =>
-                    await _controller.deleteVaccination(v.id)),
               ]),
             ),
           );
@@ -1185,15 +800,6 @@ class _PetDetailScreenModernIntegratedState
       return const Center(child: CircularProgressIndicator());
     }
     final rows = _controller.checkups.cast<MedicalCheckup>();
-  final Map<String, bool> _vaccEditing = {};
-  final Map<String, bool> _checkEditing = {};
-  final Map<String, bool> _rxEditing = {};
-
-  Widget _checkupsTabInline() {
-    if (_controller.loadingCheck) {
-      return const Center(child: CircularProgressIndicator());
-    }
-    final rows = _controller.checkups.cast<MedicalCheckup>();
 
     return SingleChildScrollView(
       child: Column(
@@ -1203,40 +809,7 @@ class _PetDetailScreenModernIntegratedState
           TextEditingController(text: c.description ?? '');
           DateTime date = c.date;
           bool editing = _checkEditing[c.id] ?? false;
-    return SingleChildScrollView(
-      child: Column(
-        children: rows.map((c) {
-          final reasonCtrl = TextEditingController(text: c.reason);
-          final descCtrl =
-          TextEditingController(text: c.description ?? '');
-          DateTime date = c.date;
-          bool editing = _checkEditing[c.id] ?? false;
 
-          return Card(
-            margin: const EdgeInsets.symmetric(vertical: 6),
-            child: ListTile(
-              title: editing
-                  ? TextField(
-                  controller: reasonCtrl,
-                  decoration: const InputDecoration(
-                      labelText: 'Reason'))
-                  : Text(c.reason),
-              subtitle: editing
-                  ? Column(
-                children: [
-                  TextField(
-                      controller: descCtrl,
-                      decoration: const InputDecoration(
-                          labelText: 'Description')),
-                  const SizedBox(height: 8),
-                  _datePickerField('Date', date, (d) => setState(() {
-                    date = d;
-                  })),
-                ],
-              )
-                  : Text(_df.format(c.date)),
-              trailing:
-              Row(mainAxisSize: MainAxisSize.min, children: [
           return Card(
             margin: const EdgeInsets.symmetric(vertical: 6),
             child: ListTile(
@@ -1267,10 +840,6 @@ class _PetDetailScreenModernIntegratedState
                       icon: const Icon(Icons.edit),
                       onPressed: () => setState(
                               () => _checkEditing[c.id] = true)),
-                  IconButton(
-                      icon: const Icon(Icons.edit),
-                      onPressed: () => setState(
-                              () => _checkEditing[c.id] = true)),
                 if (editing)
                   IconButton(
                     icon: const Icon(Icons.check),
@@ -1278,9 +847,6 @@ class _PetDetailScreenModernIntegratedState
                       await _controller.addOrUpdateCheckup(
                         existing: c,
                         reason: reasonCtrl.text.trim(),
-                        desc: descCtrl.text.trim().isEmpty
-                            ? null
-                            : descCtrl.text.trim(),
                         desc: descCtrl.text.trim().isEmpty
                             ? null
                             : descCtrl.text.trim(),
@@ -1306,14 +872,7 @@ class _PetDetailScreenModernIntegratedState
     );
   }
 
- 
 
-  // === Inline Prescriptions ===
-  Widget _prescriptionsTabInline() {
-    if (_controller.loadingRx) {
-      return const Center(child: CircularProgressIndicator());
-    }
-    final rows = _controller.prescriptions.cast<Prescription>();
   // === Inline Prescriptions ===
   Widget _prescriptionsTabInline() {
     if (_controller.loadingRx) {
@@ -1331,60 +890,9 @@ class _PetDetailScreenModernIntegratedState
           DateTime start = p.startDate;
           DateTime? end = p.endDate;
           bool editing = _rxEditing[p.id] ?? false;
-    return SingleChildScrollView(
-      child: Column(
-        children: rows.map((p) {
-          final medCtrl =
-          TextEditingController(text: p.medicineName);
-          final descCtrl =
-          TextEditingController(text: p.description ?? '');
-          DateTime start = p.startDate;
-          DateTime? end = p.endDate;
-          bool editing = _rxEditing[p.id] ?? false;
 
-          return Card(
-            margin: const EdgeInsets.symmetric(vertical: 6),
-            child: ListTile(
-              title: editing
-                  ? TextField(
-                  controller: medCtrl,
-                  decoration: const InputDecoration(
-                      labelText: 'Medicine'))
-                  : Text(p.medicineName),
-              subtitle: editing
-                  ? Column(
-                children: [
-                  TextField(
-                      controller: descCtrl,
-                      decoration: const InputDecoration(
-                          labelText: 'Description')),
-                  const SizedBox(height: 8),
-                  Row(
-                    children: [
-                      Expanded(
-                          child: _datePickerField('Start', start,
-                                  (d) => setState(() {
-                                start = d;
-                              }))),
-                      const SizedBox(width: 12),
-                      Expanded(
-                          child: _datePickerField('End', end,
-                                  (d) => setState(() {
-                                end = d;
-                              }))),
-                    ],
-                  ),
-                ],
-              )
-                  : Text(
-                  '${_df.format(p.startDate)} - End: ${p.endDate != null ? _df.format(p.endDate!) : '—'}'),
-              trailing:
-              Row(mainAxisSize: MainAxisSize.min, children: [
-                if (!editing)
-                  IconButton(
-                      icon: const Icon(Icons.edit),
-                      onPressed: () =>
-                          setState(() => _rxEditing[p.id] = true)),
+
+  
           return Card(
             margin: const EdgeInsets.symmetric(vertical: 6),
             child: ListTile(
@@ -1438,9 +946,6 @@ class _PetDetailScreenModernIntegratedState
                         desc: descCtrl.text.trim().isEmpty
                             ? null
                             : descCtrl.text.trim(),
-                        desc: descCtrl.text.trim().isEmpty
-                            ? null
-                            : descCtrl.text.trim(),
                         start: start,
                         end: end,
                       );
@@ -1463,24 +968,7 @@ class _PetDetailScreenModernIntegratedState
       ),
     );
   }
-                  IconButton(
-                      icon: const Icon(Icons.close),
-                      onPressed: () => setState(
-                              () => _rxEditing[p.id] = false)),
-                IconButton(
-                    icon: const Icon(Icons.delete),
-                    onPressed: () async =>
-                    await _controller.deletePrescription(p.id)),
-              ]),
-            ),
-          );
-        }).toList(),
-      ),
-    );
-  }
 
-  Widget _datePickerField(
-      String label, DateTime? date, Function(DateTime) onPick) {
   Widget _datePickerField(
       String label, DateTime? date, Function(DateTime) onPick) {
     return InkWell(
@@ -1500,12 +988,6 @@ class _PetDetailScreenModernIntegratedState
   }
 
   Future<void> _pickImage() async {
-    final picked =
-    await ImagePicker().pickImage(source: ImageSource.gallery);
-    if (picked != null) {
-      setState(() => _imageFile = File(picked.path));
-    }
-  }
     final picked =
     await ImagePicker().pickImage(source: ImageSource.gallery);
     if (picked != null) {

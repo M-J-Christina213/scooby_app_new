@@ -20,9 +20,7 @@ class Pet {
   final String? startWalkingTime;
   final String? endWalkingTime;
 
-  // NEW: walking time (Postgres "time" columns; send as 'HH:mm:ss')
-  final String? startWalkingTime;
-  final String? endWalkingTime;
+
 
   Pet({
     required this.id,
@@ -43,8 +41,7 @@ class Pet {
     this.createdAt,
     this.startWalkingTime, // NEW
     this.endWalkingTime,   // NEW
-    this.startWalkingTime, // NEW
-    this.endWalkingTime,   // NEW
+  
   });
 
   factory Pet.fromJson(Map<String, dynamic> json) {
@@ -70,9 +67,7 @@ class Pet {
       // NEW
       startWalkingTime: json['start_walking_time'],
       endWalkingTime: json['end_walking_time'],
-      // NEW
-      startWalkingTime: json['start_walking_time'],
-      endWalkingTime: json['end_walking_time'],
+     
     );
   }
 

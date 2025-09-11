@@ -30,13 +30,7 @@ class _UpcomingAppointmentsState extends State<UpcomingAppointments> {
   List<Booking> _upcoming = [];
   List<Booking> _past = [];
 
-  static const Color kPrimary = Color(0xFF842EAC);
-  static const Color kCardShadow = Color(0x1F000000);
-
-  final DateFormat _dateFmt = DateFormat('EEE, MMM d');
-
-  List<Booking> _upcoming = [];
-  List<Booking> _past = [];
+ 
   bool loading = true;
 
   @override

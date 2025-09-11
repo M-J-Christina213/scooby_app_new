@@ -4,9 +4,6 @@ import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
-import 'package:intl/intl.dart';
-import 'package:supabase_flutter/supabase_flutter.dart';
-
 import 'package:scooby_app_new/views/screens/login_screen.dart';
 import 'package:scooby_app_new/views/screens/sample_recommended_providers.dart';
 import 'package:scooby_app_new/views/screens/service_detail_screen.dart';
@@ -16,16 +13,8 @@ import 'package:scooby_app_new/views/screens/bookings_screen.dart';
 import 'package:scooby_app_new/views/screens/my_pets_screen.dart';
 import 'package:scooby_app_new/views/screens/profile_screen.dart';
 import 'package:scooby_app_new/views/screens/nearby_services_screen.dart';
-import 'package:scooby_app_new/views/screens/nearby_services_screen.dart';
 import 'package:scooby_app_new/widgets/bottom_nav.dart';
 import 'package:scooby_app_new/controllers/pet_service.dart';
-
-// NEW: bookings
-import 'package:scooby_app_new/controllers/booking_controller.dart';
-import 'package:scooby_app_new/models/booking_model.dart';
-import 'package:scooby_app_new/controllers/pet_service.dart';
-
-// NEW: bookings
 import 'package:scooby_app_new/controllers/booking_controller.dart';
 import 'package:scooby_app_new/models/booking_model.dart';
 
@@ -43,25 +32,12 @@ class HomeScreen extends StatefulWidget {
   State<HomeScreen> createState() => _HomeScreenState();
 }
 
-// ─────────────────────────────────────────────────────────────────────────────
 // Small helpers
-
 DateTime _combine(DateTime d, TimeOfDay t) =>
     DateTime(d.year, d.month, d.day, t.hour, t.minute);
-
-// ─────────────────────────────────────────────────────────────────────────────
-
-// ─────────────────────────────────────────────────────────────────────────────
-// Small helpers
-
-DateTime _combine(DateTime d, TimeOfDay t) =>
-    DateTime(d.year, d.month, d.day, t.hour, t.minute);
-
-// ─────────────────────────────────────────────────────────────────────────────
 
 class _HomeScreenState extends State<HomeScreen> {
   final ServiceProviderService _service = ServiceProviderService();
-  final _sb = Supabase.instance.client;
   final _sb = Supabase.instance.client;
 
   int _selectedIndex = 0;
@@ -76,8 +52,9 @@ class _HomeScreenState extends State<HomeScreen> {
   DateTime? _nextWalkEnd;
   bool _isInWalkWindow = false;
   bool _loadingWalk = false;
+  DateTime? _lastWalkUpdate; // ADDED: Track last update time
 
-  // NEW: pet names for walk windows
+  // Pet names for walk windows
   String? _currentWalkPet;
   String? _nextWalkPet;
 
@@ -86,11 +63,11 @@ class _HomeScreenState extends State<HomeScreen> {
   int _unreadCount = 0;
   bool _loadingNotifs = false;
 
-  // Track dismissals of local (virtual) notifications so they don't reappear
-  final Set<String> _dismissedLocalNotifs = <String>{};         // walk-only local ids
-  final Set<String> _dismissedReminderNotifs = <String>{};      // reminder_<bookingId>
+  // Track dismissals
+  final Set<String> _dismissedLocalNotifs = <String>{};
+  final Set<String> _dismissedReminderNotifs = <String>{};
 
-  // cache pet_owner id for bookings lookup
+  // cache pet_owner id
   String? _ownerId;
 
   late String currentUserId;
@@ -102,7 +79,6 @@ class _HomeScreenState extends State<HomeScreen> {
     {'title': 'Pet Sitter', 'image': 'assets/images/sitter.webp'},
   ];
 
-  final List<String> _petTips = const [
   final List<String> _petTips = const [
     'Make sure your pet drinks enough water.',
     'Regular grooming keeps your pet healthy.',
@@ -121,32 +97,25 @@ class _HomeScreenState extends State<HomeScreen> {
       MyPetsScreen(userId: currentUserId),
       BookingsScreen(),
       ProfileScreen(
-        onGoToMyPets: () => setState(() => _selectedIndex = 1), // ← NEW
+        onGoToMyPets: () => setState(() => _selectedIndex = 1),
       ),
       ProfileScreen(
-        onGoToMyPets: () => setState(() => _selectedIndex = 1), // ← NEW
+        onGoToMyPets: () => setState(() => _selectedIndex = 1),
       ),
     ];
 
     _bootstrap();
   }
-
+//
   Future<void> _bootstrap() async {
     await _ensureOwnerId();
-    _bootstrap();
+    await _loadData(); // FIXED: Make sure this completes first
+    await _refreshHasPets(); // FIXED: Remove duplicate calls
+    await _loadWalkInfo();
+    await _loadNotifications();
   }
 
-  Future<void> _bootstrap() async {
-    await _ensureOwnerId();
-    _loadData();
-    _refreshHasPets();
-    _loadWalkInfo();
-    _loadNotifications();
-  }
-
-  // ────────────────────────────────────────────────────────────────────────────
-  // Data loads
-
+  // FIXED: Remove the infinite loop in _refreshHasPets
   Future<void> _refreshHasPets() async {
     if (currentUserId.isEmpty) {
       setState(() => _hasPets = false);
@@ -160,27 +129,7 @@ class _HomeScreenState extends State<HomeScreen> {
       if (!mounted) return;
       setState(() => _hasPets = false);
     }
-    _refreshHasPets();
-    _loadWalkInfo();
-    _loadNotifications();
-  }
-
-  // ────────────────────────────────────────────────────────────────────────────
-  // Data loads
-
-  Future<void> _refreshHasPets() async {
-    if (currentUserId.isEmpty) {
-      setState(() => _hasPets = false);
-      return;
-    }
-    try {
-      final pets = await PetService.instance.fetchPetsForUser(currentUserId);
-      if (!mounted) return;
-      setState(() => _hasPets = pets.isNotEmpty);
-    } catch (_) {
-      if (!mounted) return;
-      setState(() => _hasPets = false);
-    }
+    // REMOVED: The recursive call that was causing infinite loop
   }
 
   Future<void> _loadData() async {
@@ -192,30 +141,35 @@ class _HomeScreenState extends State<HomeScreen> {
       );
       final recommended = sampleRecommendedProviders;
 
+      if (!mounted) return; // ADDED: Check mounted state
       setState(() {
         _nearbyProviders = nearby;
         _recommendedProviders = recommended;
       });
 
-      await _refreshHasPets();
-      await _loadWalkInfo();
-      await _loadNotifications();
+      // REMOVED: Duplicate calls that were causing excessive refreshing
     } catch (_) {
-
-      await _refreshHasPets();
-      await _loadWalkInfo();
-      await _loadNotifications();
-    } catch (_) {
-      _nearbyProviders = [];
-      _recommendedProviders = [];
+      if (!mounted) return;
+      setState(() {
+        _nearbyProviders = [];
+        _recommendedProviders = [];
+      });
     } finally {
       if (mounted) setState(() => _loading = false);
-      if (mounted) setState(() => _loading = false);
     }
   }
 
+  // FIXED: Add throttling to prevent excessive walk info updates
   Future<void> _loadWalkInfo() async {
     if (currentUserId.isEmpty) return;
+    
+    // ADDED: Throttling - only update if it's been more than 30 seconds
+    final now = DateTime.now();
+    if (_lastWalkUpdate != null && 
+        now.difference(_lastWalkUpdate!).inSeconds < 30) {
+      return;
+    }
+    
     setState(() => _loadingWalk = true);
 
     try {
@@ -226,15 +180,12 @@ class _HomeScreenState extends State<HomeScreen> {
         _isInWalkWindow = res.isInWindow;
         _nextWalkStart = res.isInWindow ? res.currentStart : res.nextStart;
         _nextWalkEnd   = res.isInWindow ? res.currentEnd   : res.nextEnd;
-
-        // NEW: pet names
         _currentWalkPet = res.currentPetName;
         _nextWalkPet    = res.nextPetName;
-
         _loadingWalk = false;
+        _lastWalkUpdate = now; // ADDED: Track update time
       });
 
-      // Reflect the walk status in notifications immediately
       _mergeWalkVirtualIntoNotifs();
     } catch (e) {
       if (!mounted) return;
@@ -242,9 +193,10 @@ class _HomeScreenState extends State<HomeScreen> {
         _isInWalkWindow = false;
         _nextWalkStart = null;
         _nextWalkEnd = null;
-        _currentWalkPet = null; // NEW
-        _nextWalkPet = null;    // NEW
+        _currentWalkPet = null;
+        _nextWalkPet = null;
         _loadingWalk = false;
+        _lastWalkUpdate = now; // ADDED: Track update time even on error
       });
       _mergeWalkVirtualIntoNotifs();
     }
@@ -265,14 +217,12 @@ class _HomeScreenState extends State<HomeScreen> {
     return _ownerId;
   }
 
-  // Unified: bookings + optional DB notifs table + virtual walk + upcoming reminders
   Future<void> _loadNotifications() async {
     if (currentUserId.isEmpty) return;
     setState(() => _loadingNotifs = true);
 
     final List<Map<String, dynamic>> list = [];
 
-    // 1) Booking notifications (status != pending, notofication_status == false)
     try {
       final ownerId = await _ensureOwnerId();
       if (ownerId != null) {
@@ -294,7 +244,6 @@ class _HomeScreenState extends State<HomeScreen> {
           });
         }
 
-        // 1b) Upcoming booking reminders (within 24h by default)
         final upcoming =
         await BookingController().getUpcomingBookings(ownerId, withinHours: 24);
         for (final Booking b in upcoming) {
@@ -322,7 +271,6 @@ class _HomeScreenState extends State<HomeScreen> {
       // ignore
     }
 
-    // 2) Optional: include rows from a notifications table if you use it
     try {
       final rows = await _sb
           .from('notifications')
@@ -348,14 +296,13 @@ class _HomeScreenState extends State<HomeScreen> {
       // ignore
     }
 
-    // 3) Add the virtual walk notification (top candidate)
     final virtual = _buildWalkVirtualNotif();
     if (virtual != null &&
         !_dismissedLocalNotifs.contains(virtual['id'] as String)) {
       list.add(virtual);
     }
 
-    // Sort
+    // Sort logic
     int priority(Map n) {
       switch (n['type']) {
         case 'walk': return 3;
@@ -381,9 +328,9 @@ class _HomeScreenState extends State<HomeScreen> {
       final pa = priority(a), pb = priority(b);
       if (pa != pb) return pb.compareTo(pa);
       if (a['type'] == 'reminder' && b['type'] == 'reminder') {
-        return _ts(a).compareTo(_ts(b)); // earlier first
+        return _ts(a).compareTo(_ts(b));
       }
-      return _ts(b).compareTo(_ts(a));   // newer first
+      return _ts(b).compareTo(_ts(a));
     });
 
     if (!mounted) return;
@@ -395,7 +342,6 @@ class _HomeScreenState extends State<HomeScreen> {
     });
   }
 
-  // Build a virtual notification from the current walk status
   Map<String, dynamic>? _buildWalkVirtualNotif() {
     if (_isInWalkWindow && _nextWalkEnd != null) {
       final who = _currentWalkPet?.isNotEmpty == true ? ' (${_currentWalkPet!})' : '';
@@ -424,7 +370,6 @@ class _HomeScreenState extends State<HomeScreen> {
     return null;
   }
 
-  // Merge/refresh the virtual walk notification into the current _notifs list
   void _mergeWalkVirtualIntoNotifs() {
     final local = _buildWalkVirtualNotif();
     setState(() {
@@ -459,311 +404,6 @@ class _HomeScreenState extends State<HomeScreen> {
           _notifs.where((n) => (n['is_read'] as bool?) == false).length;
     });
   }
-
-  // ────────────────────────────────────────────────────────────────────────────
-  // Guards & navigation
-
-  void _promptRegisterPet() {
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: const Text('You have no pets registered. Please register a pet first.'),
-        action: SnackBarAction(
-          label: 'Add Pet',
-          onPressed: () => setState(() => _selectedIndex = 1),
-        ),
-      ),
-    );
-  }
-
-  Future<bool> _ensureHasPets() async {
-    try {
-      final pets = await PetService.instance.fetchPetsForUser(currentUserId);
-      if (!mounted) return false;
-      if (pets.isEmpty) {
-        _promptRegisterPet();
-        return false;
-      }
-      return true;
-    } catch (_) {
-      if (!mounted) return false;
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Could not verify your pets. Please try again.')),
-      );
-      return false;
-    }
-  }
-
-  Future<void> _handleProviderTap(ServiceProvider provider) async {
-    if (!await _ensureHasPets()) return;
-    Navigator.push(
-      context,
-      MaterialPageRoute(
-        builder: (_) => ServiceDetailScreen(serviceProvider: provider),
-      ),
-    );
-  }
-
-  Future<void> _handleSeeAllTap() async {
-    if (!await _ensureHasPets()) return;
-    Navigator.push(
-      context,
-      MaterialPageRoute(
-        builder: (_) => NearbyServicesScreen(
-          providers: _nearbyProviders,
-          role: _selectedRole,
-        ),
-      ),
-    );
-  }
-
-  Future<void> _loadWalkInfo() async {
-    if (currentUserId.isEmpty) return;
-    setState(() => _loadingWalk = true);
-
-    try {
-      final res = await PetService.instance.getWalkWindowForUser(currentUserId);
-
-      if (!mounted) return;
-      setState(() {
-        _isInWalkWindow = res.isInWindow;
-        _nextWalkStart = res.isInWindow ? res.currentStart : res.nextStart;
-        _nextWalkEnd   = res.isInWindow ? res.currentEnd   : res.nextEnd;
-
-        // NEW: pet names
-        _currentWalkPet = res.currentPetName;
-        _nextWalkPet    = res.nextPetName;
-
-        _loadingWalk = false;
-      });
-
-      // Reflect the walk status in notifications immediately
-      _mergeWalkVirtualIntoNotifs();
-    } catch (e) {
-      if (!mounted) return;
-      setState(() {
-        _isInWalkWindow = false;
-        _nextWalkStart = null;
-        _nextWalkEnd = null;
-        _currentWalkPet = null; // NEW
-        _nextWalkPet = null;    // NEW
-        _loadingWalk = false;
-      });
-      _mergeWalkVirtualIntoNotifs();
-    }
-  }
-
-  Future<String?> _ensureOwnerId() async {
-    if (_ownerId != null || currentUserId.isEmpty) return _ownerId;
-    try {
-      final row = await _sb
-          .from('pet_owners')
-          .select('id')
-          .eq('user_id', currentUserId)
-          .maybeSingle();
-      _ownerId = row?['id'] as String?;
-    } catch (_) {
-      _ownerId = null;
-    }
-    return _ownerId;
-  }
-
-  // Unified: bookings + optional DB notifs table + virtual walk + upcoming reminders
-  Future<void> _loadNotifications() async {
-    if (currentUserId.isEmpty) return;
-    setState(() => _loadingNotifs = true);
-
-    final List<Map<String, dynamic>> list = [];
-
-    // 1) Booking notifications (status != pending, notofication_status == false)
-    try {
-      final ownerId = await _ensureOwnerId();
-      if (ownerId != null) {
-        final bookings = await BookingController()
-            .getUserBookingsNeedingNotification(ownerId);
-
-        for (final Booking b in bookings) {
-          final dateStr = DateFormat('EEE, MMM d').format(b.date);
-          final title = 'Booking ${b.status}';
-          final body = 'For ${b.petName} • $dateStr at ${b.time}';
-          list.add({
-            'id': b.id,
-            'type': 'booking',
-            'title': title,
-            'body': body,
-            'created_at': b.createdAt.toIso8601String(),
-            'is_read': false,
-            'local': false,
-          });
-        }
-
-        // 1b) Upcoming booking reminders (within 24h by default)
-        final upcoming =
-        await BookingController().getUpcomingBookings(ownerId, withinHours: 24);
-        for (final Booking b in upcoming) {
-          final reminderId = 'reminder_${b.id}';
-          if (_dismissedReminderNotifs.contains(reminderId)) continue;
-
-          final dt = _combineDateAndTime(b.date, b.time);
-          final whenText = (dt != null)
-              ? '${DateFormat('EEE, MMM d').format(dt)} at ${DateFormat('h:mm a').format(dt)}'
-              : '${DateFormat('EEE, MMM d').format(b.date)} at ${b.time}';
-
-          list.add({
-            'id': reminderId,
-            'type': 'reminder',
-            'title': 'Upcoming booking',
-            'body': 'For ${b.petName} • $whenText',
-            'created_at': DateTime.now().toIso8601String(),
-            'reminder_at': (dt ?? b.date).toIso8601String(),
-            'is_read': false,
-            'local': true,
-          });
-        }
-      }
-    } catch (_) {
-      // ignore
-    }
-
-    // 2) Optional: include rows from a notifications table if you use it
-    try {
-      final rows = await _sb
-          .from('notifications')
-          .select('id, title, body, created_at, is_read')
-          .eq('user_id', currentUserId)
-          .order('created_at', ascending: false)
-          .limit(50);
-
-      final dbList = (rows as List).map<Map<String, dynamic>>((r) {
-        return {
-          'id': r['id'],
-          'type': 'db',
-          'title': r['title'] ?? 'Notification',
-          'body': r['body'] ?? '',
-          'created_at': r['created_at'],
-          'is_read': r['is_read'] ?? false,
-          'local': false,
-        };
-      }).toList();
-
-      list.addAll(dbList);
-    } catch (_) {
-      // ignore
-    }
-
-    // 3) Add the virtual walk notification (top candidate)
-    final virtual = _buildWalkVirtualNotif();
-    if (virtual != null &&
-        !_dismissedLocalNotifs.contains(virtual['id'] as String)) {
-      list.add(virtual);
-    }
-
-    // Sort
-    int priority(Map n) {
-      switch (n['type']) {
-        case 'walk': return 3;
-        case 'reminder': return 2;
-        case 'booking': return 1;
-        default: return 0;
-      }
-    }
-
-    DateTime _ts(Map n) {
-      if (n['type'] == 'reminder' && n['reminder_at'] is String) {
-        return DateTime.tryParse(n['reminder_at'] as String) ??
-            DateTime.fromMillisecondsSinceEpoch(0);
-      }
-      if (n['created_at'] is String) {
-        return DateTime.tryParse(n['created_at'] as String) ??
-            DateTime.fromMillisecondsSinceEpoch(0);
-      }
-      return DateTime.fromMillisecondsSinceEpoch(0);
-    }
-
-    list.sort((a, b) {
-      final pa = priority(a), pb = priority(b);
-      if (pa != pb) return pb.compareTo(pa);
-      if (a['type'] == 'reminder' && b['type'] == 'reminder') {
-        return _ts(a).compareTo(_ts(b)); // earlier first
-      }
-      return _ts(b).compareTo(_ts(a));   // newer first
-    });
-
-    if (!mounted) return;
-    setState(() {
-      _notifs = list;
-      _unreadCount =
-          _notifs.where((n) => (n['is_read'] as bool?) == false).length;
-      _loadingNotifs = false;
-    });
-  }
-
-  // Build a virtual notification from the current walk status
-  Map<String, dynamic>? _buildWalkVirtualNotif() {
-    if (_isInWalkWindow && _nextWalkEnd != null) {
-      final who = _currentWalkPet?.isNotEmpty == true ? ' (${_currentWalkPet!})' : '';
-      return {
-        'id': 'walk_now',
-        'type': 'walk',
-        'title': 'Time to walk 🐾$who',
-        'body': 'Window active until ${_fmtTime(_nextWalkEnd!)}.',
-        'created_at': DateTime.now().toIso8601String(),
-        'is_read': false,
-        'local': true,
-      };
-    }
-    if (_nextWalkStart != null) {
-      final who = _nextWalkPet?.isNotEmpty == true ? ' (${_nextWalkPet!})' : '';
-      return {
-        'id': 'walk_next',
-        'type': 'walk',
-        'title': 'Next walk 🐾$who',
-        'body': 'Scheduled at ${_fmtDateTime(_nextWalkStart!)}.',
-        'created_at': DateTime.now().toIso8601String(),
-        'is_read': false,
-        'local': true,
-      };
-    }
-    return null;
-  }
-
-  // Merge/refresh the virtual walk notification into the current _notifs list
-  void _mergeWalkVirtualIntoNotifs() {
-    final local = _buildWalkVirtualNotif();
-    setState(() {
-      _notifs.removeWhere((n) =>
-      (n['id'] == 'walk_now' || n['id'] == 'walk_next') && (n['local'] == true));
-
-      if (local != null && !_dismissedLocalNotifs.contains(local['id'] as String)) {
-        _notifs.insert(0, local);
-      }
-      _unreadCount =
-          _notifs.where((n) => (n['is_read'] as bool?) == false).length;
-    });
-  }
-
-  Future<void> _dismissNotification(dynamic id) async {
-    final item = _notifs.firstWhere((n) => n['id'] == id, orElse: () => const {});
-    final String type = (item['type'] ?? '') as String;
-
-    if (type == 'booking') {
-      try { await BookingController().markBookingNotificationTrue(id as String); } catch (_) {}
-    } else if (type == 'db') {
-      try { await _sb.from('notifications').update({'is_read': true}).eq('id', id); } catch (_) {}
-    } else if (type == 'walk') {
-      _dismissedLocalNotifs.add(id as String);
-    } else if (type == 'reminder') {
-      _dismissedReminderNotifs.add(id as String);
-    }
-
-    setState(() {
-      _notifs.removeWhere((n) => n['id'] == id);
-      _unreadCount =
-          _notifs.where((n) => (n['is_read'] as bool?) == false).length;
-    });
-  }
-
-  // ────────────────────────────────────────────────────────────────────────────
-  // Guards & navigation
 
   void _promptRegisterPet() {
     ScaffoldMessenger.of(context).showSnackBar(
@@ -828,9 +468,6 @@ class _HomeScreenState extends State<HomeScreen> {
   void _onNavTap(int index) {
     setState(() => _selectedIndex = index);
   }
-
-  // ────────────────────────────────────────────────────────────────────────────
-  // UI builders
 
   String _fmtDateTime(DateTime dt) =>
       DateFormat('EEE, MMM d • h:mm a').format(dt);
@@ -958,7 +595,7 @@ class _HomeScreenState extends State<HomeScreen> {
       context: context,
       isScrollControlled: true,
       backgroundColor: Colors.transparent,
-      builder: (_) => StatefulBuilder( // <<< IMPORTANT: local state for instant UI updates
+      builder: (_) => StatefulBuilder(
         builder: (context, modalSetState) {
           return DraggableScrollableSheet(
             expand: false,
@@ -1006,7 +643,7 @@ class _HomeScreenState extends State<HomeScreen> {
                             tooltip: 'Refresh',
                             onPressed: () async {
                               await _loadNotifications();
-                              modalSetState(() {}); // refresh list inside sheet
+                              modalSetState(() {});
                             },
                             icon: const Icon(Icons.refresh),
                           ),
@@ -1130,7 +767,7 @@ class _HomeScreenState extends State<HomeScreen> {
                                     tooltip: 'Dismiss',
                                     onPressed: () async {
                                       await _dismissNotification(n['id']);
-                                      modalSetState(() {}); // <<< ensure instant removal
+                                      modalSetState(() {});
                                     },
                                     icon: const Icon(Icons.close),
                                   ),
@@ -1151,7 +788,6 @@ class _HomeScreenState extends State<HomeScreen> {
     );
   }
 
-  // ────────────────────────────────────────────────────────────────────────────
   @override
   Widget build(BuildContext context) {
     const primaryColor = Color(0xFF842EAC);
@@ -1217,67 +853,6 @@ class _HomeScreenState extends State<HomeScreen> {
       floatingActionButtonLocation: FloatingActionButtonLocation.endFloat,
     );
   }
-    return Scaffold(
-      appBar: AppBar(
-        title: Text(
-          _selectedIndex == 0
-              ? 'Welcome to Scooby'
-              : _selectedIndex == 1
-              ? 'My Pets'
-              : _selectedIndex == 2
-              ? 'Bookings'
-              : 'Profile',
-          style: const TextStyle(fontWeight: FontWeight.bold),
-        ),
-        backgroundColor: primaryColor,
-        centerTitle: true,
-        actions: [
-          IconButton(
-            icon: const Icon(Icons.logout, color: Colors.white),
-            onPressed: () => _confirmLogout(context),
-            tooltip: 'Logout',
-          ),
-        ],
-      ),
-      body: _selectedIndex == 0
-          ? _buildHomeContent()
-          : _tabsWithoutHome[_selectedIndex - 1],
-      bottomNavigationBar: BottomNav(
-        selectedIndex: _selectedIndex,
-        onTap: _onNavTap,
-      ),
-      floatingActionButton: _selectedIndex == 0
-          ? Stack(
-        clipBehavior: Clip.none,
-        children: [
-          FloatingActionButton(
-            backgroundColor: primaryColor,
-            onPressed: _openNotificationsSheet,
-            child: const Icon(Icons.notifications_none),
-          ),
-          if (_unreadCount > 0)
-            Positioned(
-              right: -2,
-              top: -2,
-              child: Container(
-                padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-                decoration: const BoxDecoration(
-                  color: Colors.red,
-                  borderRadius: BorderRadius.all(Radius.circular(10)),
-                ),
-                child: Text(
-                  _unreadCount > 99 ? '99+' : '$_unreadCount',
-                  style: const TextStyle(
-                      color: Colors.white, fontSize: 11, fontWeight: FontWeight.w700),
-                ),
-              ),
-            ),
-        ],
-      )
-          : null,
-      floatingActionButtonLocation: FloatingActionButtonLocation.endFloat,
-    );
-  }
 
   void _confirmLogout(BuildContext context) async {
     final bool? logout = await showDialog<bool>(
@@ -1299,35 +874,7 @@ class _HomeScreenState extends State<HomeScreen> {
         );
       },
     );
-  void _confirmLogout(BuildContext context) async {
-    final bool? logout = await showDialog<bool>(
-      context: context,
-      builder: (context) {
-        return AlertDialog(
-          title: const Text('Confirm Logout'),
-          content: const Text('Do you confirm to logout?'),
-          actions: [
-            TextButton(
-              child: const Text('Cancel'),
-              onPressed: () => Navigator.of(context).pop(false),
-            ),
-            TextButton(
-              child: const Text('Logout'),
-              onPressed: () => Navigator.of(context).pop(true),
-            ),
-          ],
-        );
-      },
-    );
 
-    if (logout == true) {
-      await Supabase.instance.client.auth.signOut();
-      if (!mounted) return;
-      Navigator.of(context).pushReplacement(
-        MaterialPageRoute(builder: (_) => const LoginScreen()),
-      );
-    }
-  }
     if (logout == true) {
       await Supabase.instance.client.auth.signOut();
       if (!mounted) return;
@@ -1339,51 +886,18 @@ class _HomeScreenState extends State<HomeScreen> {
 
   Widget _buildHomeContent() {
     const primaryColor = Color(0xFF842EAC);
-    const primaryColor = Color(0xFF842EAC);
-
+    
     return _loading
         ? const Center(child: CircularProgressIndicator())
         : RefreshIndicator(
       onRefresh: () async {
         await _loadData();
-      },
-      child: ListView(
-        padding: const EdgeInsets.all(16),
-        children: [
-          // Top-right next walk badge
-          _walkBadge(primaryColor),
-          const SizedBox(height: 12),
-
-          // Banner
-          Container(
-            height: 140,
-            decoration: BoxDecoration(
-              borderRadius: BorderRadius.circular(20),
-              image: const DecorationImage(
-                image: AssetImage('assets/images/banner1bg.jpg'),
-                fit: BoxFit.cover,
-              ),
-              boxShadow: [
-                BoxShadow(
-                  color: Colors.black.withOpacity(.12),
-                  blurRadius: 16,
-                  offset: const Offset(0, 8),
-                )
-              ],
-            ),
-            alignment: Alignment.center,
-            child: const Text(
-              'Caring for your pets, always!',
-              style: TextStyle(
-                color: Colors.deepPurple,
-                fontSize: 18,
-                fontWeight: FontWeight.bold,
-              ),
-            ),
-          ),
-          const SizedBox(height: 20),
-      onRefresh: () async {
-        await _loadData();
+        // ADDED: Only refresh walk info if it's been more than 30 seconds
+        if (_lastWalkUpdate == null || 
+            DateTime.now().difference(_lastWalkUpdate!).inSeconds > 30) {
+          await _loadWalkInfo();
+        }
+        await _loadNotifications();
       },
       child: ListView(
         padding: const EdgeInsets.all(16),
@@ -1426,39 +940,7 @@ class _HomeScreenState extends State<HomeScreen> {
           const SizedBox(height: 12),
           _buildServiceTypeList(primaryColor),
           const SizedBox(height: 24),
-          // Service Types
-          _buildSectionTitle('Service Types', primaryColor),
-          const SizedBox(height: 12),
-          _buildServiceTypeList(primaryColor),
-          const SizedBox(height: 24),
 
-          // Nearby Services with See All
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              Text(
-                'Nearby $_selectedRole\'s',
-                style: const TextStyle(
-                  fontSize: 20,
-                  fontWeight: FontWeight.bold,
-                  color: primaryColor,
-                ),
-              ),
-              if (_nearbyProviders.length > 4)
-                GestureDetector(
-                  onTap: _handleSeeAllTap,
-                  child: const Text(
-                    'See All',
-                    style: TextStyle(
-                      color: primaryColor,
-                      fontWeight: FontWeight.w600,
-                      decoration: TextDecoration.underline,
-                    ),
-                  ),
-                ),
-            ],
-          ),
-          const SizedBox(height: 12),
           // Nearby Services with See All
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
@@ -1506,6 +988,37 @@ class _HomeScreenState extends State<HomeScreen> {
               },
             ),
           ),
+
+          const SizedBox(height: 24),
+
+          // Recommended
+         Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Text(
+                'Nearby $_selectedRole\'s',
+                style: const TextStyle(
+                  fontSize: 20,
+                  fontWeight: FontWeight.bold,
+                  color: primaryColor,
+                ),
+              ),
+              if (_nearbyProviders.length > 4)
+                GestureDetector(
+                  onTap: _handleSeeAllTap,
+                  child: const Text(
+                    'See All',
+                    style: TextStyle(
+                      color: primaryColor,
+                      fontWeight: FontWeight.w600,
+                      decoration: TextDecoration.underline,
+                    ),
+                  ),
+                ),
+            ],
+          ),
+          const SizedBox(height: 12),
+
           _nearbyProviders.isEmpty
               ? const Text('No nearby providers found.')
               : SizedBox(
@@ -1527,57 +1040,7 @@ class _HomeScreenState extends State<HomeScreen> {
           ),
 
           const SizedBox(height: 24),
-          const SizedBox(height: 24),
 
-          // Recommended
-          _buildSectionTitle('Recommended for You', primaryColor),
-          const SizedBox(height: 12),
-          _recommendedProviders.isEmpty
-              ? const Text('No recommendations available.')
-              : SizedBox(
-            height: 260,
-            child: ListView.separated(
-              scrollDirection: Axis.horizontal,
-              itemCount: _recommendedProviders.length,
-              separatorBuilder: (_, __) => const SizedBox(width: 16),
-              itemBuilder: (context, index) {
-                final provider = _recommendedProviders[index];
-                return ServiceProviderCard(
-                  provider: provider,
-                  onTap: () => _handleProviderTap(provider),
-                );
-              },
-            ),
-          ),
-          // Recommended
-          _buildSectionTitle('Recommended for You', primaryColor),
-          const SizedBox(height: 12),
-          _recommendedProviders.isEmpty
-              ? const Text('No recommendations available.')
-              : SizedBox(
-            height: 260,
-            child: ListView.separated(
-              scrollDirection: Axis.horizontal,
-              itemCount: _recommendedProviders.length,
-              separatorBuilder: (_, __) => const SizedBox(width: 16),
-              itemBuilder: (context, index) {
-                final provider = _recommendedProviders[index];
-                return ServiceProviderCard(
-                  provider: provider,
-                  onTap: () => _handleProviderTap(provider),
-                );
-              },
-            ),
-          ),
-
-          const SizedBox(height: 24),
-          const SizedBox(height: 24),
-
-          // Pet Care Tips
-          _buildPetCareTips(primaryColor),
-        ],
-      ),
-    );
           // Pet Care Tips
           _buildPetCareTips(primaryColor),
         ],
@@ -1609,20 +1072,11 @@ class _HomeScreenState extends State<HomeScreen> {
               padding: const EdgeInsets.all(12),
               decoration: BoxDecoration(
                 color: isSelected ? primaryColor.withAlpha(51) : Colors.grey[200],
-                color: isSelected ? primaryColor.withAlpha(51) : Colors.grey[200],
                 borderRadius: BorderRadius.circular(16),
                 border: Border.all(
                   color: isSelected ? primaryColor : Colors.transparent,
                   width: 2,
                 ),
-                boxShadow: [
-                  if (isSelected)
-                    BoxShadow(
-                      color: primaryColor.withOpacity(.15),
-                      blurRadius: 12,
-                      offset: const Offset(0, 6),
-                    ),
-                ],
                 boxShadow: [
                   if (isSelected)
                     BoxShadow(
@@ -1686,13 +1140,6 @@ class _HomeScreenState extends State<HomeScreen> {
                         offset: const Offset(0, 6),
                       )
                     ],
-                    boxShadow: [
-                      BoxShadow(
-                        color: Colors.black.withOpacity(.06),
-                        blurRadius: 10,
-                        offset: const Offset(0, 6),
-                      )
-                    ],
                   ),
                   child: Text(
                     _petTips[index],
@@ -1720,7 +1167,7 @@ class _HomeScreenState extends State<HomeScreen> {
     if (raw == null) return null;
     String s = raw.trim().toUpperCase();
 
-    final m24 = RegExp(r'^(\d{1,2}):(\d{2})(?::(\d{2}))?$').firstMatch(s);
+    final m24 = RegExp(r'^(\d{1,2}):(\d{2})(?::(\d{2}))?').firstMatch(s);
     if (m24 != null) {
       final h = int.tryParse(m24.group(1)!);
       final m = int.tryParse(m24.group(2)!);
@@ -1729,7 +1176,7 @@ class _HomeScreenState extends State<HomeScreen> {
       }
     }
 
-    final m12 = RegExp(r'^(\d{1,2}):(\d{2})\s*(AM|PM)$').firstMatch(s);
+    final m12 = RegExp(r'^(\d{1,2}):(\d{2})\s*(AM|PM)').firstMatch(s);
     if (m12 != null) {
       int h = int.tryParse(m12.group(1)!) ?? 0;
       final m = int.tryParse(m12.group(2)!) ?? 0;
@@ -1744,45 +1191,6 @@ class _HomeScreenState extends State<HomeScreen> {
   }
 }
 
-// ──────────────────────────────────────────────────────────────────────────────
-// Card used in lists
-
-  // Combine date + string time to DateTime (for reminders)
-  DateTime? _combineDateAndTime(DateTime date, String timeStr) {
-    final TimeOfDay? tod = _parseTimeFlexible(timeStr);
-    if (tod == null) return null;
-    return DateTime(date.year, date.month, date.day, tod.hour, tod.minute);
-  }
-
-  TimeOfDay? _parseTimeFlexible(String? raw) {
-    if (raw == null) return null;
-    String s = raw.trim().toUpperCase();
-
-    final m24 = RegExp(r'^(\d{1,2}):(\d{2})(?::(\d{2}))?$').firstMatch(s);
-    if (m24 != null) {
-      final h = int.tryParse(m24.group(1)!);
-      final m = int.tryParse(m24.group(2)!);
-      if (h != null && m != null && h >= 0 && h < 24 && m >= 0 && m < 60) {
-        return TimeOfDay(hour: h, minute: m);
-      }
-    }
-
-    final m12 = RegExp(r'^(\d{1,2}):(\d{2})\s*(AM|PM)$').firstMatch(s);
-    if (m12 != null) {
-      int h = int.tryParse(m12.group(1)!) ?? 0;
-      final m = int.tryParse(m12.group(2)!) ?? 0;
-      final ap = m12.group(3)!;
-      if (h == 12) h = 0;
-      if (ap == 'PM') h += 12;
-      if (h >= 0 && h < 24 && m >= 0 && m < 60) {
-        return TimeOfDay(hour: h, minute: m);
-      }
-    }
-    return null;
-  }
-}
-
-// ──────────────────────────────────────────────────────────────────────────────
 // Card used in lists
 class ServiceProviderCard extends StatelessWidget {
   final ServiceProvider provider;
@@ -1797,8 +1205,7 @@ class ServiceProviderCard extends StatelessWidget {
   Widget _buildStarRating(double rating) {
     final int fullStars = rating.floor();
     final bool halfStar = (rating - fullStars) >= 0.5;
-    final int fullStars = rating.floor();
-    final bool halfStar = (rating - fullStars) >= 0.5;
+   
     return Row(
       children: List.generate(5, (index) {
         if (index < fullStars) {
@@ -1828,7 +1235,6 @@ class ServiceProviderCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     const purple = Color(0xFF842EAC);
-    const purple = Color(0xFF842EAC);
 
     return GestureDetector(
       onTap: onTap,
@@ -1844,11 +1250,6 @@ class ServiceProviderCard extends StatelessWidget {
               blurRadius: 10,
               offset: const Offset(0, 6),
             ),
-            BoxShadow(
-              color: purple.withOpacity(0.12),
-              blurRadius: 10,
-              offset: const Offset(0, 6),
-            ),
           ],
         ),
         child: Column(
@@ -1857,40 +1258,17 @@ class ServiceProviderCard extends StatelessWidget {
             ClipRRect(
               borderRadius: BorderRadius.circular(12),
               child: provider.profileImageUrl.isNotEmpty
-                  ? (provider.profileImageUrl.startsWith('http')
                   ? Image.network(
-                provider.profileImageUrl,
-                height: 100,
-                width: double.infinity,
-                fit: BoxFit.cover,
-              )
-                  : Image.asset(
-                provider.profileImageUrl,
-                height: 100,
-                width: double.infinity,
-                fit: BoxFit.cover,
-              ))
-                  ? Image.network(
-                provider.profileImageUrl,
-                height: 100,
-                width: double.infinity,
-                fit: BoxFit.cover,
-              )
-                  : Image.asset(
-                provider.profileImageUrl,
-                height: 100,
-                width: double.infinity,
-                fit: BoxFit.cover,
-              ))
+                      provider.profileImageUrl,
+                      height: 100,
+                      width: double.infinity,
+                      fit: BoxFit.cover,
+                    )
                   : Container(
-                height: 100,
-                color: Colors.grey[300],
-                child: const Icon(Icons.pets, size: 60, color: Colors.white),
-              ),
-                height: 100,
-                color: Colors.grey[300],
-                child: const Icon(Icons.pets, size: 60, color: Colors.white),
-              ),
+                      height: 100,
+                      color: Colors.grey[300],
+                      child: const Icon(Icons.pets, size: 60, color: Colors.white),
+                    ),
             ),
             const SizedBox(height: 8),
             Text(
@@ -1907,11 +1285,9 @@ class ServiceProviderCard extends StatelessWidget {
             ),
             const SizedBox(height: 4),
             _buildStarRating(4.5),
-            _buildStarRating(4.5),
             const SizedBox(height: 6),
             Text(
               _getPricingInfo(provider),
-              style: const TextStyle(color: purple, fontWeight: FontWeight.w600),
               style: const TextStyle(color: purple, fontWeight: FontWeight.w600),
             ),
           ],
