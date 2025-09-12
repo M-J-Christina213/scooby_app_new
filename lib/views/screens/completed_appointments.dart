@@ -3,6 +3,7 @@ import 'package:intl/intl.dart';
 import 'package:scooby_app_new/models/booking_model.dart';
 import 'package:scooby_app_new/views/screens/appointment_detail_screen.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
+import 'package:scooby_app_new/widgets/message_components.dart';
 
 class UpcomingAppointments extends StatefulWidget {
   final String providerEmail;
@@ -28,6 +29,8 @@ class _UpcomingAppointmentsState extends State<UpcomingAppointments> {
 
   List<Booking> _upcoming = [];
   List<Booking> _past = [];
+
+ 
   bool loading = true;
 
   @override
@@ -41,7 +44,6 @@ class _UpcomingAppointmentsState extends State<UpcomingAppointments> {
     try {
       final resp = await supabase
           .from('bookings')
-      // If your FK is set, alias works well too: .select('*, pet:pets(name)')
           .select('*, pets(name)')
           .eq('service_provider_email', widget.providerEmail)
           .eq('status', 'accepted')
@@ -52,7 +54,6 @@ class _UpcomingAppointmentsState extends State<UpcomingAppointments> {
           .toList();
 
       final all = rows.map((map) {
-        // Pet name join handling (list or map)
         String petName = '';
         final petsJoin = map['pets'];
         if (petsJoin is List && petsJoin.isNotEmpty) {
@@ -64,7 +65,6 @@ class _UpcomingAppointmentsState extends State<UpcomingAppointments> {
         return Booking.fromMap(map);
       }).toList(growable: false);
 
-      // Partition: upcoming first, past later
       final now = DateTime.now();
       final List<Booking> upcoming = [];
       final List<Booking> past = [];
@@ -78,7 +78,6 @@ class _UpcomingAppointmentsState extends State<UpcomingAppointments> {
         }
       }
 
-      // Sort: upcoming ascending (soonest first), past descending (most recent first)
       upcoming.sort((a, b) {
         final da = _combineDateAndTime(a.date, a.time) ?? a.date;
         final db = _combineDateAndTime(b.date, b.time) ?? b.date;
@@ -111,68 +110,65 @@ class _UpcomingAppointmentsState extends State<UpcomingAppointments> {
     }
   }
 
-  // ────────────────────────────────────────────────────────────────────────────
-  // Build
-
   @override
   Widget build(BuildContext context) {
     return SafeArea(
       child: loading
           ? const Center(child: CircularProgressIndicator())
           : RefreshIndicator(
-        onRefresh: fetchUpcoming,
-        child: (_upcoming.isEmpty && _past.isEmpty)
-            ? ListView(
-          padding: const EdgeInsets.only(top: 120),
-          children: [
-            Icon(Icons.event_available,
-                size: 64, color: Colors.grey.shade400),
-            const SizedBox(height: 12),
-            const Center(
-              child: Text(
-                'No accepted bookings yet',
-                style: TextStyle(
-                    fontSize: 16, fontWeight: FontWeight.w600),
-              ),
+              onRefresh: fetchUpcoming,
+              child: (_upcoming.isEmpty && _past.isEmpty)
+                  ? ListView(
+                      padding: const EdgeInsets.only(top: 120),
+                      children: [
+                        Icon(Icons.event_available,
+                            size: 64, color: Colors.grey.shade400),
+                        const SizedBox(height: 12),
+                        const Center(
+                          child: Text(
+                            'No accepted bookings yet',
+                            style: TextStyle(
+                                fontSize: 16, fontWeight: FontWeight.w600),
+                          ),
+                        ),
+                        const SizedBox(height: 6),
+                        Center(
+                          child: Text(
+                            'Accepted appointments will appear here.',
+                            style: TextStyle(color: Colors.grey.shade600),
+                          ),
+                        ),
+                      ],
+                    )
+                  : ListView(
+                      padding: const EdgeInsets.all(12),
+                      children: [
+                        if (_upcoming.isNotEmpty) ...[
+                          _sectionHeader('Upcoming'),
+                          const SizedBox(height: 8),
+                          ..._upcoming
+                              .map((b) => Padding(
+                                    padding:
+                                        const EdgeInsets.only(bottom: 12.0),
+                                    child: _bookingCard(b, isPast: false),
+                                  ))
+                              .toList(),
+                          const SizedBox(height: 8),
+                        ],
+                        if (_past.isNotEmpty) ...[
+                          _sectionHeader('Past'),
+                          const SizedBox(height: 8),
+                          ..._past
+                              .map((b) => Padding(
+                                    padding:
+                                        const EdgeInsets.only(bottom: 12.0),
+                                    child: _bookingCard(b, isPast: true),
+                                  ))
+                              .toList(),
+                        ],
+                      ],
+                    ),
             ),
-            const SizedBox(height: 6),
-            Center(
-              child: Text(
-                'Accepted appointments will appear here.',
-                style: TextStyle(color: Colors.grey.shade600),
-              ),
-            ),
-          ],
-        )
-            : ListView(
-          padding: const EdgeInsets.all(12),
-          children: [
-            if (_upcoming.isNotEmpty) ...[
-              _sectionHeader('Upcoming'),
-              const SizedBox(height: 8),
-              ..._upcoming
-                  .map((b) => Padding(
-                padding:
-                const EdgeInsets.only(bottom: 12.0),
-                child: _bookingCard(b, isPast: false),
-              ))
-                  .toList(),
-              const SizedBox(height: 8),
-            ],
-            if (_past.isNotEmpty) ...[
-              _sectionHeader('Past'),
-              const SizedBox(height: 8),
-              ..._past
-                  .map((b) => Padding(
-                padding:
-                const EdgeInsets.only(bottom: 12.0),
-                child: _bookingCard(b, isPast: true),
-              ))
-                  .toList(),
-            ],
-          ],
-        ),
-      ),
     );
   }
 
@@ -202,11 +198,10 @@ class _UpcomingAppointmentsState extends State<UpcomingAppointments> {
   Widget _bookingCard(Booking b, {required bool isPast}) {
     final apptDt = _combineDateAndTime(b.date, b.time);
     final dateStr = _dateFmt.format(b.date);
-    final petInitial =
-    (b.petName.isNotEmpty ? b.petName[0] : 'P').toUpperCase();
 
     final chipText = isPast ? 'Completed' : 'Upcoming';
-    final chipBg = isPast ? Colors.grey.withOpacity(.12) : kPrimary.withOpacity(.10);
+    final chipBg =
+        isPast ? Colors.grey.withOpacity(.12) : kPrimary.withOpacity(.10);
     final chipFg = isPast ? Colors.grey.shade700 : kPrimary;
 
     final subNote = apptDt != null ? _relative(apptDt) : null;
@@ -247,21 +242,9 @@ class _UpcomingAppointmentsState extends State<UpcomingAppointments> {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                // Header
+                // Header row: owner/pet, message icon, chip
                 Row(
                   children: [
-                    CircleAvatar(
-                      radius: 22,
-                      backgroundColor: kPrimary.withOpacity(.08),
-                      child: Text(
-                        petInitial,
-                        style: const TextStyle(
-                          fontWeight: FontWeight.w800,
-                          color: kPrimary,
-                        ),
-                      ),
-                    ),
-                    const SizedBox(width: 12),
                     Expanded(
                       child: Text(
                         '${b.ownerName} • ${b.petName}',
@@ -272,6 +255,20 @@ class _UpcomingAppointmentsState extends State<UpcomingAppointments> {
                           fontWeight: FontWeight.w900,
                         ),
                       ),
+                    ),
+                    IconButton(
+                      icon: const Icon(Icons.message, color: kPrimary),
+                      onPressed: () {
+                        showModalBottomSheet(
+                          context: context,
+                          isScrollControlled: true,
+                          backgroundColor: Colors.transparent,
+                          builder: (_) => MessageSheet(
+                            bookingId: b.id,
+                            providerEmail: widget.providerEmail,
+                          ),
+                        );
+                      },
                     ),
                     const SizedBox(width: 8),
                     Container(
@@ -303,11 +300,9 @@ class _UpcomingAppointmentsState extends State<UpcomingAppointments> {
                     Text(dateStr,
                         style: const TextStyle(fontWeight: FontWeight.w700)),
                     const SizedBox(width: 14),
-                    const Icon(Icons.access_time,
-                        size: 18, color: Colors.black54),
+                    const Icon(Icons.access_time, size: 18, color: Colors.black54),
                     const SizedBox(width: 6),
-                    Text(b.time,
-                        style: const TextStyle(fontWeight: FontWeight.w700)),
+                    Text(b.time, style: const TextStyle(fontWeight: FontWeight.w700)),
                     if (subNote != null) ...[
                       const SizedBox(width: 10),
                       Text(
@@ -330,12 +325,10 @@ class _UpcomingAppointmentsState extends State<UpcomingAppointments> {
   // ────────────────────────────────────────────────────────────────────────────
   // Helpers
 
-  /// Accepts "08:00", "08:00:00", "8:00 AM", "8:00am"
   TimeOfDay? _parseTimeFlexible(String? raw) {
     if (raw == null) return null;
     final s = raw.trim().toUpperCase();
 
-    // 24h
     final m24 = RegExp(r'^(\d{1,2}):(\d{2})(?::(\d{2}))?$').firstMatch(s);
     if (m24 != null) {
       final h = int.tryParse(m24.group(1)!);
@@ -345,7 +338,6 @@ class _UpcomingAppointmentsState extends State<UpcomingAppointments> {
       }
     }
 
-    // 12h
     final m12 = RegExp(r'^(\d{1,2}):(\d{2})\s*(AM|PM)$').firstMatch(s);
     if (m12 != null) {
       int h = int.tryParse(m12.group(1)!) ?? 0;

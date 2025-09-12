@@ -1,4 +1,5 @@
 // lib/views/screens/todays_appointments.dart
+// lib/views/screens/todays_appointments.dart
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import 'package:scooby_app_new/models/booking_model.dart';
@@ -15,6 +16,7 @@ class TodayAppointments extends StatefulWidget {
     required this.userId,
   });
 
+  
   @override
   State<TodayAppointments> createState() => _TodayAppointmentsState();
 }
@@ -24,6 +26,10 @@ class _TodayAppointmentsState extends State<TodayAppointments> {
 
   static const Color kPrimary = Color(0xFF842EAC);
   static const Color kCardShadowColor = Color(0x1F000000); // subtle shadow
+
+  
+
+
 
   final DateFormat _dateFmt = DateFormat('EEE, MMM d');
 
@@ -51,7 +57,57 @@ class _TodayAppointmentsState extends State<TodayAppointments> {
           .gte('date', todayStart.toIso8601String())
           .lt('date', tomorrowStart.toIso8601String())
           .order('date', ascending: true);
+    try {
+      final now = DateTime.now();
+      final todayStart = DateTime(now.year, now.month, now.day);
+      final tomorrowStart = todayStart.add(const Duration(days: 1));
 
+      final resp = await supabase
+          .from('bookings')
+          .select('*, pets(name)')
+          .eq('service_provider_email', widget.providerEmail)
+          .eq('status', 'accepted')
+          .gte('date', todayStart.toIso8601String())
+          .lt('date', tomorrowStart.toIso8601String())
+          .order('date', ascending: true);
+
+      final rows = (resp as List<dynamic>? ?? [])
+          .map<Map<String, dynamic>>((e) => Map<String, dynamic>.from(e))
+          .toList();
+
+      final list = rows.map((map) {
+        String petName = '';
+        final petsJoin = map['pets'];
+        if (petsJoin is List && petsJoin.isNotEmpty) {
+          petName = (petsJoin.first['name'] ?? '') as String;
+        } else if (petsJoin is Map) {
+          petName = (petsJoin['name'] ?? '') as String;
+        }
+        map['pet_name'] = petName;
+        return Booking.fromMap(map);
+      }).toList(growable: false);
+
+      list.sort((a, b) {
+        final da = _combineDateAndTime(a.date, a.time) ?? a.date;
+        final db = _combineDateAndTime(b.date, b.time) ?? b.date;
+        return da.compareTo(db);
+      });
+
+      if (!mounted) return;
+      setState(() => bookings = list);
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Failed to load today\'s appointments: $e'),
+            behavior: SnackBarBehavior.floating,
+            backgroundColor: Colors.red.shade600,
+          ),
+        );
+      }
+    } finally {
+      if (mounted) setState(() => loading = false);
+    }
       final rows = (resp as List<dynamic>? ?? [])
           .map<Map<String, dynamic>>((e) => Map<String, dynamic>.from(e))
           .toList();
@@ -129,6 +185,7 @@ class _TodayAppointmentsState extends State<TodayAppointments> {
     );
   }
 
+  
   Widget _todayCard(Booking b) {
     final apptDt = _combineDateAndTime(b.date, b.time);
     final dateStr = _dateFmt.format(b.date);
@@ -197,6 +254,12 @@ class _TodayAppointmentsState extends State<TodayAppointments> {
                         ),
                       ),
                     ),
+                    IconButton(
+                      icon: const Icon(Icons.message, color: kPrimary),
+                      onPressed: () {
+                        _openMessageSheet(b);
+                      }
+                    ),
                     const SizedBox(width: 8),
                     Container(
                       padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
@@ -239,6 +302,96 @@ class _TodayAppointmentsState extends State<TodayAppointments> {
                 const SizedBox(height: 10),
               ],
             ),
+          ),
+        ),
+      ),
+    );
+  }
+  
+  // ====== Messaging Bottom Sheet ======
+  void _openMessageSheet(Booking b) {
+    final messageController = TextEditingController();
+
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      builder: (sheetContext) => Padding(
+        padding: EdgeInsets.only(bottom: MediaQuery.of(sheetContext).viewInsets.bottom),
+        child: SizedBox(
+          height: 400,
+          child: Column(
+            children: [
+              const SizedBox(height: 12),
+              const Text('Messages', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
+              const Divider(),
+              Expanded(
+                child: StreamBuilder<List<Map<String, dynamic>>>(
+                  stream: supabase
+                      .from('messages')
+                      .stream(primaryKey: ['id'])
+                      .eq('booking_id', b.id)
+                      .order('created_at', ascending: true),
+                  builder: (context, snapshot) {
+                    final msgs = snapshot.data ?? [];
+                    return ListView.builder(
+                      itemCount: msgs.length,
+                      itemBuilder: (_, i) {
+                        final m = msgs[i];
+                        final isProvider = m['sender'] == widget.providerEmail;
+                        return Align(
+                          alignment: isProvider ? Alignment.centerRight : Alignment.centerLeft,
+                          child: Container(
+                            margin: const EdgeInsets.symmetric(vertical: 2, horizontal: 8),
+                            padding: const EdgeInsets.all(10),
+                            decoration: BoxDecoration(
+                              color: isProvider ? kPrimary : Colors.grey.shade200,
+                              borderRadius: BorderRadius.circular(12),
+                            ),
+                            child: Text(
+                              m['content'],
+                              style: TextStyle(color: isProvider ? Colors.white : Colors.black87),
+                            ),
+                          ),
+                        );
+                      },
+                    );
+                  },
+                ),
+              ),
+              Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                child: Row(
+                  children: [
+                    Expanded(
+                      child: TextField(
+                        controller: messageController,
+                        decoration: const InputDecoration(
+                          hintText: 'Type a message',
+                          border: OutlineInputBorder(),
+                          isDense: true,
+                          contentPadding: EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+                        ),
+                      ),
+                    ),
+                    IconButton(
+                      icon: const Icon(Icons.send, color: kPrimary),
+                      onPressed: () async {
+                        final text = messageController.text.trim();
+                        if (text.isEmpty) return;
+                        messageController.clear();
+                        await supabase.from('messages').insert({
+                          'booking_id': b.id,
+                          'sender': widget.providerEmail,
+                          'receiver': b.ownerEmail,
+                          'content': text,
+                          'created_at': DateTime.now().toIso8601String(),
+                        });
+                      },
+                    ),
+                  ],
+                ),
+              ),
+            ],
           ),
         ),
       ),

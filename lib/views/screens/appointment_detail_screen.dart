@@ -193,15 +193,10 @@ class _AppointmentDetailScreenState extends State<AppointmentDetailScreen>
         height: _heightController.text.trim().isEmpty
             ? null
             : double.tryParse(_heightController.text.trim()),
-        foodPreference: _foodController.text.trim().isEmpty
+        allergies: _foodController.text.trim().isEmpty
             ? null
             : _foodController.text.trim(),
-        mood: _moodController.text.trim().isEmpty
-            ? null
-            : _moodController.text.trim(),
-        healthStatus: _healthController.text.trim().isEmpty
-            ? null
-            : _healthController.text.trim(),
+       
         description: _descController.text.trim().isEmpty
             ? null
             : _descController.text.trim(),
@@ -227,6 +222,8 @@ class _AppointmentDetailScreenState extends State<AppointmentDetailScreen>
       }
     }
   }
+
+  
 
   // ========================= Build =========================
   @override
@@ -547,9 +544,9 @@ class _AppointmentDetailScreenState extends State<AppointmentDetailScreen>
     final tiles = <Widget>[
       _kv('Weight', _weightController.text.isEmpty ? '—' : _weightController.text),
       _kv('Height', _heightController.text.isEmpty ? '—' : _heightController.text),
-      _kv('Food Preference', _foodController.text.isEmpty ? '—' : _foodController.text),
-      _kv('Mood', _moodController.text.isEmpty ? '—' : _moodController.text),
-      _kv('Health Status', _healthController.text.isEmpty ? '—' : _healthController.text),
+      _kv('Allergies', _foodController.text.isEmpty ? '—' : _foodController.text),
+      
+    
       _kv('Description', _descController.text.isEmpty ? '—' : _descController.text),
     ];
 
@@ -582,9 +579,7 @@ class _AppointmentDetailScreenState extends State<AppointmentDetailScreen>
       children: [
         _editableRow('Weight (kg)', _weightController, keyboard: const TextInputType.numberWithOptions(decimal: true)),
         _editableRow('Height (cm)', _heightController, keyboard: const TextInputType.numberWithOptions(decimal: true)),
-        _editableRow('Food Preference', _foodController),
-        _editableRow('Mood', _moodController),
-        _editableRow('Health Status', _healthController),
+        _editableRow('Allergies', _foodController),
         _editableRow('Description', _descController, maxLines: 3),
         const SizedBox(height: 6),
       ],

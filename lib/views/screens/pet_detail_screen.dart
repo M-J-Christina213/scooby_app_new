@@ -24,9 +24,7 @@ class PetDetailScreenModernIntegrated extends StatefulWidget {
   final String? color;
   final num? weight;
   final num? height;
-  final String? foodPreference;
-  final String? mood;
-  final String? healthStatus;
+  final String? allergies;
   final String? description;
 
   const PetDetailScreenModernIntegrated({
@@ -42,9 +40,7 @@ class PetDetailScreenModernIntegrated extends StatefulWidget {
     this.color,
     this.weight,
     this.height,
-    this.foodPreference,
-    this.mood,
-    this.healthStatus,
+    this.allergies,
     this.description,
   });
 
@@ -66,9 +62,7 @@ class _PetDetailScreenModernIntegratedState
   late TextEditingController _colorController;
   late TextEditingController _weightController;
   late TextEditingController _heightController;
-  late TextEditingController _foodController;
-  late TextEditingController _moodController;
-  late TextEditingController _healthController;
+  late TextEditingController _allergiesController;
   late TextEditingController _descController;
 
   // NEW: walking time display controllers
@@ -107,11 +101,10 @@ class _PetDetailScreenModernIntegratedState
         TextEditingController(text: widget.weight?.toString() ?? '');
     _heightController =
         TextEditingController(text: widget.height?.toString() ?? '');
-    _foodController =
-        TextEditingController(text: widget.foodPreference ?? '');
-    _moodController = TextEditingController(text: widget.mood ?? '');
-    _healthController =
-        TextEditingController(text: widget.healthStatus ?? '');
+
+    _allergiesController =
+        TextEditingController(text: widget.allergies ?? '');
+
     _descController =
         TextEditingController(text: widget.description ?? '');
 
@@ -128,6 +121,7 @@ class _PetDetailScreenModernIntegratedState
   }
 
   // ========= WALKING TIME HELPERS =========
+
 
   Future<void> _loadWalkingTimes() async {
     final sb = Supabase.instance.client;
@@ -232,219 +226,95 @@ class _PetDetailScreenModernIntegratedState
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-        backgroundColor: const Color(0xFFF8F5FB),
-        appBar: AppBar(
-          backgroundColor: _primary,
-          title: const Text('Pet Profile'),
-          centerTitle: true,
-          actions: [
-            IconButton(
-              icon: Icon(_editingPet ? Icons.check : Icons.edit),
-              onPressed: () async {
-                if (_editingPet) {
-                  // Validate time range (if present)
-                  if (!_validateWalkingTimesIfPresent()) return;
+      backgroundColor: const Color(0xFFF8F5FB),
+      appBar: AppBar(
+        backgroundColor: _primary,
+        title: const Text('Pet Profile'),
+        centerTitle: true,
+        actions: [
+          IconButton(
+            icon: Icon(_editingPet ? Icons.check : Icons.edit),
+            onPressed: () async {
+              if (_editingPet) {
+                // Validate time range (if present)
+                if (!_validateWalkingTimesIfPresent()) return;
 
-                  // Upload new image if changed
-                  if (_imageFile != null) {
-                    final fileName =
-                        'pet_${widget.petId}_${DateTime.now().millisecondsSinceEpoch}.png';
-                    final url = await PetService.instance.uploadPetImage(
-                      widget.userId,
-                      _imageFile!.path,
-                      fileName,
-                    );
-                    if (url != null) _uploadedImageUrl = url; // store in state
-                    _imageFile = null; // reset picked file
-                  }
-
-                  // Update pet details (includes walking times)
-                  await PetService.instance.updatePet(
-                    Pet(
-                      id: widget.petId,
-                      userId: widget.userId,
-                      name: _nameController.text.trim(),
-                      type: _typeController.text.trim(),
-                      breed: _breedController.text.trim(),
-                      age: int.tryParse(_ageController.text.trim()) ?? 0,
-                      gender: _genderController.text.trim(),
-                      color: _colorController.text.trim().isEmpty
-                          ? null
-                          : _colorController.text.trim(),
-                      weight: _weightController.text.trim().isEmpty
-                          ? null
-                          : double.tryParse(_weightController.text.trim()),
-                      height: _heightController.text.trim().isEmpty
-                          ? null
-                          : double.tryParse(_heightController.text.trim()),
-                      foodPreference: _foodController.text.trim().isEmpty
-                          ? null
-                          : _foodController.text.trim(),
-                      mood: _moodController.text.trim().isEmpty
-                          ? null
-                          : _moodController.text.trim(),
-                      healthStatus: _healthController.text.trim().isEmpty
-                          ? null
-                          : _healthController.text.trim(),
-                      description: _descController.text.trim().isEmpty
-                          ? null
-                          : _descController.text.trim(),
-                      imageUrl: _uploadedImageUrl ?? widget.imageUrl,
-                      // NEW: send walking times to DB
-                      startWalkingTime: _startHms,
-                      endWalkingTime: _endHms,
-                    ),
+                // Upload new image if changed
+                if (_imageFile != null) {
+                  final fileName =
+                      'pet_${widget.petId}_${DateTime.now().millisecondsSinceEpoch}.png';
+                  final url = await PetService.instance.uploadPetImage(
                     widget.userId,
+                    _imageFile!.path,
+                    fileName,
                   );
-
-                  _imageFile = null; // reset local image after save
+                  if (url != null) _uploadedImageUrl = url; // store in state
+                  _imageFile = null; // reset picked file
                 }
-                setState(() => _editingPet = !_editingPet);
-              },
-            ),
-          ],
-        ),
-        body: AnimatedBuilder(
-          animation: _controller,
-          builder: (context, _) {
-            return SingleChildScrollView(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.stretch,
-                children: [
-                  _heroHeader(),
-                  const SizedBox(height: 12),
-                  _highlightChips(),
-                  const SizedBox(height: 12),
-                  _detailsCard(),
-                  const SizedBox(height: 16),
-                  _medicalRecordsInline(),
-                  const SizedBox(height: 24),
-                ],
-              ),
-            );
-          },
-        ),
-        // 🔹 Floating Add Button
-        floatingActionButton: FloatingActionButton(
-          backgroundColor: _primary,
-          child: const Icon(Icons.add, color: Colors.white),
-          onPressed: () async {
-            final index = _tabController.index;
 
-            // Variables for form fields
-            final nameCtrl = TextEditingController();
-            final descCtrl = TextEditingController();
-            DateTime? date1;
-            DateTime? date2;
-
-            await showDialog(
-              context: context,
-              builder: (dialogContext) {
-                return AlertDialog(
-                  shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(16)),
-                  title: Text(
-                    index == 0
-                        ? 'Add Vaccination'
-                        : index == 1
-                        ? 'Add Medical Checkup'
-                        : 'Add Prescription',
-                    style: const TextStyle(fontWeight: FontWeight.bold),
+                // Update pet details (includes walking times)
+                await PetService.instance.updatePet(
+                  Pet(
+                    id: widget.petId,
+                    userId: widget.userId,
+                    name: _nameController.text.trim(),
+                    type: _typeController.text.trim(),
+                    breed: _breedController.text.trim(),
+                    age: int.tryParse(_ageController.text.trim()) ?? 0,
+                    gender: _genderController.text.trim(),
+                    color: _colorController.text.trim().isEmpty
+                        ? null
+                        : _colorController.text.trim(),
+                    weight: _weightController.text.trim().isEmpty
+                        ? null
+                        : double.tryParse(_weightController.text.trim()),
+                    height: _heightController.text.trim().isEmpty
+                        ? null
+                        : double.tryParse(_heightController.text.trim()),
+                    allergies: _allergiesController.text.trim().isEmpty
+                        ? null
+                        : _allergiesController.text.trim(),
+                    description: _descController.text.trim().isEmpty
+                        ? null
+                        : _descController.text.trim(),
+                    imageUrl: _uploadedImageUrl ?? widget.imageUrl,
+                    // NEW: send walking times to DB
+                    startWalkingTime: _startHms,
+                    endWalkingTime: _endHms,
                   ),
-                  content: SingleChildScrollView(
-                    child: Column(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        TextField(
-                          controller: nameCtrl,
-                          decoration: InputDecoration(
-                            labelText: index == 0
-                                ? 'Vaccine Name'
-                                : index == 1
-                                ? 'Reason'
-                                : 'Medicine Name',
-                          ),
-                        ),
-                        TextField(
-                          controller: descCtrl,
-                          decoration:
-                          const InputDecoration(labelText: 'Description'),
-                        ),
-                        const SizedBox(height: 12),
-                        if (index == 0) ...[
-                          _datePickerField(
-                              'Date Given', date1, (d) => date1 = d),
-                          const SizedBox(height: 8),
-                          _datePickerField('Next Due', date2, (d) => date2 = d),
-                        ],
-                        if (index == 1) ...[
-                          _datePickerField('Date', date1, (d) => date1 = d),
-                        ],
-                        if (index == 2) ...[
-                          _datePickerField(
-                              'Start Date', date1, (d) => date1 = d),
-                          const SizedBox(height: 8),
-                          _datePickerField('End Date', date2, (d) => date2 = d),
-                        ],
-                      ],
-                    ),
-                  ),
-                  actions: [
-                    TextButton(
-                      onPressed: () {
-                        Navigator.pop(dialogContext);
-                      },
-                      child: const Text('Cancel'),
-                    ),
-                    ElevatedButton(
-                      style: ElevatedButton.styleFrom(backgroundColor: _primary),
-                      onPressed: () async {
-                        if (index == 0) {
-                          await _controller.addOrUpdateVaccination(
-                            existing: null,
-                            name: nameCtrl.text.trim(),
-                            desc: descCtrl.text.trim().isEmpty
-                                ? null
-                                : descCtrl.text.trim(),
-                            dateGiven: date1 ?? DateTime.now(),
-                            nextDue: date2,
-                          );
-                        } else if (index == 1) {
-                          await _controller.addOrUpdateCheckup(
-                            existing: null,
-                            reason: nameCtrl.text.trim(),
-                            desc: descCtrl.text.trim().isEmpty
-                                ? null
-                                : descCtrl.text.trim(),
-                            date: date1 ?? DateTime.now(),
-                          );
-                        } else if (index == 2) {
-                          await _controller.addOrUpdatePrescription(
-                            existing: null,
-                            med: nameCtrl.text.trim(),
-                            desc: descCtrl.text.trim().isEmpty
-                                ? null
-                                : descCtrl.text.trim(),
-                            start: date1 ?? DateTime.now(),
-                            end: date2,
-                          );
-                        }
-
-                        await _controller.loadAll();
-
-                        if (!mounted) return;
-                        Navigator.pop(context);
-                      },
-                      child: const Text('Save',
-                          style: TextStyle(color: Colors.white)),
-                    ),
-                  ],
+                  widget.userId,
                 );
-              },
-            );
-          },
-        ));
+
+                _imageFile = null; // reset local image after save
+              }
+              setState(() => _editingPet = !_editingPet);
+            },
+          ),
+        ],
+      ),
+      body: AnimatedBuilder(
+        animation: _controller,
+        builder: (context, _) {
+          return SingleChildScrollView(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                _heroHeader(),
+                const SizedBox(height: 12),
+                _highlightChips(),
+                const SizedBox(height: 12),
+                _detailsCard(),
+                const SizedBox(height: 16),
+                _medicalRecordsInline(),
+                const SizedBox(height: 24),
+              ],
+            ),
+          );
+        },
+      ),
+    );
   }
+
 
   // ======= UI SECTIONS =======
 
@@ -677,9 +547,7 @@ class _PetDetailScreenModernIntegratedState
             const SizedBox(height: 12),
 
             // Keep only the non-highlighted fields
-            _editableRow('Food Preference', _foodController),
-            _editableRow('Mood', _moodController),
-            _editableRow('Health Status', _healthController),
+            _editableRow('Allergies', _allergiesController),
             _editableRow('Description', _descController),
 
             const SizedBox(height: 12),
@@ -1004,6 +872,7 @@ class _PetDetailScreenModernIntegratedState
     );
   }
 
+
   // === Inline Prescriptions ===
   Widget _prescriptionsTabInline() {
     if (_controller.loadingRx) {
@@ -1022,6 +891,8 @@ class _PetDetailScreenModernIntegratedState
           DateTime? end = p.endDate;
           bool editing = _rxEditing[p.id] ?? false;
 
+
+  
           return Card(
             margin: const EdgeInsets.symmetric(vertical: 6),
             child: ListTile(

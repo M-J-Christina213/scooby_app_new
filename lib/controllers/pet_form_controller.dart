@@ -1,5 +1,3 @@
-// ignore_for_file: use_build_context_synchronously
-
 import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
@@ -11,25 +9,26 @@ class PetFormController {
   final PetService petService;
 
   // Text fields
+  // Text fields
   final TextEditingController nameController = TextEditingController();
   final TextEditingController ageController = TextEditingController();
   final TextEditingController breedController = TextEditingController();
   final TextEditingController colorController = TextEditingController();
   final TextEditingController weightController = TextEditingController();
   final TextEditingController heightController = TextEditingController();
-  final TextEditingController foodController = TextEditingController();
-  final TextEditingController moodController = TextEditingController();
-  final TextEditingController healthController = TextEditingController();
+  final TextEditingController foodController = TextEditingController(); // Allergies
   final TextEditingController descriptionController = TextEditingController();
 
+  // Dropdowns
   // Dropdowns
   final ValueNotifier<String?> type = ValueNotifier(null);
   final ValueNotifier<String?> gender = ValueNotifier(null);
 
   // Dynamic medical history fields
+  // Dynamic medical history fields
   final List<TextEditingController> medicalControllers = [];
 
-  // NEW: walking time fields (stored as 'HH:mm:ss' for Postgres time columns)
+  // Walking time fields
   String? startWalkingTime;
   String? endWalkingTime;
 
@@ -42,20 +41,18 @@ class PetFormController {
   PetFormController({Pet? existingPet, required this.petService}) {
     if (existingPet != null) {
       // Populate from existing pet
+      // Populate from existing pet
       nameController.text = existingPet.name;
       ageController.text = existingPet.age.toString();
       breedController.text = existingPet.breed;
       colorController.text = existingPet.color ?? '';
       weightController.text = existingPet.weight?.toString() ?? '';
       heightController.text = existingPet.height?.toString() ?? '';
-      foodController.text = existingPet.foodPreference ?? '';
-      moodController.text = existingPet.mood ?? '';
-      healthController.text = existingPet.healthStatus ?? '';
+      foodController.text = existingPet.allergies ?? '';
       descriptionController.text = existingPet.description ?? '';
       type.value = existingPet.type;
       gender.value = existingPet.gender;
 
-      // NEW: carry over walking times if present
       startWalkingTime = existingPet.startWalkingTime;
       endWalkingTime = existingPet.endWalkingTime;
 
@@ -81,7 +78,7 @@ class PetFormController {
 
   Future<void> pickImage() async {
     final picked =
-    await ImagePicker().pickImage(source: ImageSource.gallery, imageQuality: 70);
+        await ImagePicker().pickImage(source: ImageSource.gallery, imageQuality: 70);
     if (picked != null) {
       imageFile = File(picked.path);
     }
@@ -107,12 +104,10 @@ class PetFormController {
   String _fmtHms(TimeOfDay t) =>
       '${t.hour.toString().padLeft(2, '0')}:${t.minute.toString().padLeft(2, '0')}:00';
 
-  /// Set from a TimeOfDay (e.g., from showTimePicker)
   void setStartTime(TimeOfDay t) {
     startWalkingTime = _fmtHms(t);
   }
 
-  /// Set from a TimeOfDay (e.g., from showTimePicker)
   void setEndTime(TimeOfDay t) {
     endWalkingTime = _fmtHms(t);
   }
@@ -127,8 +122,6 @@ class PetFormController {
     return h * 60 + m;
   }
 
-  /// Validates walking time rule: both selected AND end >= start + [minMinutes].
-  /// Returns `true` if valid; otherwise shows a SnackBar and returns `false`.
   bool _validateWalkingTimes(BuildContext context, {int minMinutes = 10}) {
     final sm = _minutesFromHms(startWalkingTime);
     final em = _minutesFromHms(endWalkingTime);
@@ -140,7 +133,6 @@ class PetFormController {
       return false;
     }
 
-    // Same-day constraint (no wrap-around): end must be >= start + minMinutes
     if (em - sm < minMinutes) {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
@@ -167,8 +159,6 @@ class PetFormController {
       return false;
     }
 
-    // Include walking time validation in the controller as well,
-    // so any UI using this controller benefits from the same rule.
     if (!_validateWalkingTimes(context, minMinutes: 10)) {
       return false;
     }
@@ -186,7 +176,7 @@ class PetFormController {
       if (imageFile != null) {
         final fileName = '${uuid.v4()}.jpg';
         imageUrl =
-        await petService.uploadPetImage(authUserId, imageFile!.path, fileName);
+            await petService.uploadPetImage(authUserId, imageFile!.path, fileName);
       }
 
       final medicalRecordsString = medicalControllers
@@ -209,21 +199,13 @@ class PetFormController {
             : colorController.text.trim(),
         weight: double.tryParse(weightController.text.trim()),
         height: double.tryParse(heightController.text.trim()),
-        medicalHistory:
-        medicalRecordsString.isEmpty ? null : medicalRecordsString,
-        foodPreference:
-        foodController.text.trim().isEmpty ? null : foodController.text.trim(),
-        mood: moodController.text.trim().isEmpty ? null : moodController.text.trim(),
-        healthStatus: healthController.text.trim().isEmpty
-            ? null
-            : healthController.text.trim(),
+        medicalHistory: medicalRecordsString.isEmpty ? null : medicalRecordsString,
+        allergies: foodController.text.trim().isEmpty ? null : foodController.text.trim(),
         description: descriptionController.text.trim().isEmpty
             ? null
             : descriptionController.text.trim(),
         imageUrl: imageUrl,
         createdAt: null,
-
-        // NEW: walking time fields go to DB
         startWalkingTime: startWalkingTime,
         endWalkingTime: endWalkingTime,
       );
@@ -236,6 +218,9 @@ class PetFormController {
 
       return true;
     } catch (e) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Failed to save pet: $e')),
+      );
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(content: Text('Failed to save pet: $e')),
       );
@@ -253,8 +238,6 @@ class PetFormController {
     weightController.dispose();
     heightController.dispose();
     foodController.dispose();
-    moodController.dispose();
-    healthController.dispose();
     descriptionController.dispose();
     type.dispose();
     gender.dispose();

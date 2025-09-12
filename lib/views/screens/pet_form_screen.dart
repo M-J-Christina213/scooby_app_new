@@ -86,9 +86,8 @@ class _PetFormScreenState extends State<PetFormScreen> {
             _buildTextField(controller.colorController, "Color"),
             _buildTextField(controller.weightController, "Weight (kg)", keyboardType: TextInputType.number),
             _buildTextField(controller.heightController, "Height (cm)", keyboardType: TextInputType.number),
-            _buildTextField(controller.foodController, "Food Preference"),
-            _buildTextField(controller.moodController, "Mood"),
-            _buildTextField(controller.healthController, "Health Status"),
+            _buildTextField(controller.foodController, "Allergies "),
+ 
             _buildTextField(controller.descriptionController, "Description", maxLines: 3),
 
             const SizedBox(height: 20),
