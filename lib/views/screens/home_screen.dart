@@ -946,7 +946,7 @@ class _HomeScreenState extends State<HomeScreen> {
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
               Text(
-                'Nearby $_selectedRole\'s',
+                'Nearby $_selectedRole\'',
                 style: const TextStyle(
                   fontSize: 20,
                   fontWeight: FontWeight.bold,
@@ -996,7 +996,7 @@ class _HomeScreenState extends State<HomeScreen> {
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
               Text(
-                'Nearby $_selectedRole\'s',
+                'Recommended $_selectedRole\'',
                 style: const TextStyle(
                   fontSize: 20,
                   fontWeight: FontWeight.bold,
@@ -1020,7 +1020,7 @@ class _HomeScreenState extends State<HomeScreen> {
           const SizedBox(height: 12),
 
           nearbyProviders.isEmpty
-              ? const Text('No nearby providers found.')
+              ? const Text('No recommended providers found.')
               : SizedBox(
             height: 260,
             child: ListView.separated(
