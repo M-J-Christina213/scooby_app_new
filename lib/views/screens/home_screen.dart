@@ -308,7 +308,7 @@ class _HomeScreenState extends State<HomeScreen> {
         case 'reminder': return 2;
         case 'booking': return 1;
         default: return 0;
-      }
+      }   
     }
 
     DateTime _ts(Map n) {
