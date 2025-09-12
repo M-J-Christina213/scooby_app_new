@@ -33,7 +33,7 @@ class HomeScreen extends StatefulWidget {
 }
 
 // Small helpers
-DateTime _combine(DateTime d, TimeOfDay t) =>
+DateTime combine(DateTime d, TimeOfDay t) =>
     DateTime(d.year, d.month, d.day, t.hour, t.minute);
 
 class _HomeScreenState extends State<HomeScreen> {
@@ -42,10 +42,10 @@ class _HomeScreenState extends State<HomeScreen> {
 
   int _selectedIndex = 0;
   String _selectedRole = 'Veterinarian';
-  List<ServiceProvider> _nearbyProviders = [];
-  List<ServiceProvider> _recommendedProviders = [];
-  bool _loading = true;
-  bool _hasPets = false;
+  List<ServiceProvider> nearbyProviders = [];
+  List<ServiceProvider> recommendedProviders = [];
+  bool loading = true;
+  bool hasPets = false;
 
   // Walk schedule state
   DateTime? _nextWalkStart;
@@ -118,22 +118,22 @@ class _HomeScreenState extends State<HomeScreen> {
   // FIXED: Remove the infinite loop in _refreshHasPets
   Future<void> _refreshHasPets() async {
     if (currentUserId.isEmpty) {
-      setState(() => _hasPets = false);
+      setState(() => hasPets = false);
       return;
     }
     try {
       final pets = await PetService.instance.fetchPetsForUser(currentUserId);
       if (!mounted) return;
-      setState(() => _hasPets = pets.isNotEmpty);
+      setState(() => hasPets = pets.isNotEmpty);
     } catch (_) {
       if (!mounted) return;
-      setState(() => _hasPets = false);
+      setState(() => hasPets = false);
     }
     // REMOVED: The recursive call that was causing infinite loop
   }
 
   Future<void> _loadData() async {
-    setState(() => _loading = true);
+    setState(() => loading = true);
     try {
       final nearby = await _service.fetchServiceProvidersByCityAndRole(
         widget.userCity,
@@ -143,19 +143,19 @@ class _HomeScreenState extends State<HomeScreen> {
 
       if (!mounted) return; // ADDED: Check mounted state
       setState(() {
-        _nearbyProviders = nearby;
-        _recommendedProviders = recommended;
+        nearbyProviders = nearby;
+        recommendedProviders = recommended;
       });
 
       // REMOVED: Duplicate calls that were causing excessive refreshing
     } catch (_) {
       if (!mounted) return;
       setState(() {
-        _nearbyProviders = [];
-        _recommendedProviders = [];
+        nearbyProviders = [];
+        recommendedProviders = [];
       });
     } finally {
-      if (mounted) setState(() => _loading = false);
+      if (mounted) setState(() => loading = false);
     }
   }
 
@@ -312,7 +312,7 @@ class _HomeScreenState extends State<HomeScreen> {
       }   
     }
 
-    DateTime _ts(Map n) {
+    DateTime ts(Map n) {
       if (n['type'] == 'reminder' && n['reminder_at'] is String) {
         return DateTime.tryParse(n['reminder_at'] as String) ??
             DateTime.fromMillisecondsSinceEpoch(0);
@@ -328,9 +328,9 @@ class _HomeScreenState extends State<HomeScreen> {
       final pa = priority(a), pb = priority(b);
       if (pa != pb) return pb.compareTo(pa);
       if (a['type'] == 'reminder' && b['type'] == 'reminder') {
-        return _ts(a).compareTo(_ts(b));
+        return ts(a).compareTo(ts(b));
       }
-      return _ts(b).compareTo(_ts(a));
+      return ts(b).compareTo(ts(a));
     });
 
     if (!mounted) return;
@@ -451,7 +451,7 @@ class _HomeScreenState extends State<HomeScreen> {
       context,
       MaterialPageRoute(
         builder: (_) => NearbyServicesScreen(
-          providers: _nearbyProviders,
+          providers: nearbyProviders,
           role: _selectedRole,
         ),
       ),
@@ -558,7 +558,7 @@ class _HomeScreenState extends State<HomeScreen> {
               const Icon(Icons.schedule, color: Colors.white),
               const SizedBox(width: 8),
               Text(
-                'Next walk: ${who}${_fmtDateTime(_nextWalkStart!)}',
+                'Next walk: $who${_fmtDateTime(_nextWalkStart!)}',
                 style: const TextStyle(
                   color: Colors.white,
                   fontWeight: FontWeight.w700,
@@ -887,7 +887,7 @@ class _HomeScreenState extends State<HomeScreen> {
   Widget _buildHomeContent() {
     const primaryColor = Color(0xFF842EAC);
     
-    return _loading
+    return loading
         ? const Center(child: CircularProgressIndicator())
         : RefreshIndicator(
       onRefresh: () async {
@@ -953,7 +953,7 @@ class _HomeScreenState extends State<HomeScreen> {
                   color: primaryColor,
                 ),
               ),
-              if (_nearbyProviders.length > 4)
+              if (nearbyProviders.length > 4)
                 GestureDetector(
                   onTap: _handleSeeAllTap,
                   child: const Text(
@@ -969,18 +969,18 @@ class _HomeScreenState extends State<HomeScreen> {
           ),
           const SizedBox(height: 12),
 
-          _nearbyProviders.isEmpty
+          nearbyProviders.isEmpty
               ? const Text('No nearby providers found.')
               : SizedBox(
             height: 260,
             child: ListView.separated(
               scrollDirection: Axis.horizontal,
-              itemCount: _nearbyProviders.length > 4
+              itemCount: nearbyProviders.length > 4
                   ? 4
-                  : _nearbyProviders.length,
+                  : nearbyProviders.length,
               separatorBuilder: (_, __) => const SizedBox(width: 16),
               itemBuilder: (context, index) {
-                final provider = _nearbyProviders[index];
+                final provider = nearbyProviders[index];
                 return ServiceProviderCard(
                   provider: provider,
                   onTap: () => _handleProviderTap(provider),
@@ -1003,7 +1003,7 @@ class _HomeScreenState extends State<HomeScreen> {
                   color: primaryColor,
                 ),
               ),
-              if (_nearbyProviders.length > 4)
+              if (nearbyProviders.length > 4)
                 GestureDetector(
                   onTap: _handleSeeAllTap,
                   child: const Text(
@@ -1019,18 +1019,18 @@ class _HomeScreenState extends State<HomeScreen> {
           ),
           const SizedBox(height: 12),
 
-          _nearbyProviders.isEmpty
+          nearbyProviders.isEmpty
               ? const Text('No nearby providers found.')
               : SizedBox(
             height: 260,
             child: ListView.separated(
               scrollDirection: Axis.horizontal,
-              itemCount: _nearbyProviders.length > 4
+              itemCount: nearbyProviders.length > 4
                   ? 4
-                  : _nearbyProviders.length,
+                  : nearbyProviders.length,
               separatorBuilder: (_, __) => const SizedBox(width: 16),
               itemBuilder: (context, index) {
-                final provider = _nearbyProviders[index];
+                final provider = nearbyProviders[index];
                 return ServiceProviderCard(
                   provider: provider,
                   onTap: () => _handleProviderTap(provider),

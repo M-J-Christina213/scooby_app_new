@@ -1,5 +1,7 @@
 // lib/views/screens/todays_appointments.dart
 // lib/views/screens/todays_appointments.dart
+// ignore_for_file: deprecated_member_use
+
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import 'package:scooby_app_new/models/booking_model.dart';

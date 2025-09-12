@@ -1,5 +1,5 @@
 // lib/views/screens/pending_appointments.dart
-// ignore_for_file: use_build_context_synchronously
+// ignore_for_file: use_build_context_synchronously, control_flow_in_finally, deprecated_member_use
 
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';

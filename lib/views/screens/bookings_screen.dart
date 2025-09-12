@@ -1,5 +1,5 @@
 // lib/views/screens/bookings_screen.dart
-// ignore_for_file: use_build_context_synchronously
+// ignore_for_file: use_build_context_synchronously, deprecated_member_use
 
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
@@ -335,8 +335,7 @@ class _BookingsScreenState extends State<BookingsScreen> {
                         ),
                       ),
                       ...items
-                          .map((b) => _BookingCard(b))
-                          .toList(),
+                          .map((b) => bookingCard(b)),
                       const SizedBox(height: 4),
                     ],
                   );
@@ -350,7 +349,7 @@ class _BookingsScreenState extends State<BookingsScreen> {
   }
 
   // Card builder
-  Widget _BookingCard(Map<String, dynamic> b) {
+  Widget bookingCard(Map<String, dynamic> b) {
     final bookingId = (b['id'] ?? '').toString();
     final petName = (b['pet_name'] ?? '').toString().trim();
     final ownerName = (b['owner_name'] ?? '').toString().trim();
