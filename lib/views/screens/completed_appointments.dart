@@ -153,8 +153,8 @@ class _UpcomingAppointmentsState extends State<UpcomingAppointments> {
                                     padding:
                                         const EdgeInsets.only(bottom: 12.0),
                                     child: _bookingCard(b, isPast: false),
-                                  ))
-                              ,
+                                  )),
+                           
                           const SizedBox(height: 8),
                         ],
                         if (_past.isNotEmpty) ...[
@@ -166,7 +166,7 @@ class _UpcomingAppointmentsState extends State<UpcomingAppointments> {
                                         const EdgeInsets.only(bottom: 12.0),
                                     child: _bookingCard(b, isPast: true),
                                   ))
-                              ,
+                          
                         ],
                       ],
                     ),

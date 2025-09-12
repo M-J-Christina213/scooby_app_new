@@ -188,7 +188,7 @@ class _LoginScreenState extends State<LoginScreen> {
                           ),
                           TextButton(
                             onPressed: () {
-                              
+                              // implement forgot-password flow
                             },
                             child: const Text('Forgot Password?'),
                           ),
@@ -226,7 +226,7 @@ class _LoginScreenState extends State<LoginScreen> {
                       const SizedBox(height: 16),
                       ElevatedButton.icon(
                         onPressed: () {
-                       
+                          //  implement Google sign-in if needed
                         },
                         icon: Image.asset('assets/images/google_logo.png', height: 24),
                         label: const Text('Sign-in with Google', style: TextStyle(color: Colors.black)),
