@@ -666,24 +666,12 @@ class _ServiceProviderProfilePageState extends State<ServiceProviderProfilePage>
 
           // Contact & Basics
           _sectionCard(
-            title: 'Contact & Basics',
-            icon: Icons.info_outline,
-            children: _editing
-                ? [
-              _editField(label: 'Email (read-only)', controller: TextEditingController(text: p.email), icon: Icons.alternate_email, enabled: false),
-              _editField(label: 'Phone', controller: _phoneC, icon: Icons.call, keyboardType: TextInputType.phone),
-              _editField(label: 'Role', controller: _roleC, icon: Icons.work),
-              _editField(label: 'City', controller: _cityC, icon: Icons.location_city),
-              _editField(label: 'Experience (years)', controller: _experienceC, icon: Icons.school, keyboardType: TextInputType.number),
-              _editField(label: 'Available Times', controller: _availableTimesC, icon: Icons.schedule),
-            ]
-                : [
-              _rowTile('Email', p.email, icon: Icons.alternate_email, copyable: true),
-              _rowTile('Phone', p.phoneNo, icon: Icons.call, copyable: true),
-              _rowTile('City', p.city, icon: Icons.location_city),
-              _rowTile('Available Times', p.availableTimes, icon: Icons.schedule),
-            ],
-          ),
+          title: 'Contact & Basics',
+  icon: Icons.info_outline,
+  children: _editing
+      ? _buildEditContactFields(p) // New helper method
+      : _buildViewContactFields(p), // New helper method
+),
 
           // Clinic / Salon
           _sectionCard(
@@ -715,35 +703,8 @@ class _ServiceProviderProfilePageState extends State<ServiceProviderProfilePage>
             title: 'Services',
             icon: Icons.design_services_outlined,
             children: _editing
-                ? [
-              _editField(label: 'Service Description', controller: _serviceDescC, icon: Icons.text_snippet, maxLines: 3),
-              _editField(label: 'Grooming Services (comma-separated)', controller: _groomingServicesC, icon: Icons.content_cut),
-              _editField(label: 'Comfortable With (comma-separated)', controller: _comfortableWithC, icon: Icons.pets),
-            ]
-                : [
-              if (p.serviceDescription.isNotEmpty)
-                Padding(
-                  padding: const EdgeInsets.only(bottom: 8),
-                  child: Text(p.serviceDescription),
-                ),
-              if (p.groomingServices.isNotEmpty) ...[
-                const Padding(
-                  padding: EdgeInsets.only(bottom: 6),
-                  child: Text('Grooming Services',
-                      style: TextStyle(fontWeight: FontWeight.w700)),
-                ),
-                _chipsWrap(p.groomingServices),
-                const SizedBox(height: 10),
-              ],
-              if (p.comfortableWith.isNotEmpty) ...[
-                const Padding(
-                  padding: EdgeInsets.only(bottom: 6),
-                  child: Text('Comfortable With',
-                      style: TextStyle(fontWeight: FontWeight.w700)),
-                ),
-                _chipsWrap(p.comfortableWith),
-              ],
-            ],
+                ? _buildEditServiceFields(p.role) // New helper method
+                : _buildViewServiceFields(p), // New helper method
           ),
 
           // Pricing
@@ -751,20 +712,9 @@ class _ServiceProviderProfilePageState extends State<ServiceProviderProfilePage>
             title: 'Pricing',
             icon: Icons.payments_outlined,
             children: _editing
-                ? [
-              _editField(label: 'Consultation Fee', controller: _consultationFeeC, icon: Icons.local_hospital, keyboardType: TextInputType.number),
-              _editField(label: 'Pricing Details', controller: _pricingDetailsC, icon: Icons.price_change, maxLines: 3),
-              _editField(label: 'Rate (Sitter)', controller: _rateC, icon: Icons.timer, keyboardType: TextInputType.number),
-              _editField(label: 'Dislikes / Exclusions', controller: _dislikesC, icon: Icons.block, maxLines: 2),
-            ]
-                : [
-              _rowTile('Consultation Fee', p.consultationFee, icon: Icons.local_hospital),
-              _rowTile('Pricing Details', p.pricingDetails, icon: Icons.price_change),
-              _rowTile('Rate (Sitter)', p.rate, icon: Icons.timer),
-              if (p.dislikes.isNotEmpty)
-                _rowTile('Dislikes / Exclusions', p.dislikes, icon: Icons.block),
-            ],
-          ),
+                 ? _buildEditPricingFields(p.role) // New helper method
+                : _buildViewPricingFields(p), // New helper method
+),
 
           // Documents
           _sectionCard(
@@ -818,4 +768,259 @@ class _ServiceProviderProfilePageState extends State<ServiceProviderProfilePage>
       ),
     );
   }
+
+  List<Widget> _buildEditServiceFields(String role) {
+  List<Widget> fields = [
+    _editField(
+      label: 'Service Description', 
+      controller: _serviceDescC, 
+      icon: Icons.text_snippet, 
+      maxLines: 3
+    ),
+  ];
+
+  // Role-specific fields
+  switch (role.toLowerCase()) {
+    case 'veterinarian':
+      // Vets don't need grooming services or "comfortable with" - they treat all animals
+      break;
+      
+    case 'pet groomer':
+      fields.addAll([
+        _editField(
+          label: 'Grooming Services (comma-separated)', 
+          controller: _groomingServicesC, 
+          icon: Icons.content_cut,
+          hint: 'e.g., Bathing, Hair Trimming, Nail Clipping'
+        ),
+        _editField(
+          label: 'Comfortable With (comma-separated)', 
+          controller: _comfortableWithC, 
+          icon: Icons.pets,
+          hint: 'e.g., Dogs, Cats'
+        ),
+      ]);
+      break;
+      
+    case 'pet sitter':
+      fields.addAll([
+        _editField(
+          label: 'Comfortable With (comma-separated)', 
+          controller: _comfortableWithC, 
+          icon: Icons.pets,
+          hint: 'e.g., Dogs, Cats'
+        ),
+        _editField(
+          label: 'Available Days & Times', 
+          controller: _availableTimesC, 
+          icon: Icons.schedule,
+          maxLines: 2,
+          hint: 'e.g., Mon-Fri 9AM-5PM'
+        ),
+        _editField(
+          label: 'Allergies or Pet Dislikes', 
+          controller: _dislikesC, 
+          icon: Icons.block, 
+          maxLines: 2
+        ),
+        _editField(
+          label: 'Special Notes or Preferences', 
+          controller: _notesC, 
+          icon: Icons.edit_note, 
+          maxLines: 3
+        ),
+      ]);
+      break;
+  }
+  
+  return fields;
+}
+
+List<Widget> _buildViewServiceFields(ServiceProvider p) {
+  List<Widget> widgets = [];
+  
+  // Common service description
+  if (p.serviceDescription.isNotEmpty) {
+    widgets.add(
+      Padding(
+        padding: const EdgeInsets.only(bottom: 8),
+        child: Text(p.serviceDescription),
+      ),
+    );
+  }
+
+  // Role-specific fields
+  switch (p.role.toLowerCase()) {
+    case 'veterinarian':
+      // Vets might have specializations or areas of expertise
+      // but not grooming services
+      break;
+      
+    case 'pet groomer':
+      if (p.groomingServices.isNotEmpty) {
+        widgets.addAll([
+          const Padding(
+            padding: EdgeInsets.only(bottom: 6),
+            child: Text('Grooming Services',
+                style: TextStyle(fontWeight: FontWeight.w700)),
+          ),
+          _chipsWrap(p.groomingServices),
+          const SizedBox(height: 10),
+        ]);
+      }
+      
+      if (p.comfortableWith.isNotEmpty) {
+        widgets.addAll([
+          const Padding(
+            padding: EdgeInsets.only(bottom: 6),
+            child: Text('Comfortable With',
+                style: TextStyle(fontWeight: FontWeight.w700)),
+          ),
+          _chipsWrap(p.comfortableWith),
+        ]);
+      }
+      break;
+      
+    case 'pet sitter':
+      if (p.comfortableWith.isNotEmpty) {
+        widgets.addAll([
+          const Padding(
+            padding: EdgeInsets.only(bottom: 6),
+            child: Text('Comfortable With',
+                style: TextStyle(fontWeight: FontWeight.w700)),
+          ),
+          _chipsWrap(p.comfortableWith),
+          const SizedBox(height: 10),
+        ]);
+      }
+      
+      if (p.dislikes.isNotEmpty) {
+        widgets.add(_rowTile('Allergies/Dislikes', p.dislikes, icon: Icons.block));
+      }
+      
+      if (p.notes.isNotEmpty) {
+        widgets.add(_rowTile('Special Notes', p.notes, icon: Icons.edit_note));
+      }
+      break;
+  }
+  
+  return widgets.isEmpty ? [const Text('No service details specified')] : widgets;
+}
+
+List<Widget> _buildEditPricingFields(String role) {
+  List<Widget> fields = [];
+
+  switch (role.toLowerCase()) {
+    case 'veterinarian':
+      fields.add(_editField(
+        label: 'Consultation Fee', 
+        controller: _consultationFeeC, 
+        icon: Icons.local_hospital, 
+        keyboardType: TextInputType.number,
+        hint: 'e.g., Rs. 2000'
+      ));
+      break;
+      
+    case 'pet groomer':
+      fields.add(_editField(
+        label: 'Pricing Details', 
+        controller: _pricingDetailsC, 
+        icon: Icons.price_change, 
+        maxLines: 3,
+        hint: 'e.g., Bath: Rs. 1500, Trim: Rs. 2000'
+      ));
+      break;
+      
+    case 'pet sitter':
+      fields.add(_editField(
+        label: 'Hourly/Daily Rate', 
+        controller: _rateC, 
+        icon: Icons.timer, 
+        keyboardType: TextInputType.number,
+        hint: 'e.g., Rs. 500/hour or Rs. 3000/day'
+      ));
+      break;
+  }
+  
+  return fields;
+}
+
+List<Widget> _buildViewPricingFields(ServiceProvider p) {
+  List<Widget> widgets = [];
+
+  switch (p.role.toLowerCase()) {
+    case 'veterinarian':
+      if (p.consultationFee.isNotEmpty) {
+        widgets.add(_rowTile('Consultation Fee', p.consultationFee, icon: Icons.local_hospital));
+      }
+      break;
+      
+    case 'pet groomer':
+      if (p.pricingDetails.isNotEmpty) {
+        widgets.add(_rowTile('Pricing Details', p.pricingDetails, icon: Icons.price_change));
+      }
+      break;
+      
+    case 'pet sitter':
+      if (p.rate.isNotEmpty) {
+        widgets.add(_rowTile('Rate', p.rate, icon: Icons.timer));
+      }
+      break;
+  }
+  
+  return widgets.isEmpty ? [const Text('No pricing information specified')] : widgets;
+}
+List<Widget> _buildEditContactFields(ServiceProvider p) {
+  List<Widget> fields = [
+    _editField(
+      label: 'Email (read-only)', 
+      controller: TextEditingController(text: p.email), 
+      icon: Icons.alternate_email, 
+      enabled: false
+    ),
+    _editField(
+      label: 'Phone', 
+      controller: _phoneC, 
+      icon: Icons.call, 
+      keyboardType: TextInputType.phone
+    ),
+    _editField(
+      label: 'Role (read-only)', 
+      controller: TextEditingController(text: p.role), 
+      icon: Icons.work, 
+      enabled: false
+    ),
+    _editField(
+      label: 'City', 
+      controller: _cityC, 
+      icon: Icons.location_city
+    ),
+    _editField(
+      label: 'Experience (years)', 
+      controller: _experienceC, 
+      icon: Icons.school, 
+      keyboardType: TextInputType.number
+    ),
+  ];
+
+  // Only show available times for pet sitters in the contact section
+  // (Vets and groomers have clinic/salon hours)
+  if (p.role.toLowerCase() != 'pet sitter') {
+    // Remove available times from here since it's handled in services section for sitters
+    // and clinic/salon section for others
+  }
+
+  return fields;
+}
+
+List<Widget> _buildViewContactFields(ServiceProvider p) {
+  return [
+    _rowTile('Email', p.email, icon: Icons.alternate_email, copyable: true),
+    _rowTile('Phone', p.phoneNo, icon: Icons.call, copyable: true),
+    _rowTile('City', p.city, icon: Icons.location_city),
+    // Only show available times here for pet sitters
+    if (p.role.toLowerCase() == 'pet sitter' && p.availableTimes.isNotEmpty)
+      _rowTile('Available Times', p.availableTimes, icon: Icons.schedule),
+  ];
+}
 }
