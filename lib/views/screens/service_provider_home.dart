@@ -1,4 +1,6 @@
 // lib/views/screens/service_provider_home.dart
+// ignore_for_file: deprecated_member_use
+
 import 'package:flutter/material.dart';
 import 'package:scooby_app_new/models/service_provider.dart';
 import 'package:scooby_app_new/views/screens/completed_appointments.dart';
@@ -179,9 +181,9 @@ class _ServiceProviderHomeState extends State<ServiceProviderHome>
           surfaceTintColor: Colors.white,
           elevation: 3,
           backgroundColor: Colors.white,
-          labelTextStyle: MaterialStateProperty.resolveWith<TextStyle?>(
+          labelTextStyle: WidgetStateProperty.resolveWith<TextStyle?>(
                 (states) {
-              final selected = states.contains(MaterialState.selected);
+              final selected = states.contains(WidgetState.selected);
               return TextStyle(
                 fontWeight: selected ? FontWeight.w800 : FontWeight.w600,
                 color: selected ? const Color(0xFF842EAC) : Colors.black87,

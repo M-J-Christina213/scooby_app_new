@@ -1,5 +1,5 @@
 // lib/views/screens/bookings_screen.dart
-// ignore_for_file: use_build_context_synchronously
+// ignore_for_file: use_build_context_synchronously, non_constant_identifier_names, deprecated_member_use
 
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
@@ -336,7 +336,7 @@ class _BookingsScreenState extends State<BookingsScreen> {
                       ),
                       ...items
                           .map((b) => _BookingCard(b))
-                          .toList(),
+                          ,
                       const SizedBox(height: 4),
                     ],
                   );

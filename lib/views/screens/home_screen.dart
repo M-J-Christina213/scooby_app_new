@@ -33,7 +33,7 @@ class HomeScreen extends StatefulWidget {
 }
 
 // Small helpers
-DateTime _combine(DateTime d, TimeOfDay t) =>
+DateTime combine(DateTime d, TimeOfDay t) =>
     DateTime(d.year, d.month, d.day, t.hour, t.minute);
 
 class _HomeScreenState extends State<HomeScreen> {
@@ -43,9 +43,9 @@ class _HomeScreenState extends State<HomeScreen> {
   int _selectedIndex = 0;
   String _selectedRole = 'Veterinarian';
   List<ServiceProvider> _nearbyProviders = [];
-  List<ServiceProvider> _recommendedProviders = [];
+  List<ServiceProvider> recommendedProviders = [];
   bool _loading = true;
-  bool _hasPets = false;
+  bool hasPets = false;
 
   // Walk schedule state
   DateTime? _nextWalkStart;
@@ -118,16 +118,16 @@ class _HomeScreenState extends State<HomeScreen> {
   // FIXED: Remove the infinite loop in _refreshHasPets
   Future<void> _refreshHasPets() async {
     if (currentUserId.isEmpty) {
-      setState(() => _hasPets = false);
+      setState(() => hasPets = false);
       return;
     }
     try {
       final pets = await PetService.instance.fetchPetsForUser(currentUserId);
       if (!mounted) return;
-      setState(() => _hasPets = pets.isNotEmpty);
+      setState(() => hasPets = pets.isNotEmpty);
     } catch (_) {
       if (!mounted) return;
-      setState(() => _hasPets = false);
+      setState(() => hasPets = false);
     }
     // REMOVED: The recursive call that was causing infinite loop
   }
@@ -144,7 +144,7 @@ class _HomeScreenState extends State<HomeScreen> {
       if (!mounted) return; // ADDED: Check mounted state
       setState(() {
         _nearbyProviders = nearby;
-        _recommendedProviders = recommended;
+        recommendedProviders = recommended;
       });
 
       // REMOVED: Duplicate calls that were causing excessive refreshing
@@ -152,7 +152,7 @@ class _HomeScreenState extends State<HomeScreen> {
       if (!mounted) return;
       setState(() {
         _nearbyProviders = [];
-        _recommendedProviders = [];
+        recommendedProviders = [];
       });
     } finally {
       if (mounted) setState(() => _loading = false);
@@ -312,7 +312,7 @@ class _HomeScreenState extends State<HomeScreen> {
       }
     }
 
-    DateTime _ts(Map n) {
+    DateTime ts(Map n) {
       if (n['type'] == 'reminder' && n['reminder_at'] is String) {
         return DateTime.tryParse(n['reminder_at'] as String) ??
             DateTime.fromMillisecondsSinceEpoch(0);
@@ -328,9 +328,9 @@ class _HomeScreenState extends State<HomeScreen> {
       final pa = priority(a), pb = priority(b);
       if (pa != pb) return pb.compareTo(pa);
       if (a['type'] == 'reminder' && b['type'] == 'reminder') {
-        return _ts(a).compareTo(_ts(b));
+        return ts(a).compareTo(ts(b));
       }
-      return _ts(b).compareTo(_ts(a));
+      return ts(b).compareTo(ts(a));
     });
 
     if (!mounted) return;
@@ -558,7 +558,7 @@ class _HomeScreenState extends State<HomeScreen> {
               const Icon(Icons.schedule, color: Colors.white),
               const SizedBox(width: 8),
               Text(
-                'Next walk: ${who}${_fmtDateTime(_nextWalkStart!)}',
+                'Next walk: $who${_fmtDateTime(_nextWalkStart!)}',
                 style: const TextStyle(
                   color: Colors.white,
                   fontWeight: FontWeight.w700,

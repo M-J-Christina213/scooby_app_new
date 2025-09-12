@@ -1,3 +1,5 @@
+// ignore_for_file: use_build_context_synchronously
+
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart'; // For formatting date/time
 import 'package:scooby_app_new/models/service_provider.dart';
