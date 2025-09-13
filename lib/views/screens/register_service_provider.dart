@@ -235,7 +235,7 @@ class _ServiceProviderRegisterScreenState extends State<ServiceProviderRegisterS
 
                     // FIX 1: City dropdown – use `value:` and guard with contains()
                     DropdownButtonFormField<String>(
-                      initialValue: _cities.contains(_selectedCity) ? _selectedCity : null,
+                      value: _cities.contains(_selectedCity) ? _selectedCity : null,
                       hint: const Text('Select a city'),
                       items: _cities.map((e) => DropdownMenuItem(value: e, child: Text(e))).toList(),
                       onChanged: (val) => setState(() => _selectedCity = val),
@@ -244,9 +244,9 @@ class _ServiceProviderRegisterScreenState extends State<ServiceProviderRegisterS
                     ),
                     const SizedBox(height: 16),
 
-                    // FIX 2: Service type dropdown – use `value:` and guard
+                    
                     DropdownButtonFormField<String>(
-                      initialValue: _serviceTypes.contains(_selectedServiceType) ? _selectedServiceType : null,
+                      value: _serviceTypes.contains(_selectedServiceType) ? _selectedServiceType : null,
                       hint: const Text('Select a service'),
                       items: _serviceTypes.map((e) => DropdownMenuItem(value: e, child: Text(e))).toList(),
                       onChanged: (val) => setState(() => _selectedServiceType = val),

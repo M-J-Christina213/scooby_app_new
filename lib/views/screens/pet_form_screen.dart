@@ -156,7 +156,7 @@ class _PetFormScreenState extends State<PetFormScreen> {
         builder: (context, value, _) {
           final safeValue = options.contains(value) ? value : null; // guard
           return DropdownButtonFormField<String>(
-            initialValue: safeValue, // <- was initialValue
+            value: safeValue, 
             hint: Text('Select ${label.replaceAll('*', '').trim()}'),
             decoration: InputDecoration(
               labelText: label,
