@@ -26,9 +26,17 @@ void main() {
       try {
         chatApp.sendMessage("Earlier message");
         expect(chatApp.loadMessages().isNotEmpty, true);
-        testResults.add({'Test ID': 'E2E-CH-01', 'Scenario': 'Open a booking → see past chat history', 'Result': 'Passed'});
+        testResults.add({
+          'Test ID': 'E2E-CH-01',
+          'Scenario': 'Open a booking → see past chat history',
+          'Result': 'Passed'
+        });
       } catch (e) {
-        testResults.add({'Test ID': 'E2E-CH-01', 'Scenario': 'Open a booking → see past chat history', 'Result': 'Failed: $e'});
+        testResults.add({
+          'Test ID': 'E2E-CH-01',
+          'Scenario': 'Open a booking → see past chat history',
+          'Result': 'Failed: $e'
+        });
       }
     });
 
@@ -36,9 +44,17 @@ void main() {
       try {
         chatApp.sendMessage("New Message from Owner");
         expect(chatApp.loadMessages().last, "New Message from Owner");
-        testResults.add({'Test ID': 'E2E-CH-02', 'Scenario': 'Send message → appears in chat + summary updates', 'Result': 'Passed'});
+        testResults.add({
+          'Test ID': 'E2E-CH-02',
+          'Scenario': 'Send message → appears in chat + summary updates',
+          'Result': 'Passed'
+        });
       } catch (e) {
-        testResults.add({'Test ID': 'E2E-CH-02', 'Scenario': 'Send message → appears in chat + summary updates', 'Result': 'Failed: $e'});
+        testResults.add({
+          'Test ID': 'E2E-CH-02',
+          'Scenario': 'Send message → appears in chat + summary updates',
+          'Result': 'Failed: $e'
+        });
       }
     });
 
@@ -46,9 +62,17 @@ void main() {
       try {
         chatApp.sendMessage("Walker reply");
         expect(chatApp.loadMessages().contains("Walker reply"), true);
-        testResults.add({'Test ID': 'E2E-CH-03', 'Scenario': 'Other user sends message → appears in real-time', 'Result': 'Passed'});
+        testResults.add({
+          'Test ID': 'E2E-CH-03',
+          'Scenario': 'Other user sends message → appears in real-time',
+          'Result': 'Passed'
+        });
       } catch (e) {
-        testResults.add({'Test ID': 'E2E-CH-03', 'Scenario': 'Other user sends message → appears in real-time', 'Result': 'Failed: $e'});
+        testResults.add({
+          'Test ID': 'E2E-CH-03',
+          'Scenario': 'Other user sends message → appears in real-time',
+          'Result': 'Failed: $e'
+        });
       }
     });
 
@@ -56,9 +80,17 @@ void main() {
       try {
         final newChat = FakeChatApp();
         expect(newChat.hasMessages(), false);
-        testResults.add({'Test ID': 'E2E-CH-04', 'Scenario': 'Empty chat → shows No messages yet placeholder', 'Result': 'Passed'});
+        testResults.add({
+          'Test ID': 'E2E-CH-04',
+          'Scenario': 'Empty chat → shows No messages yet placeholder',
+          'Result': 'Passed'
+        });
       } catch (e) {
-        testResults.add({'Test ID': 'E2E-CH-04', 'Scenario': 'Empty chat → shows No messages yet placeholder', 'Result': 'Failed: $e'});
+        testResults.add({
+          'Test ID': 'E2E-CH-04',
+          'Scenario': 'Empty chat → shows No messages yet placeholder',
+          'Result': 'Failed: $e'
+        });
       }
     });
 
@@ -67,20 +99,36 @@ void main() {
         chatApp.sendMessage("Persistent message");
         chatApp.openBooking(); // reopen
         expect(chatApp.loadMessages().contains("Persistent message"), true);
-        testResults.add({'Test ID': 'E2E-CH-05', 'Scenario': 'Close & reopen booking → messages persist', 'Result': 'Passed'});
+        testResults.add({
+          'Test ID': 'E2E-CH-05',
+          'Scenario': 'Close & reopen booking → messages persist',
+          'Result': 'Passed'
+        });
       } catch (e) {
-        testResults.add({'Test ID': 'E2E-CH-05', 'Scenario': 'Close & reopen booking → messages persist', 'Result': 'Failed: $e'});
+        testResults.add({
+          'Test ID': 'E2E-CH-05',
+          'Scenario': 'Close & reopen booking → messages persist',
+          'Result': 'Failed: $e'
+        });
       }
     });
   });
 
   tearDownAll(() {
     debugPrint('\n=== Chat End-to-End Test Report ===');
-    debugPrint('| Test ID | Scenario | Result |');
-    debugPrint('|---------|---------------------------------------------|---------|');
+
+    // Table header
+    debugPrint('| Test ID   | Scenario                                          | Result   |');
+    debugPrint('|-----------|---------------------------------------------------|----------|');
+
+    // Rows with padding
     for (var r in testResults) {
-      debugPrint('| ${r['Test ID']} | ${r['Scenario']} | ${r['Result']} |');
+      final id = r['Test ID']!.padRight(9);
+      final scenario = r['Scenario']!.padRight(49);
+      final result = r['Result']!.padRight(8);
+      debugPrint('| $id | $scenario | $result |');
     }
-    debugPrint('==============================\n');
+
+    debugPrint('================================================================\n');
   });
 }

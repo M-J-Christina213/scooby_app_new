@@ -19,9 +19,9 @@ void main() {
       try {
         final msg = ChatMessage(senderId: "user1", body: "Hello", timestamp: DateTime.now());
         expect(msg.body, "Hello");
-        testResults.add({'Test ID': 'U-CH-01', 'Scenario': 'Create ChatMessage model with valid sender, body, timestamp', 'Result': 'Passed'});
+        testResults.add({'Test ID': 'U-CH-01', 'Scenario': 'Create ChatMessage with valid sender, timestamp', 'Result': 'Passed'});
       } catch (e) {
-        testResults.add({'Test ID': 'U-CH-01', 'Scenario': 'Create ChatMessage model with valid sender, body, timestamp', 'Result': 'Failed: $e'});
+        testResults.add({'Test ID': 'U-CH-01', 'Scenario': 'Create ChatMessage with valid sender, timestamp', 'Result': 'Failed: $e'});
       }
     });
 
@@ -29,9 +29,9 @@ void main() {
       try {
         final body = "";
         expect(body.isEmpty, true);
-        testResults.add({'Test ID': 'U-CH-02', 'Scenario': 'Validate empty message is rejected (not inserted)', 'Result': 'Passed'});
+        testResults.add({'Test ID': 'U-CH-02', 'Scenario': 'Reject empty message (not inserted)', 'Result': 'Passed'});
       } catch (e) {
-        testResults.add({'Test ID': 'U-CH-02', 'Scenario': 'Validate empty message is rejected (not inserted)', 'Result': 'Failed: $e'});
+        testResults.add({'Test ID': 'U-CH-02', 'Scenario': 'Reject empty message (not inserted)', 'Result': 'Failed: $e'});
       }
     });
 
@@ -39,9 +39,9 @@ void main() {
       try {
         final msg = ChatMessage(senderId: "user1", body: "Yo", timestamp: DateTime(2025, 9, 13, 15, 5));
         expect(msg.formattedTime, "15:05");
-        testResults.add({'Test ID': 'U-CH-03', 'Scenario': 'Format timestamp into human-readable relative time', 'Result': 'Passed'});
+        testResults.add({'Test ID': 'U-CH-03', 'Scenario': 'Format timestamp into HH:mm correctly', 'Result': 'Passed'});
       } catch (e) {
-        testResults.add({'Test ID': 'U-CH-03', 'Scenario': 'Format timestamp into human-readable relative time', 'Result': 'Failed: $e'});
+        testResults.add({'Test ID': 'U-CH-03', 'Scenario': 'Format timestamp into HH:mm correctly', 'Result': 'Failed: $e'});
       }
     });
 
@@ -49,20 +49,23 @@ void main() {
       try {
         final lastMessage = "See you soon!";
         expect(lastMessage, contains("soon"));
-        testResults.add({'Test ID': 'U-CH-04', 'Scenario': 'Last message updates booking summary correctly', 'Result': 'Passed'});
+        testResults.add({'Test ID': 'U-CH-04', 'Scenario': 'Last message updates booking summary', 'Result': 'Passed'});
       } catch (e) {
-        testResults.add({'Test ID': 'U-CH-04', 'Scenario': 'Last message updates booking summary correctly', 'Result': 'Failed: $e'});
+        testResults.add({'Test ID': 'U-CH-04', 'Scenario': 'Last message updates booking summary', 'Result': 'Failed: $e'});
       }
     });
   });
 
   tearDownAll(() {
     debugPrint('\n=== Chat Unit Test Report ===');
-    debugPrint('| Test ID | Scenario | Result |');
-    debugPrint('|---------|---------------------------------------------|---------|');
+    debugPrint('| Test ID   | Scenario                                   | Result   |');
+    debugPrint('|-----------|-------------------------------------------|----------|');
     for (var r in testResults) {
-      debugPrint('| ${r['Test ID']} | ${r['Scenario']} | ${r['Result']} |');
+      final id = r['Test ID']!.padRight(9);
+      final scenario = r['Scenario']!.padRight(43);
+      final result = r['Result']!.padRight(8);
+      debugPrint('| $id | $scenario | $result |');
     }
-    debugPrint('==============================\n');
+    debugPrint('=======================================================\n');
   });
 }

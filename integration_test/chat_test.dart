@@ -23,9 +23,17 @@ void main() {
       try {
         chatService.sendMessage("Hello World");
         expect(chatService.fetchMessages().contains("Hello World"), true);
-        testResults.add({'Test ID': 'I-CH-01', 'Scenario': 'Fetch existing messages for booking', 'Result': 'Passed'});
+        testResults.add({
+          'Test ID': 'I-CH-01',
+          'Scenario': 'Fetch existing messages for booking',
+          'Result': 'Passed'
+        });
       } catch (e) {
-        testResults.add({'Test ID': 'I-CH-01', 'Scenario': 'Fetch existing messages for booking', 'Result': 'Failed: $e'});
+        testResults.add({
+          'Test ID': 'I-CH-01',
+          'Scenario': 'Fetch existing messages for booking',
+          'Result': 'Failed: $e'
+        });
       }
     });
 
@@ -33,9 +41,17 @@ void main() {
       try {
         chatService.sendMessage("New Message");
         expect(chatService.fetchMessages().last, "New Message");
-        testResults.add({'Test ID': 'I-CH-02', 'Scenario': 'Insert new message → optimistic update appears', 'Result': 'Passed'});
+        testResults.add({
+          'Test ID': 'I-CH-02',
+          'Scenario': 'Insert new message → optimistic update appears',
+          'Result': 'Passed'
+        });
       } catch (e) {
-        testResults.add({'Test ID': 'I-CH-02', 'Scenario': 'Insert new message → optimistic update appears', 'Result': 'Failed: $e'});
+        testResults.add({
+          'Test ID': 'I-CH-02',
+          'Scenario': 'Insert new message → optimistic update appears',
+          'Result': 'Failed: $e'
+        });
       }
     });
 
@@ -45,9 +61,17 @@ void main() {
         chatService.sendMessage(optimistic);
         chatService.messages.remove(optimistic); // simulate failure
         expect(chatService.fetchMessages().contains(optimistic), false);
-        testResults.add({'Test ID': 'I-CH-03', 'Scenario': 'Insert fails → optimistic message removed', 'Result': 'Passed'});
+        testResults.add({
+          'Test ID': 'I-CH-03',
+          'Scenario': 'Insert fails → optimistic message removed',
+          'Result': 'Passed'
+        });
       } catch (e) {
-        testResults.add({'Test ID': 'I-CH-03', 'Scenario': 'Insert fails → optimistic message removed', 'Result': 'Failed: $e'});
+        testResults.add({
+          'Test ID': 'I-CH-03',
+          'Scenario': 'Insert fails → optimistic message removed',
+          'Result': 'Failed: $e'
+        });
       }
     });
 
@@ -55,30 +79,59 @@ void main() {
       try {
         chatService.sendMessage("Live Message");
         expect(chatService.fetchMessages().contains("Live Message"), true);
-        testResults.add({'Test ID': 'I-CH-04', 'Scenario': 'Realtime subscription receives new message → list updates', 'Result': 'Passed'});
+        testResults.add({
+          'Test ID': 'I-CH-04',
+          'Scenario': 'Realtime subscription receives new message → list updates',
+          'Result': 'Passed'
+        });
       } catch (e) {
-        testResults.add({'Test ID': 'I-CH-04', 'Scenario': 'Realtime subscription receives new message → list updates', 'Result': 'Failed: $e'});
+        testResults.add({
+          'Test ID': 'I-CH-04',
+          'Scenario': 'Realtime subscription receives new message → list updates',
+          'Result': 'Failed: $e'
+        });
       }
     });
 
-    testWidgets('I-CH-05: Booking summary updates with last message', (tester) async {
+    testWidgets('I-CH-05: Chat history preserved after multiple inserts', (tester) async {
       try {
-        final last = chatService.fetchMessages().last;
-        expect(last.isNotEmpty, true);
-        testResults.add({'Test ID': 'I-CH-05', 'Scenario': 'Booking summary callback updates with last message', 'Result': 'Passed'});
+        chatService.sendMessage("First");
+        chatService.sendMessage("Second");
+        chatService.sendMessage("Third");
+
+        final messages = chatService.fetchMessages();
+        expect(messages, containsAll(["First", "Second", "Third"]));
+
+        testResults.add({
+          'Test ID': 'I-CH-05',
+          'Scenario': 'Chat history preserved after multiple inserts',
+          'Result': 'Passed'
+        });
       } catch (e) {
-        testResults.add({'Test ID': 'I-CH-05', 'Scenario': 'Booking summary callback updates with last message', 'Result': 'Failed: $e'});
+        testResults.add({
+          'Test ID': 'I-CH-05',
+          'Scenario': 'Chat history preserved after multiple inserts',
+          'Result': 'Failed: $e'
+        });
       }
     });
   });
 
   tearDownAll(() {
     debugPrint('\n=== Chat Integration Test Report ===');
-    debugPrint('| Test ID | Scenario | Result |');
-    debugPrint('|---------|---------------------------------------------|---------|');
+
+    // Table header
+    debugPrint('| Test ID  | Scenario                                         | Result   |');
+    debugPrint('|----------|-------------------------------------------------|----------|');
+
+    // Rows with spacing
     for (var r in testResults) {
-      debugPrint('| ${r['Test ID']} | ${r['Scenario']} | ${r['Result']} |');
+      final id = r['Test ID']!.padRight(8);
+      final scenario = r['Scenario']!.padRight(49);
+      final result = r['Result']!.padRight(8);
+      debugPrint('| $id | $scenario | $result |');
     }
-    debugPrint('==============================\n');
+
+    debugPrint('================================================================\n');
   });
 }
