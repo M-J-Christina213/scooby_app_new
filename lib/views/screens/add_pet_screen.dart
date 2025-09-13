@@ -279,7 +279,7 @@ class _AddPetScreenState extends State<AddPetScreen> {
                     final items = const ['Dog', 'Cat'];
                     final safeValue = items.contains(value) ? value : null;
                     return DropdownButtonFormField<String>(
-                      value: safeValue,
+                      initialValue: safeValue,
                       hint: const Text('Select type'),
                       decoration: InputDecoration(labelText: 'Type *', border: inputBorder),
                       items: items.map((e) => DropdownMenuItem(value: e, child: Text(e))).toList(),
@@ -313,7 +313,7 @@ class _AddPetScreenState extends State<AddPetScreen> {
                     final items = const ['Male', 'Female'];
                     final safeValue = items.contains(value) ? value : null;
                     return DropdownButtonFormField<String>(
-                      value: safeValue,
+                      initialValue: safeValue,
                       hint: const Text('Select gender'),
                       decoration: InputDecoration(labelText: 'Gender *', border: inputBorder),
                       items: items.map((e) => DropdownMenuItem(value: e, child: Text(e))).toList(),

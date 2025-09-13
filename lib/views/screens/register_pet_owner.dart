@@ -296,7 +296,7 @@ class _PetOwnerRegisterScreenState extends State<PetOwnerRegisterScreen> {
                     const SizedBox(height: 16),
 
                     DropdownButtonFormField<String>(
-                      value: _cities.contains(_selectedCity) ? _selectedCity : null,
+                      initialValue: _cities.contains(_selectedCity) ? _selectedCity : null,
                       hint: const Text('Select a city'),
                       items: _cities
                           .map((city) =>

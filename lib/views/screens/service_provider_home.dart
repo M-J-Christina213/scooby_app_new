@@ -181,9 +181,9 @@ class _ServiceProviderHomeState extends State<ServiceProviderHome>
           surfaceTintColor: Colors.white,
           elevation: 3,
           backgroundColor: Colors.white,
-          labelTextStyle: MaterialStateProperty.resolveWith<TextStyle?>(
+          labelTextStyle: WidgetStateProperty.resolveWith<TextStyle?>(
                 (states) {
-              final selected = states.contains(MaterialState.selected);
+              final selected = states.contains(WidgetState.selected);
               return TextStyle(
                 fontWeight: selected ? FontWeight.w800 : FontWeight.w600,
                 color: selected ? const Color(0xFF842EAC) : Colors.black87,
