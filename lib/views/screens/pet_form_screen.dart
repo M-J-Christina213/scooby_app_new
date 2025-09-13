@@ -1,3 +1,5 @@
+// ignore_for_file: deprecated_member_use
+
 import 'package:flutter/material.dart';
 import 'package:scooby_app_new/controllers/pet_form_controller.dart';
 import 'package:scooby_app_new/controllers/pet_service.dart';
