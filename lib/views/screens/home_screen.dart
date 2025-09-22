@@ -2,6 +2,7 @@
 
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
+import 'package:scooby_app_new/models/pet.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 import 'package:scooby_app_new/views/screens/login_screen.dart';
@@ -218,129 +219,308 @@ class _HomeScreenState extends State<HomeScreen> {
   }
 
   Future<void> _loadNotifications() async {
-    if (currentUserId.isEmpty) return;
-    setState(() => _loadingNotifs = true);
+  if (currentUserId.isEmpty) return;
+  setState(() => _loadingNotifs = true);
 
-    final List<Map<String, dynamic>> list = [];
+  final List<Map<String, dynamic>> list = [];
 
-    try {
-      final ownerId = await _ensureOwnerId();
-      if (ownerId != null) {
-        final bookings = await BookingController()
-            .getUserBookingsNeedingNotification(ownerId);
+  try {
+    final ownerId = await _ensureOwnerId();
+    if (ownerId != null) {
+      // === Booking Notifications ===
+      final bookings = await BookingController()
+          .getUserBookingsNeedingNotification(ownerId);
 
-        for (final Booking b in bookings) {
-          final dateStr = DateFormat('EEE, MMM d').format(b.date);
-          final title = 'Booking ${b.status}';
-          final body = 'For ${b.petName} • $dateStr at ${b.time}';
+      for (final Booking b in bookings) {
+        final dateStr = DateFormat('EEE, MMM d').format(b.date);
+        final title = 'Booking ${b.status}';
+        final body = 'For ${b.petName} • $dateStr at ${b.time}';
+        list.add({
+          'id': b.id,
+          'type': 'booking',
+          'title': title,
+          'body': body,
+          'created_at': b.createdAt.toIso8601String(),
+          'is_read': false,
+          'local': false,
+        });
+      }
+
+      final upcoming = await BookingController().getUpcomingBookings(ownerId, withinHours: 24);
+      for (final Booking b in upcoming) {
+        final reminderId = 'reminder_${b.id}';
+        if (_dismissedReminderNotifs.contains(reminderId)) continue;
+
+        final dt = _combineDateAndTime(b.date, b.time);
+        final whenText = (dt != null)
+            ? '${DateFormat('EEE, MMM d').format(dt)} at ${DateFormat('h:mm a').format(dt)}'
+            : '${DateFormat('EEE, MMM d').format(b.date)} at ${b.time}';
+
+        list.add({
+          'id': reminderId,
+          'type': 'reminder',
+          'title': 'Upcoming booking',
+          'body': 'For ${b.petName} • $whenText',
+          'created_at': DateTime.now().toIso8601String(),
+          'reminder_at': (dt ?? b.date).toIso8601String(),
+          'is_read': false,
+          'local': true,
+        });
+      }
+    }
+  } catch (_) {
+    // ignore
+  }
+
+  // === Personalized Pet Notifications ===
+  try {
+    final pets = await PetService.instance.fetchPetsForUser(currentUserId);
+
+    for (final Pet p in pets) {
+      final petName = p.name;
+      final petType = p.type.toLowerCase();
+      final petAge = p.age;
+      DateTime? dob;
+      if (p.dob != null && p.dob!.isNotEmpty) {
+        dob = DateTime.tryParse(p.dob!);
+      }
+
+      // 1️⃣ Feeding Time
+      String? feedMsg;
+      if (petType == 'puppy') {
+        feedMsg = "Hi, $petName's feeding time! Make sure to give them their meals 🐶🍽️";
+      } else if (petType == 'adult cat') {
+        feedMsg = "Hi, $petName's feeding time! Give their usual meal 🐱🍽️";
+      }
+      if (feedMsg != null) {
+        list.add({
+          'id': 'feed_${p.id}',
+          'type': 'personal',
+          'title': 'Feeding Reminder',
+          'body': feedMsg,
+          'created_at': DateTime.now().toIso8601String(),
+          'is_read': false,
+          'local': true,
+        });
+      }
+
+      // 2️⃣ Vaccination / Vet Reminders
+      if (petType.contains('puppy') && petAge < 1) {
+        list.add({
+          'id': 'vet_${p.id}',
+          'type': 'personal',
+          'title': 'Vet Reminder',
+          'body': "Hi, $petName's vaccination is due soon. Don’t forget to book an appointment 🐶💉",
+          'created_at': DateTime.now().toIso8601String(),
+          'is_read': false,
+          'local': true,
+        });
+      } else if (petType.contains('cat') && petAge >= 1) {
+        list.add({
+          'id': 'vet_${p.id}',
+          'type': 'personal',
+          'title': 'Vet Checkup Reminder',
+          'body': "Hi, $petName's annual vet check-up is coming up 🐱",
+          'created_at': DateTime.now().toIso8601String(),
+          'is_read': false,
+          'local': true,
+        });
+      }
+
+      // 3️⃣ Activity / Exercise Alerts
+      if (petType.contains('dog')) {
+        if (petAge < 2) {
           list.add({
-            'id': b.id,
-            'type': 'booking',
-            'title': title,
-            'body': body,
-            'created_at': b.createdAt.toIso8601String(),
+            'id': 'exercise_${p.id}',
+            'type': 'personal',
+            'title': 'Exercise Reminder',
+            'body': "$petName needs their evening walk — energetic pups love exercise! 🐾",
+            'created_at': DateTime.now().toIso8601String(),
             'is_read': false,
-            'local': false,
+            'local': true,
+          });
+        } else if (petAge >= 7) {
+          list.add({
+            'id': 'exercise_${p.id}',
+            'type': 'personal',
+            'title': 'Gentle Walk Reminder',
+            'body': "A short gentle walk will keep $petName's joints healthy 🐾",
+            'created_at': DateTime.now().toIso8601String(),
+            'is_read': false,
+            'local': true,
           });
         }
+      } else if (petType.contains('cat')) {
+        list.add({
+          'id': 'play_${p.id}',
+          'type': 'personal',
+          'title': 'Playtime Reminder',
+          'body': "Playtime with $petName keeps them active and happy 🐱",
+          'created_at': DateTime.now().toIso8601String(),
+          'is_read': false,
+          'local': true,
+        });
+      }
 
-        final upcoming =
-        await BookingController().getUpcomingBookings(ownerId, withinHours: 24);
-        for (final Booking b in upcoming) {
-          final reminderId = 'reminder_${b.id}';
-          if (_dismissedReminderNotifs.contains(reminderId)) continue;
+      // 4️⃣ Grooming / Care Reminders
+      if (petType.contains('dog')) {
+        list.add({
+          'id': 'groom_${p.id}',
+          'type': 'personal',
+          'title': 'Bath Reminder',
+          'body': "Hi, it's $petName's bath day 🛁🐾",
+          'created_at': DateTime.now().toIso8601String(),
+          'is_read': false,
+          'local': true,
+        });
+      } else if (petType.contains('cat') &&
+          (p.breed.toLowerCase().contains('long'))) {
+        list.add({
+          'id': 'brush_${p.id}',
+          'type': 'personal',
+          'title': 'Brushing Reminder',
+          'body': "Time to brush $petName's coat to keep it shiny ✨",
+          'created_at': DateTime.now().toIso8601String(),
+          'is_read': false,
+          'local': true,
+        });
+      }
 
-          final dt = _combineDateAndTime(b.date, b.time);
-          final whenText = (dt != null)
-              ? '${DateFormat('EEE, MMM d').format(dt)} at ${DateFormat('h:mm a').format(dt)}'
-              : '${DateFormat('EEE, MMM d').format(b.date)} at ${b.time}';
+      // 5️⃣ Birthday Reminders
+      if (dob != null) {
+        final now = DateTime.now();
+        DateTime nextBday = DateTime(now.year, dob.month, dob.day);
+        if (nextBday.isBefore(now)) {
+          nextBday = DateTime(now.year + 1, dob.month, dob.day);
+        }
+        final daysLeft = nextBday.difference(now).inDays;
 
+        String? bdayMsg;
+        if (daysLeft == 30) {
+          bdayMsg = "🎂 $petName's birthday is in one month!";
+        } else if (daysLeft == 14) {
+          bdayMsg = "🐾 Only 2 weeks left until $petName's birthday!";
+        } else if (daysLeft == 7) {
+          bdayMsg = "⏳ $petName's birthday is in a week!";
+        } else if (daysLeft == 0) {
+          bdayMsg = "🎉 Happy Birthday $petName! Give extra treats ❤️";
+        }
+
+        if (bdayMsg != null) {
           list.add({
-            'id': reminderId,
-            'type': 'reminder',
-            'title': 'Upcoming booking',
-            'body': 'For ${b.petName} • $whenText',
+            'id': 'birthday_${p.id}_${nextBday.year}',
+            'type': 'personal',
+            'title': 'Birthday Reminder 🎂',
+            'body': bdayMsg,
             'created_at': DateTime.now().toIso8601String(),
-            'reminder_at': (dt ?? b.date).toIso8601String(),
             'is_read': false,
             'local': true,
           });
         }
       }
-    } catch (_) {
-      // ignore
-    }
 
-    try {
-      final rows = await _sb
-          .from('notifications')
-          .select('id, title, body, created_at, is_read')
-          .eq('user_id', currentUserId)
-          .order('created_at', ascending: false)
-          .limit(50);
-
-      final dbList = (rows as List).map<Map<String, dynamic>>((r) {
-        return {
-          'id': r['id'],
-          'type': 'db',
-          'title': r['title'] ?? 'Notification',
-          'body': r['body'] ?? '',
-          'created_at': r['created_at'],
-          'is_read': r['is_read'] ?? false,
-          'local': false,
-        };
-      }).toList();
-
-      list.addAll(dbList);
-    } catch (_) {
-      // ignore
-    }
-
-    final virtual = _buildWalkVirtualNotif();
-    if (virtual != null &&
-        !_dismissedLocalNotifs.contains(virtual['id'] as String)) {
-      list.add(virtual);
-    }
-
-    // Sort logic
-    int priority(Map n) {
-      switch (n['type']) {
-        case 'walk': return 3;
-        case 'reminder': return 2;
-        case 'booking': return 1;
-        default: return 0;
-      }   
-    }
-
-    DateTime ts(Map n) {
-      if (n['type'] == 'reminder' && n['reminder_at'] is String) {
-        return DateTime.tryParse(n['reminder_at'] as String) ??
-            DateTime.fromMillisecondsSinceEpoch(0);
+      // 6️⃣ Health Tips
+      if (petType.contains('puppy') && petAge < 1) {
+        list.add({
+          'id': 'health_${p.id}',
+          'type': 'personal',
+          'title': 'Health Tip',
+          'body': "$petName is still growing! Make sure they get enough calcium 🍼",
+          'created_at': DateTime.now().toIso8601String(),
+          'is_read': false,
+          'local': true,
+        });
+      } else if (petType.contains('cat') && petAge >= 10) {
+        list.add({
+          'id': 'health_${p.id}',
+          'type': 'personal',
+          'title': 'Health Tip',
+          'body': "$petName is a senior now — keep meals light and easy to digest 🐱",
+          'created_at': DateTime.now().toIso8601String(),
+          'is_read': false,
+          'local': true,
+        });
       }
-      if (n['created_at'] is String) {
-        return DateTime.tryParse(n['created_at'] as String) ??
-            DateTime.fromMillisecondsSinceEpoch(0);
-      }
-      return DateTime.fromMillisecondsSinceEpoch(0);
     }
-
-    list.sort((a, b) {
-      final pa = priority(a), pb = priority(b);
-      if (pa != pb) return pb.compareTo(pa);
-      if (a['type'] == 'reminder' && b['type'] == 'reminder') {
-        return ts(a).compareTo(ts(b));
-      }
-      return ts(b).compareTo(ts(a));
-    });
-
-    if (!mounted) return;
-    setState(() {
-      _notifs = list;
-      _unreadCount =
-          _notifs.where((n) => (n['is_read'] as bool?) == false).length;
-      _loadingNotifs = false;
-    });
+  } catch (_) {
+    // ignore errors fetching pets
   }
+
+  // === Load from DB ===
+  try {
+    final rows = await _sb
+        .from('notifications')
+        .select('id, title, body, created_at, is_read')
+        .eq('user_id', currentUserId)
+        .order('created_at', ascending: false)
+        .limit(50);
+
+    final dbList = (rows as List).map<Map<String, dynamic>>((r) {
+      return {
+        'id': r['id'],
+        'type': 'db',
+        'title': r['title'] ?? 'Notification',
+        'body': r['body'] ?? '',
+        'created_at': r['created_at'],
+        'is_read': r['is_read'] ?? false,
+        'local': false,
+      };
+    }).toList();
+
+    list.addAll(dbList);
+  } catch (_) {
+    // ignore
+  }
+
+  final virtual = _buildWalkVirtualNotif();
+  if (virtual != null &&
+      !_dismissedLocalNotifs.contains(virtual['id'] as String)) {
+    list.add(virtual);
+  }
+
+  // Sort notifications
+  int priority(Map n) {
+    switch (n['type']) {
+      case 'walk':
+        return 3;
+      case 'reminder':
+        return 2;
+      case 'booking':
+        return 1;
+      default:
+        return 0;
+    }
+  }
+
+  DateTime ts(Map n) {
+    if (n['type'] == 'reminder' && n['reminder_at'] is String) {
+      return DateTime.tryParse(n['reminder_at'] as String) ??
+          DateTime.fromMillisecondsSinceEpoch(0);
+    }
+    if (n['created_at'] is String) {
+      return DateTime.tryParse(n['created_at'] as String) ??
+          DateTime.fromMillisecondsSinceEpoch(0);
+    }
+    return DateTime.fromMillisecondsSinceEpoch(0);
+  }
+
+  list.sort((a, b) {
+    final pa = priority(a), pb = priority(b);
+    if (pa != pb) return pb.compareTo(pa);
+    if (a['type'] == 'reminder' && b['type'] == 'reminder') {
+      return ts(a).compareTo(ts(b));
+    }
+    return ts(b).compareTo(ts(a));
+  });
+
+  if (!mounted) return;
+  setState(() {
+    _notifs = list;
+    _unreadCount =
+        _notifs.where((n) => (n['is_read'] as bool?) == false).length;
+    _loadingNotifs = false;
+  });
+}
 
   Map<String, dynamic>? _buildWalkVirtualNotif() {
     if (_isInWalkWindow && _nextWalkEnd != null) {

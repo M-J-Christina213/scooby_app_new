@@ -65,6 +65,8 @@ class Pet {
     );
   }
 
+  get dob => null;
+
   Map<String, dynamic> toJson({bool forInsert = false}) {
     final map = <String, dynamic>{
       'user_id': userId,
