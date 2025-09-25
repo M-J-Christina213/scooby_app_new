@@ -210,10 +210,7 @@ class _HomeScreenState extends State<HomeScreen> {
   }
 
   
-
 Future<void> _loadNotifications({bool testing = false}) async {
-
-  
   if (currentUserId.isEmpty) return;
 
   setState(() => _loadingNotifs = true);
@@ -222,18 +219,42 @@ Future<void> _loadNotifications({bool testing = false}) async {
   final now = DateTime.now();
 
   try {
-    final ownerId = await _ensureOwnerId();
-    if (ownerId == null) return;
+    // ────────────── Fetch pets ──────────────
+    final pets = testing
+        ? [
+            Pet(
+              userId: 'testUser',
+              id: 'pet1',
+              name: 'Fluffy',
+              type: 'Dog',
+              breed: 'Golden Retriever',
+              age: 3,
+              gender: 'Male',
+              createdAt: DateTime.now().subtract(const Duration(days: 1000)),
+              allergies: 'Test Allergy',
+              breakfastTime: '07:00',
+              lunchTime: '13:00',
+              snackTime: '16:00',
+              dinnerTime: '20:00',
+            ),
+          ]
+        : await PetService.instance.fetchPetsForUser(currentUserId);
 
-    // ────────────── Fetch all pets once ──────────────
-    final pets = await PetService.instance.fetchPetsForUser(currentUserId);
-
-    // ────────────── Booking notifications ──────────────
-    final bookings =
-        await BookingController().getUserBookingsNeedingNotification(ownerId);
-
-    // fetch all pets in parallel
     final petMap = {for (var pet in pets) pet.id: pet};
+
+    // ────────────── Bookings ──────────────
+    final bookings = testing
+        ? [
+            Booking(
+              id: 'b1',
+              petId: 'pet1',
+              status: 'Confirmed',
+              date: now,
+              time: '14:00',
+              createdAt: now, petName: '', serviceProviderEmail: '', ownerId: '', ownerName: '', ownerPhone: '', ownerEmail: '',
+            ),
+          ]
+        : await BookingController().getUserBookingsNeedingNotification(await _ensureOwnerId() ?? '');
 
     for (final b in bookings) {
       final pet = petMap[b.petId];
@@ -253,23 +274,13 @@ Future<void> _loadNotifications({bool testing = false}) async {
 
     // ────────────── Birthday, Meals & Health ──────────────
     for (final pet in pets) {
-      final dob = testing ? now : (pet.createdAt ?? now);
-      final allergies = testing ? "Test Allergy" : (pet.allergies ?? "none");
-
-      // Meal times
-      final meals = {
-        'Breakfast': testing ? "07:00" : (pet.breakfastTime ?? "07:00"),
-        'Lunch': testing ? "13:00" : (pet.lunchTime ?? "13:00"),
-        'Snack': testing ? "16:00" : (pet.snackTime ?? "16:00"),
-        'Dinner': testing ? "20:00" : (pet.dinnerTime ?? "20:00"),
-      };
-
       // Birthday
+      final dob = testing ? now : (pet.createdAt ?? now);
       final nextBday = DateTime(now.year, dob.month, dob.day).isBefore(now)
           ? DateTime(now.year + 1, dob.month, dob.day)
           : DateTime(now.year, dob.month, dob.day);
-
       final daysLeft = nextBday.difference(now).inDays;
+
       String? bdayMsg;
       if (testing || daysLeft == 30) {
         bdayMsg = "🎂 ${pet.name}'s birthday is in one month!";
@@ -280,6 +291,7 @@ Future<void> _loadNotifications({bool testing = false}) async {
       } else if (daysLeft == 0) {
         bdayMsg = "🎉 Happy Birthday ${pet.name}!";
       }
+
       if (bdayMsg != null) {
         list.add({
           'id': 'birthday-${pet.id}',
@@ -292,16 +304,17 @@ Future<void> _loadNotifications({bool testing = false}) async {
         });
       }
 
-        DateTime combineDateAndTime(DateTime date, String hhmm) {
-        final parts = hhmm.split(':');
-        final h = int.tryParse(parts[0]) ?? 0;
-        final m = int.tryParse(parts[1]) ?? 0;
-        return DateTime(date.year, date.month, date.day, h, m);
-      }
-
       // Meals
+      final allergies = testing ? "Test Allergy" : (pet.allergies ?? "none");
+      final meals = {
+        'Breakfast': testing ? "07:00" : (pet.breakfastTime ?? "07:00"),
+        'Lunch': testing ? "13:00" : (pet.lunchTime ?? "13:00"),
+        'Snack': testing ? "16:00" : (pet.snackTime ?? "16:00"),
+        'Dinner': testing ? "20:00" : (pet.dinnerTime ?? "20:00"),
+      };
+
       meals.forEach((mealName, timeStr) {
-        final mealTime = combineDateAndTime(now, timeStr);
+        final mealTime = _combineDateAndTime(now, timeStr);
         if (testing ||
             (now.isAfter(mealTime.subtract(const Duration(minutes: 15))) &&
                 now.isBefore(mealTime.add(const Duration(minutes: 15))))) {
@@ -317,11 +330,11 @@ Future<void> _loadNotifications({bool testing = false}) async {
         }
       });
 
-      // Health reminders (fake testing dates)
+      // Health reminders
       final healthDue = <String, DateTime>{
-        'Vaccination': testing ? now : (pet.vaccinationDate ?? now),
-        'Medical Checkup': testing ? now : (pet.medicalCheckupDate ?? now),
-        'Prescription Renewal': testing ? now : (pet.prescriptionDate ?? now),
+        'Vaccination': now,
+        'Medical Checkup': now,
+        'Prescription Renewal': now,
       };
 
       healthDue.forEach((key, date) {
@@ -349,8 +362,14 @@ Future<void> _loadNotifications({bool testing = false}) async {
     debugPrint('Error loading notifications: $e');
     setState(() => _loadingNotifs = false);
   }
+}
 
-  
+// ────────────── Helper ──────────────
+DateTime _combineDateAndTime(DateTime date, String hhmm) {
+  final parts = hhmm.split(':');
+  final h = int.tryParse(parts[0]) ?? 0;
+  final m = int.tryParse(parts[1]) ?? 0;
+  return DateTime(date.year, date.month, date.day, h, m);
 }
 
 
