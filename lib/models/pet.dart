@@ -10,15 +10,23 @@ class Pet {
   final double? weight;
   final double? height;
   final String? medicalHistory;
-  final String? allergies; // Keep as allergies in the model for UI consistency
-  
+  final String? allergies;
   final String? description;
   final String? imageUrl;
   final DateTime? createdAt;
-
-  // NEW: walking time (Postgres "time" columns; send as 'HH:mm:ss')
   final String? startWalkingTime;
   final String? endWalkingTime;
+
+  // Health-related fields
+  final DateTime? vaccinationDate;
+  final DateTime? medicalCheckupDate;
+  final DateTime? prescriptionDate;
+
+  // Meal schedule (HH:mm)
+  final String? breakfastTime;
+  final String? lunchTime;
+  final String? snackTime;
+  final String? dinnerTime;
 
   Pet({
     required this.id,
@@ -38,6 +46,13 @@ class Pet {
     this.createdAt,
     this.startWalkingTime,
     this.endWalkingTime,
+    this.breakfastTime,
+    this.lunchTime,
+    this.snackTime,
+    this.dinnerTime,
+    this.vaccinationDate,
+    this.medicalCheckupDate,
+    this.prescriptionDate,
   });
 
   factory Pet.fromJson(Map<String, dynamic> json) {
@@ -53,7 +68,6 @@ class Pet {
       weight: (json['weight'] as num?)?.toDouble(),
       height: (json['height'] as num?)?.toDouble(),
       medicalHistory: json['medical_history'],
-      // FIX: Map database field 'food_preference' to model field 'allergies'
       allergies: json['food_preference'],
       description: json['description'],
       imageUrl: json['image_url'],
@@ -62,10 +76,12 @@ class Pet {
           : null,
       startWalkingTime: json['start_walking_time'],
       endWalkingTime: json['end_walking_time'],
+      breakfastTime: json['breakfast_time'],
+      lunchTime: json['lunch_time'],
+      snackTime: json['snack_time'],
+      dinnerTime: json['dinner_time'],
     );
   }
-
-  get dob => null;
 
   Map<String, dynamic> toJson({bool forInsert = false}) {
     final map = <String, dynamic>{
@@ -79,12 +95,15 @@ class Pet {
       'weight': weight,
       'height': height,
       'medical_history': medicalHistory,
-      // FIX: Map model field 'allergies' to database field 'food_preference'
       'food_preference': allergies,
       'description': description,
       'image_url': imageUrl,
       'start_walking_time': startWalkingTime,
       'end_walking_time': endWalkingTime,
+      'breakfast_time': breakfastTime,
+      'lunch_time': lunchTime,
+      'snack_time': snackTime,
+      'dinner_time': dinnerTime,
     };
 
     if (!forInsert) {

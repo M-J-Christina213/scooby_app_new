@@ -1,4 +1,4 @@
-// ignore_for_file: deprecated_member_use, use_build_context_synchronously
+// ignore_for_file: deprecated_member_use, use_build_context_synchronously, unused_import, unnecessary_null_comparison
 
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
@@ -53,7 +53,7 @@ class _HomeScreenState extends State<HomeScreen> {
   DateTime? _nextWalkEnd;
   bool _isInWalkWindow = false;
   bool _loadingWalk = false;
-  DateTime? _lastWalkUpdate; // ADDED: Track last update time
+  DateTime? _lastWalkUpdate; // Track last update time
 
   // Pet names for walk windows
   String? _currentWalkPet;
@@ -107,16 +107,15 @@ class _HomeScreenState extends State<HomeScreen> {
 
     _bootstrap();
   }
-//
+
   Future<void> _bootstrap() async {
     await _ensureOwnerId();
-    await _loadData(); // FIXED: Make sure this completes first
-    await _refreshHasPets(); // FIXED: Remove duplicate calls
+    await _loadData();
+    await _refreshHasPets();
     await _loadWalkInfo();
     await _loadNotifications();
   }
 
-  // FIXED: Remove the infinite loop in _refreshHasPets
   Future<void> _refreshHasPets() async {
     if (currentUserId.isEmpty) {
       setState(() => hasPets = false);
@@ -130,7 +129,6 @@ class _HomeScreenState extends State<HomeScreen> {
       if (!mounted) return;
       setState(() => hasPets = false);
     }
-    // REMOVED: The recursive call that was causing infinite loop
   }
 
   Future<void> _loadData() async {
@@ -142,13 +140,11 @@ class _HomeScreenState extends State<HomeScreen> {
       );
       final recommended = sampleRecommendedProviders;
 
-      if (!mounted) return; // ADDED: Check mounted state
+      if (!mounted) return;
       setState(() {
         nearbyProviders = nearby;
         recommendedProviders = recommended;
       });
-
-      // REMOVED: Duplicate calls that were causing excessive refreshing
     } catch (_) {
       if (!mounted) return;
       setState(() {
@@ -160,33 +156,28 @@ class _HomeScreenState extends State<HomeScreen> {
     }
   }
 
-  // FIXED: Add throttling to prevent excessive walk info updates
   Future<void> _loadWalkInfo() async {
     if (currentUserId.isEmpty) return;
-    
-    // ADDED: Throttling - only update if it's been more than 30 seconds
     final now = DateTime.now();
-    if (_lastWalkUpdate != null && 
+    if (_lastWalkUpdate != null &&
         now.difference(_lastWalkUpdate!).inSeconds < 30) {
       return;
     }
-    
+
     setState(() => _loadingWalk = true);
 
     try {
       final res = await PetService.instance.getWalkWindowForUser(currentUserId);
-
       if (!mounted) return;
       setState(() {
         _isInWalkWindow = res.isInWindow;
         _nextWalkStart = res.isInWindow ? res.currentStart : res.nextStart;
-        _nextWalkEnd   = res.isInWindow ? res.currentEnd   : res.nextEnd;
+        _nextWalkEnd = res.isInWindow ? res.currentEnd : res.nextEnd;
         _currentWalkPet = res.currentPetName;
-        _nextWalkPet    = res.nextPetName;
+        _nextWalkPet = res.nextPetName;
         _loadingWalk = false;
-        _lastWalkUpdate = now; // ADDED: Track update time
+        _lastWalkUpdate = now;
       });
-
       _mergeWalkVirtualIntoNotifs();
     } catch (e) {
       if (!mounted) return;
@@ -197,7 +188,7 @@ class _HomeScreenState extends State<HomeScreen> {
         _currentWalkPet = null;
         _nextWalkPet = null;
         _loadingWalk = false;
-        _lastWalkUpdate = now; // ADDED: Track update time even on error
+        _lastWalkUpdate = now;
       });
       _mergeWalkVirtualIntoNotifs();
     }
@@ -218,311 +209,155 @@ class _HomeScreenState extends State<HomeScreen> {
     return _ownerId;
   }
 
-  Future<void> _loadNotifications() async {
+  
+
+Future<void> _loadNotifications({bool testing = false}) async {
+
+  
   if (currentUserId.isEmpty) return;
+
   setState(() => _loadingNotifs = true);
 
   final List<Map<String, dynamic>> list = [];
+  final now = DateTime.now();
 
   try {
     final ownerId = await _ensureOwnerId();
-    if (ownerId != null) {
-      // === Booking Notifications ===
-      final bookings = await BookingController()
-          .getUserBookingsNeedingNotification(ownerId);
+    if (ownerId == null) return;
 
-      for (final Booking b in bookings) {
+    // ────────────── Fetch all pets once ──────────────
+    final pets = await PetService.instance.fetchPetsForUser(currentUserId);
+
+    // ────────────── Booking notifications ──────────────
+    final bookings =
+        await BookingController().getUserBookingsNeedingNotification(ownerId);
+
+    // fetch all pets in parallel
+    final petMap = {for (var pet in pets) pet.id: pet};
+
+    for (final b in bookings) {
+      final pet = petMap[b.petId];
+      if (pet != null) {
         final dateStr = DateFormat('EEE, MMM d').format(b.date);
-        final title = 'Booking ${b.status}';
-        final body = 'For ${b.petName} • $dateStr at ${b.time}';
         list.add({
           'id': b.id,
           'type': 'booking',
-          'title': title,
-          'body': body,
+          'title': '📅 Booking ${b.status}',
+          'body': 'For ${pet.name} • $dateStr at ${b.time}',
           'created_at': b.createdAt.toIso8601String(),
           'is_read': false,
           'local': false,
         });
       }
-
-      final upcoming = await BookingController().getUpcomingBookings(ownerId, withinHours: 24);
-      for (final Booking b in upcoming) {
-        final reminderId = 'reminder_${b.id}';
-        if (_dismissedReminderNotifs.contains(reminderId)) continue;
-
-        final dt = _combineDateAndTime(b.date, b.time);
-        final whenText = (dt != null)
-            ? '${DateFormat('EEE, MMM d').format(dt)} at ${DateFormat('h:mm a').format(dt)}'
-            : '${DateFormat('EEE, MMM d').format(b.date)} at ${b.time}';
-
-        list.add({
-          'id': reminderId,
-          'type': 'reminder',
-          'title': 'Upcoming booking',
-          'body': 'For ${b.petName} • $whenText',
-          'created_at': DateTime.now().toIso8601String(),
-          'reminder_at': (dt ?? b.date).toIso8601String(),
-          'is_read': false,
-          'local': true,
-        });
-      }
     }
-  } catch (_) {
-    // ignore
-  }
 
-  // === Personalized Pet Notifications ===
-  try {
-    final pets = await PetService.instance.fetchPetsForUser(currentUserId);
+    // ────────────── Birthday, Meals & Health ──────────────
+    for (final pet in pets) {
+      final dob = testing ? now : (pet.createdAt ?? now);
+      final allergies = testing ? "Test Allergy" : (pet.allergies ?? "none");
 
-    for (final Pet p in pets) {
-      final petName = p.name;
-      final petType = p.type.toLowerCase();
-      final petAge = p.age;
-      DateTime? dob;
-      if (p.dob != null && p.dob!.isNotEmpty) {
-        dob = DateTime.tryParse(p.dob!);
-      }
-
-      // 1️⃣ Feeding Time
-      String? feedMsg;
-      if (petType == 'puppy') {
-        feedMsg = "Hi, $petName's feeding time! Make sure to give them their meals 🐶🍽️";
-      } else if (petType == 'adult cat') {
-        feedMsg = "Hi, $petName's feeding time! Give their usual meal 🐱🍽️";
-      }
-      if (feedMsg != null) {
-        list.add({
-          'id': 'feed_${p.id}',
-          'type': 'personal',
-          'title': 'Feeding Reminder',
-          'body': feedMsg,
-          'created_at': DateTime.now().toIso8601String(),
-          'is_read': false,
-          'local': true,
-        });
-      }
-
-      // 2️⃣ Vaccination / Vet Reminders
-      if (petType.contains('puppy') && petAge < 1) {
-        list.add({
-          'id': 'vet_${p.id}',
-          'type': 'personal',
-          'title': 'Vet Reminder',
-          'body': "Hi, $petName's vaccination is due soon. Don’t forget to book an appointment 🐶💉",
-          'created_at': DateTime.now().toIso8601String(),
-          'is_read': false,
-          'local': true,
-        });
-      } else if (petType.contains('cat') && petAge >= 1) {
-        list.add({
-          'id': 'vet_${p.id}',
-          'type': 'personal',
-          'title': 'Vet Checkup Reminder',
-          'body': "Hi, $petName's annual vet check-up is coming up 🐱",
-          'created_at': DateTime.now().toIso8601String(),
-          'is_read': false,
-          'local': true,
-        });
-      }
-
-      // 3️⃣ Activity / Exercise Alerts
-      if (petType.contains('dog')) {
-        if (petAge < 2) {
-          list.add({
-            'id': 'exercise_${p.id}',
-            'type': 'personal',
-            'title': 'Exercise Reminder',
-            'body': "$petName needs their evening walk — energetic pups love exercise! 🐾",
-            'created_at': DateTime.now().toIso8601String(),
-            'is_read': false,
-            'local': true,
-          });
-        } else if (petAge >= 7) {
-          list.add({
-            'id': 'exercise_${p.id}',
-            'type': 'personal',
-            'title': 'Gentle Walk Reminder',
-            'body': "A short gentle walk will keep $petName's joints healthy 🐾",
-            'created_at': DateTime.now().toIso8601String(),
-            'is_read': false,
-            'local': true,
-          });
-        }
-      } else if (petType.contains('cat')) {
-        list.add({
-          'id': 'play_${p.id}',
-          'type': 'personal',
-          'title': 'Playtime Reminder',
-          'body': "Playtime with $petName keeps them active and happy 🐱",
-          'created_at': DateTime.now().toIso8601String(),
-          'is_read': false,
-          'local': true,
-        });
-      }
-
-      // 4️⃣ Grooming / Care Reminders
-      if (petType.contains('dog')) {
-        list.add({
-          'id': 'groom_${p.id}',
-          'type': 'personal',
-          'title': 'Bath Reminder',
-          'body': "Hi, it's $petName's bath day 🛁🐾",
-          'created_at': DateTime.now().toIso8601String(),
-          'is_read': false,
-          'local': true,
-        });
-      } else if (petType.contains('cat') &&
-          (p.breed.toLowerCase().contains('long'))) {
-        list.add({
-          'id': 'brush_${p.id}',
-          'type': 'personal',
-          'title': 'Brushing Reminder',
-          'body': "Time to brush $petName's coat to keep it shiny ✨",
-          'created_at': DateTime.now().toIso8601String(),
-          'is_read': false,
-          'local': true,
-        });
-      }
-
-      // 5️⃣ Birthday Reminders
-      if (dob != null) {
-        final now = DateTime.now();
-        DateTime nextBday = DateTime(now.year, dob.month, dob.day);
-        if (nextBday.isBefore(now)) {
-          nextBday = DateTime(now.year + 1, dob.month, dob.day);
-        }
-        final daysLeft = nextBday.difference(now).inDays;
-
-        String? bdayMsg;
-        if (daysLeft == 30) {
-          bdayMsg = "🎂 $petName's birthday is in one month!";
-        } else if (daysLeft == 14) {
-          bdayMsg = "🐾 Only 2 weeks left until $petName's birthday!";
-        } else if (daysLeft == 7) {
-          bdayMsg = "⏳ $petName's birthday is in a week!";
-        } else if (daysLeft == 0) {
-          bdayMsg = "🎉 Happy Birthday $petName! Give extra treats ❤️";
-        }
-
-        if (bdayMsg != null) {
-          list.add({
-            'id': 'birthday_${p.id}_${nextBday.year}',
-            'type': 'personal',
-            'title': 'Birthday Reminder 🎂',
-            'body': bdayMsg,
-            'created_at': DateTime.now().toIso8601String(),
-            'is_read': false,
-            'local': true,
-          });
-        }
-      }
-
-      // 6️⃣ Health Tips
-      if (petType.contains('puppy') && petAge < 1) {
-        list.add({
-          'id': 'health_${p.id}',
-          'type': 'personal',
-          'title': 'Health Tip',
-          'body': "$petName is still growing! Make sure they get enough calcium 🍼",
-          'created_at': DateTime.now().toIso8601String(),
-          'is_read': false,
-          'local': true,
-        });
-      } else if (petType.contains('cat') && petAge >= 10) {
-        list.add({
-          'id': 'health_${p.id}',
-          'type': 'personal',
-          'title': 'Health Tip',
-          'body': "$petName is a senior now — keep meals light and easy to digest 🐱",
-          'created_at': DateTime.now().toIso8601String(),
-          'is_read': false,
-          'local': true,
-        });
-      }
-    }
-  } catch (_) {
-    // ignore errors fetching pets
-  }
-
-  // === Load from DB ===
-  try {
-    final rows = await _sb
-        .from('notifications')
-        .select('id, title, body, created_at, is_read')
-        .eq('user_id', currentUserId)
-        .order('created_at', ascending: false)
-        .limit(50);
-
-    final dbList = (rows as List).map<Map<String, dynamic>>((r) {
-      return {
-        'id': r['id'],
-        'type': 'db',
-        'title': r['title'] ?? 'Notification',
-        'body': r['body'] ?? '',
-        'created_at': r['created_at'],
-        'is_read': r['is_read'] ?? false,
-        'local': false,
+      // Meal times
+      final meals = {
+        'Breakfast': testing ? "07:00" : (pet.breakfastTime ?? "07:00"),
+        'Lunch': testing ? "13:00" : (pet.lunchTime ?? "13:00"),
+        'Snack': testing ? "16:00" : (pet.snackTime ?? "16:00"),
+        'Dinner': testing ? "20:00" : (pet.dinnerTime ?? "20:00"),
       };
-    }).toList();
 
-    list.addAll(dbList);
-  } catch (_) {
-    // ignore
+      // Birthday
+      final nextBday = DateTime(now.year, dob.month, dob.day).isBefore(now)
+          ? DateTime(now.year + 1, dob.month, dob.day)
+          : DateTime(now.year, dob.month, dob.day);
+
+      final daysLeft = nextBday.difference(now).inDays;
+      String? bdayMsg;
+      if (testing || daysLeft == 30) {
+        bdayMsg = "🎂 ${pet.name}'s birthday is in one month!";
+      } else if (daysLeft == 14) {
+        bdayMsg = "🐾 Two weeks to ${pet.name}'s birthday!";
+      } else if (daysLeft == 7) {
+        bdayMsg = "⏳ ${pet.name}'s birthday is in a week!";
+      } else if (daysLeft == 0) {
+        bdayMsg = "🎉 Happy Birthday ${pet.name}!";
+      }
+      if (bdayMsg != null) {
+        list.add({
+          'id': 'birthday-${pet.id}',
+          'type': 'birthday',
+          'title': '🎂 Birthday Reminder',
+          'body': bdayMsg,
+          'created_at': now.toIso8601String(),
+          'is_read': false,
+          'local': true,
+        });
+      }
+
+        DateTime combineDateAndTime(DateTime date, String hhmm) {
+        final parts = hhmm.split(':');
+        final h = int.tryParse(parts[0]) ?? 0;
+        final m = int.tryParse(parts[1]) ?? 0;
+        return DateTime(date.year, date.month, date.day, h, m);
+      }
+
+      // Meals
+      meals.forEach((mealName, timeStr) {
+        final mealTime = combineDateAndTime(now, timeStr);
+        if (testing ||
+            (now.isAfter(mealTime.subtract(const Duration(minutes: 15))) &&
+                now.isBefore(mealTime.add(const Duration(minutes: 15))))) {
+          list.add({
+            'id': 'meal-${pet.id}-$mealName',
+            'type': 'meal',
+            'title': '🍽 $mealName Time',
+            'body': "Time to feed ${pet.name}! Allergies: $allergies",
+            'created_at': now.toIso8601String(),
+            'is_read': false,
+            'local': true,
+          });
+        }
+      });
+
+      // Health reminders (fake testing dates)
+      final healthDue = <String, DateTime>{
+        'Vaccination': testing ? now : (pet.vaccinationDate ?? now),
+        'Medical Checkup': testing ? now : (pet.medicalCheckupDate ?? now),
+        'Prescription Renewal': testing ? now : (pet.prescriptionDate ?? now),
+      };
+
+      healthDue.forEach((key, date) {
+        final diffDays = date.difference(now).inDays;
+        if (testing || (diffDays <= 7 && diffDays >= 0)) {
+          list.add({
+            'id': 'health-${pet.id}-$key',
+            'type': 'health',
+            'title': '💊 $key Reminder',
+            'body':
+                "Hey! ${pet.name} might need $key soon. Keep up the great care! 🐾",
+            'created_at': now.toIso8601String(),
+            'is_read': false,
+            'local': true,
+          });
+        }
+      });
+    }
+
+    setState(() {
+      _notifs = list;
+      _loadingNotifs = false;
+    });
+  } catch (e) {
+    debugPrint('Error loading notifications: $e');
+    setState(() => _loadingNotifs = false);
   }
 
-  final virtual = _buildWalkVirtualNotif();
-  if (virtual != null &&
-      !_dismissedLocalNotifs.contains(virtual['id'] as String)) {
-    list.add(virtual);
-  }
-
-  // Sort notifications
-  int priority(Map n) {
-    switch (n['type']) {
-      case 'walk':
-        return 3;
-      case 'reminder':
-        return 2;
-      case 'booking':
-        return 1;
-      default:
-        return 0;
-    }
-  }
-
-  DateTime ts(Map n) {
-    if (n['type'] == 'reminder' && n['reminder_at'] is String) {
-      return DateTime.tryParse(n['reminder_at'] as String) ??
-          DateTime.fromMillisecondsSinceEpoch(0);
-    }
-    if (n['created_at'] is String) {
-      return DateTime.tryParse(n['created_at'] as String) ??
-          DateTime.fromMillisecondsSinceEpoch(0);
-    }
-    return DateTime.fromMillisecondsSinceEpoch(0);
-  }
-
-  list.sort((a, b) {
-    final pa = priority(a), pb = priority(b);
-    if (pa != pb) return pb.compareTo(pa);
-    if (a['type'] == 'reminder' && b['type'] == 'reminder') {
-      return ts(a).compareTo(ts(b));
-    }
-    return ts(b).compareTo(ts(a));
-  });
-
-  if (!mounted) return;
-  setState(() {
-    _notifs = list;
-    _unreadCount =
-        _notifs.where((n) => (n['is_read'] as bool?) == false).length;
-    _loadingNotifs = false;
-  });
+  
 }
 
-  Map<String, dynamic>? _buildWalkVirtualNotif() {
+
+
+  //END of notfications load
+
+   Map<String, dynamic>? _buildWalkVirtualNotif() {
     if (_isInWalkWindow && _nextWalkEnd != null) {
       final who = _currentWalkPet?.isNotEmpty == true ? ' (${_currentWalkPet!})' : '';
       return {
@@ -822,7 +657,7 @@ class _HomeScreenState extends State<HomeScreen> {
                           IconButton(
                             tooltip: 'Refresh',
                             onPressed: () async {
-                              await _loadNotifications();
+                              await _loadNotifications(testing:true);
                               modalSetState(() {});
                             },
                             icon: const Icon(Icons.refresh),
@@ -1337,7 +1172,7 @@ class _HomeScreenState extends State<HomeScreen> {
   }
 
   // Combine date + string time to DateTime (for reminders)
-  DateTime? _combineDateAndTime(DateTime date, String timeStr) {
+  DateTime? combineDateAndTime(DateTime date, String timeStr) {
     final TimeOfDay? tod = _parseTimeFlexible(timeStr);
     if (tod == null) return null;
     return DateTime(date.year, date.month, date.day, tod.hour, tod.minute);
@@ -1476,3 +1311,6 @@ class ServiceProviderCard extends StatelessWidget {
     );
   }
 }
+
+  
+

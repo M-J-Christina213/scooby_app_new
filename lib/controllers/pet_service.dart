@@ -191,6 +191,23 @@ class PetService {
     }
   }
 
+/// Fetch a single pet by its ID
+Future<Pet?> getPetById(String petId) async {
+  try {
+    final data = await supabase
+        .from('pets')
+        .select()
+        .eq('id', petId)
+        .maybeSingle();
+
+    if (data == null) return null;
+
+    return Pet.fromJson(data as Map<String, dynamic>);
+  } catch (e) {
+    debugPrint('getPetById error: $e');
+    return null;
+  }
+}
   // ────────────────────────────────────────────────────────────────────────────
   // Walking window (matches your schema exactly)
 
